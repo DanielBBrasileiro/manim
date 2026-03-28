@@ -135,6 +135,6 @@ Em vez de ícones, use os primitivos localizados em `core/primitives/`:
 
 ## ⚖️ 9. Conclusão e Qualidade
 
-O branding não é apenas uma ferramenta de automação; é uma fôrma de excelência. Ele garante que, não importa quem o opere, o resultado final terá o peso visual e a autoridade de uma marca de elite.
+branding não é apenas uma ferramenta de automação; é uma fôrma de excelência. Ele garante que, não importa quem o opere, o resultado final terá o peso visual e a autoridade de uma marca de elite.
 
 **O invisível agora é visível.** 🏛️🎬💎
