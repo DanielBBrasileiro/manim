@@ -1,0 +1,40 @@
+# contracts/typography.yaml v4
+
+fonts:
+  narrative:
+    family: "PP Neue Montreal, Inter, Helvetica Neue, sans-serif"
+    weights:
+      whisper: 300                 # Reflection
+      statement: 500               # Affirmation
+    
+  brand:
+    family: "Cal Sans"
+    weight: 600
+    use: "Only for final resolve logo"
+
+rules:
+  sizing:
+    vertical_9_16:
+      narrative_text: "clamp(1.5rem, 4vw, 2.5rem)"
+      brand_text: "0.875rem"
+    wide_16_9:
+      narrative_text: "clamp(1.2rem, 3vw, 2rem)"
+      brand_text: "0.75rem"
+      
+  behavior:
+    entrance: "fade_up_8px"        # Never snap. Always ease.
+    exit: "fade_down_4px"
+    sync_mode: "beat_aligned"       # Text enters on narrative beat
+    
+  anti_patterns:
+    - "NEVER use text-transform: uppercase in narrative texts"
+    - "NEVER use font-weight > 500 for body text"
+    - "NEVER put text inside containers (boxes/badges)"
+    - "NEVER use more than 2 font sizes per frame"
+    
+  positioning:
+    vertical_rule: >
+      Narrative text stays in 2 zones: 
+      top_zone (15% to 30% from top) or 
+      bottom_zone (70% to 85% from bottom).
+      NEVER in the vertical center (reserved for climax).

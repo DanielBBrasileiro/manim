@@ -1,0 +1,26 @@
+[
+  {
+    "event": "db_ready",
+    "timestamp_ms": 1000
+  },
+  {
+    "event": "db_fill_0",
+    "timestamp_ms": 2499
+  },
+  {
+    "event": "db_fill_1",
+    "timestamp_ms": 2999
+  },
+  {
+    "event": "db_fill_2",
+    "timestamp_ms": 3499
+  },
+  {
+    "event": "db_fill_3",
+    "timestamp_ms": 3999
+  },
+  {
+    "event": "db_fill_4",
+    "timestamp_ms": 4499
+  }
+]

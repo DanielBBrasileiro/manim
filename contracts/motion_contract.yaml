@@ -1,0 +1,17 @@
+# Motion Contract v3.0 (Elite Tier)
+# Rules for Physical Soul and Brand Body Language
+
+physics:
+  default_engine: "spring_v2"
+  stiffness: 120
+  damping: 14
+  mass: 1.0
+
+behaviours:
+  staggered_delay: 0.08    # Delay between list elements
+  impact_pulse: true       # Flash/Bloom on node arrival
+  arc_curvature: 0.4       # PI/X for data trajectories
+
+interpolation:
+  standard: "exponential_decay"
+  technical: "linear_packet"

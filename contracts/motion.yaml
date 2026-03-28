@@ -1,0 +1,32 @@
+# contracts/motion.yaml v4
+
+physics:
+  default_engine: spring
+  
+  presets:
+    gentle_birth: { stiffness: 40, damping: 26, mass: 1.2 }
+    tension_build: { stiffness: 160, damping: 10, mass: 0.8 }
+    elegant_settle: { stiffness: 80, damping: 22, mass: 1.0 }
+    hard_cut: { duration: 0 }        # No transition. Impact.
+
+  curve_behaviors:
+    sigmoid_growth:
+      function: "1 / (1 + exp(-k*(x-x0)))"
+      params: { k: 5, x0: 0.5 }
+      
+    noise_oscillation:
+      base: sigmoid_growth
+      noise_type: perlin
+      amplitude_curve: "linear_ramp 0→0.4"
+      
+    chaotic_to_resolved:
+      behavior: "noise decays exponentially until smooth"
+      resolve_spring: elegant_settle
+
+easing:
+  default: "cubic_bezier(0.16, 1, 0.3, 1)"   # ease-out expo
+  dramatic: "cubic_bezier(0.87, 0, 0.13, 1)"  # ease-in-out expo
+  
+interpolation:
+  standard: smooth
+  never_use: [linear, there_and_back]

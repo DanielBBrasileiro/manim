@@ -1,0 +1,45 @@
+# --- Media Factory: Brand Contract V2 (Elite Tier) ---
+# Este contrato dita as regras absolutas para os Agentes (Manim/Remotion).
+# Nenhuma renderização pode violar estes parâmetros.
+
+brand_identity:
+  name: "Fireship Dark Data"
+  
+  colors:
+    primary: "#FF3366"     # Cyber Red (Destaque principal)
+    secondary: "#800020"   # Burgundy (Sombras e rastros)
+    background: "#09090B"  # Off-black (Evita o preto puro que soa amador)
+    text_main: "#E4E4E7"   # Zinc-200 (Leitura confortável)
+    text_muted: "#A1A1AA"  # Zinc-400 (Labels secundárias)
+  
+  typography:
+    heading_font: "Cal Sans"       # Impacto, títulos pesados (Remotion)
+    body_font: "Inter"             # Legibilidade, labels dinâmicas
+    code_font: "JetBrains Mono"    # Crucial para tech: código limpo com ligatures
+  
+  materials:
+    glow_intensity: 0.8
+    blur_backdrop: "12px"          # Efeito Glassmorphism no Remotion
+    border_radius: "8px"           # Bordas arredondadas Apple-like
+
+motion_physics:
+  # Como a IA deve calcular as animações matemáticas
+  data_flow: "bezier_curve"        # Dados viajam em arcos, não em retas (Manim)
+  ui_transitions: "spring"         # Remotion: Efeito elástico (stiffness: 120, damping: 14)
+  camera_style: "smooth_pan"       # Sem cortes secos, tracking contínuo
+
+code_engine:
+  # Como blocos de código (Python/SQL) são exibidos
+  theme: "poimandres"              # Tema premium de syntax highlighting (Shiki)
+  animate_typing: true             # IA simula o código sendo digitado em tempo real
+  show_line_numbers: false
+
+narrative_engine:
+  framework: "heros_journey"
+  pacing: "fireship_fast"          # Cortes a cada 2-3 segundos max.
+  target_audience: "senior_dev"    # Diz à IA para não explicar o básico (ex: não explicar o que é um DB)
+  
+  audio_profile:
+    auto_sfx: true
+    data_hit_sound: "pop_muffled.wav" # Som quando o dado bate no Postgres
+    tts_voice: "elevenlabs_adam"      # Voz grave, assertiva, estilo documentário

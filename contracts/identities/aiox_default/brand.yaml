@@ -1,0 +1,41 @@
+# contracts/brand.yaml v4
+
+identity:
+  name: "AIOX"
+  tagline: "The Invisible Architecture"
+
+# TWO CHROMATIC STATES
+color_states:
+  dark:                              # 90% of the time
+    background: "#000000"
+    foreground: "#FFFFFF"
+    stroke: "rgba(255, 255, 255, 0.85)"
+    text_primary: "#FFFFFF"
+    text_secondary: "rgba(255, 255, 255, 0.55)"
+    
+  inverted:                          # Dramatic climax
+    background: "#FFFFFF"
+    foreground: "#000000"
+    stroke: "rgba(0, 0, 0, 0.85)"
+    text_primary: "#000000"
+    text_secondary: "rgba(0, 0, 0, 0.55)"
+
+  accent:                            # Surgical use (max 1 frame)
+    color: "#FF3366"
+    use: "Only for pulsing dot or momentary highlight"
+    max_screen_coverage: "2%"
+
+materials:
+  grain: 0.06                        
+  stroke_width:
+    primary: 1.5
+    secondary: 0.5
+    container: 0.8
+    
+anti_patterns:
+  - "NEVER use gradients"
+  - "NEVER use shadows or glow"
+  - "NEVER use glassmorphism"
+  - "NEVER show tech logos (Python, Postgres, etc.)"
+  - "NEVER use serif fonts"
+  - "NEVER use text-transform: uppercase (except brand name)"

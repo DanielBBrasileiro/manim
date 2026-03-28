@@ -1,0 +1,6 @@
+{
+  "collision": "click.wav",
+  "assemble": "whoosh.wav",
+  "complete": "success.wav",
+  "transition": "sweep.wav"
+}

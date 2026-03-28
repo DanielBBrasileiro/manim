@@ -1,0 +1,80 @@
+# ═══════════════════════════════════════
+# Inspired by: "Masterize o Meio do Caminho"
+# Signature: Data as narrative. Black + white + inversion.
+# ═══════════════════════════════════════
+
+name: "Monochrome Cinema"
+id: monochrome_cinema
+
+palette:
+  mode: monochrome
+  background: "#000000"
+  foreground: "#FFFFFF"
+  surface: null
+  accent: null                    # No accent. Purity.
+  supports_inversion: true        # bg↔fg flip as narrative device
+  max_colors_per_frame: 2
+
+typography:
+  heading:
+    family: "PP Neue Montreal, Helvetica Neue, sans-serif"
+    weight: 500
+    tracking: "0.12em"
+  narrative:
+    family: "PP Neue Montreal, Helvetica Neue, sans-serif"
+    weight: 300
+    size: "clamp(1.5rem, 4vw, 2.5rem)"
+    line_height: 1.4
+  brand:
+    family: "Cal Sans, sans-serif"
+    weight: 600
+    size: "0.875rem"
+    opacity: 0.5
+    position: bottom_right
+    timing: last_2_seconds
+
+composition:
+  negative_space_ratio: 0.6
+  text_in_containers: false
+  text_zones: [top_20, bottom_20]
+  center_reserved_for: climax_only
+  stroke_width:
+    primary_element: 1.8
+    container: 0.8
+    accent_line: 0.4
+  border_breathing: 64px
+
+motion:
+  philosophy: "organic, sparse, purposeful"
+  default_spring: { stiffness: 80, damping: 22, mass: 1.0 }
+  tension_spring: { stiffness: 160, damping: 10, mass: 0.8 }
+  gentle_spring: { stiffness: 40, damping: 26, mass: 1.2 }
+  transitions:
+    allowed: [smooth, hard_cut]
+    forbidden: [bounce, elastic, linear]
+  inversion_style: hard_cut       # 0 frames, instant
+
+effects:
+  grain: 0.06
+  diagonal_accents: true
+  glassmorphism: false
+  gradients: false
+  shadows: false
+  glow: false
+  blur: false
+
+narrative_devices:
+  - "Living curve as protagonist"
+  - "Containers that split, rotate, break"
+  - "Color inversion at emotional climax"
+  - "Textual silence (30%+ of duration)"
+  - "One-word resolve as signature"
+
+anti_patterns:
+  - "Logos or icons of any kind"
+  - "Text inside boxes or badges"
+  - "More than 5 words per screen"
+  - "Uppercase text (except brand name)"
+  - "Decorative elements without narrative purpose"
+  - "Grid backgrounds"
+  - "Particle systems as decoration"

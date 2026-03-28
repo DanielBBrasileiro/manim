@@ -1,0 +1,114 @@
+# contracts/layout.yaml v4.1
+
+formats:
+  # ── Base formats ──────────────────────────────
+  vertical_9_16:
+    width: 1080
+    height: 1920
+    safe_zone: 0.08
+    text_zones:
+      top: { y: "15%", height: "15%" }
+      bottom: { y: "70%", height: "15%" }
+      center: { y: "42%", height: "16%" }
+
+  wide_16_9:
+    width: 1920
+    height: 1080
+    safe_zone: 0.06
+
+  square_1_1:
+    width: 1080
+    height: 1080
+    safe_zone: 0.10
+
+  # ── Social Media Specs ────────────────────────
+  instagram_reel:
+    width: 1080
+    height: 1920
+    fps: 30
+    max_duration: 90
+    safe_zone: 0.10                  # Extra breathing for UI chrome
+    alias: vertical_9_16
+
+  instagram_post:
+    width: 1080
+    height: 1080
+    fps: null
+    safe_zone: 0.10
+    alias: square_1_1
+
+  instagram_story:
+    width: 1080
+    height: 1920
+    fps: 30
+    max_duration: 15
+    safe_zone: 0.12                  # Stories have heavy UI chrome
+    alias: vertical_9_16
+
+  instagram_carousel:
+    width: 1080
+    height: 1080
+    fps: null
+    max_frames: 10
+    safe_zone: 0.10
+    alias: square_1_1
+
+  tiktok:
+    width: 1080
+    height: 1920
+    fps: 30
+    max_duration: 600
+    safe_zone: 0.14                  # TikTok UI is aggressive
+    alias: vertical_9_16
+
+  linkedin_video:
+    width: 1920
+    height: 1080
+    fps: 30
+    max_duration: 600
+    safe_zone: 0.06
+    alias: wide_16_9
+
+  linkedin_post:
+    width: 1200
+    height: 627
+    fps: null
+    safe_zone: 0.08
+
+  linkedin_square:
+    width: 1080
+    height: 1350
+    fps: null
+    safe_zone: 0.10
+
+  twitter_video:
+    width: 1280
+    height: 720
+    fps: 30
+    max_duration: 140
+    safe_zone: 0.06
+
+  twitter_thumbnail:
+    width: 1200
+    height: 675
+    fps: null
+    safe_zone: 0.06
+
+  youtube_shorts:
+    width: 1080
+    height: 1920
+    fps: 60
+    max_duration: 60
+    safe_zone: 0.08
+    alias: vertical_9_16
+
+  youtube_thumbnail:
+    width: 1280
+    height: 720
+    fps: null
+    safe_zone: 0.06
+
+composition:
+  rule_of_thirds: true
+  center_bias: 0.6                   # 60% of content in central zone
+  edge_breathing: "64px"             # Minimum breathing room

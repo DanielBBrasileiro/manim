@@ -1,0 +1,75 @@
+{
+  "_meta": {
+    "active_identity": "aiox_default",
+    "generated_by": "AIOX Antigravity Engine"
+  },
+  "laws": {
+    "min_negative_space": 0.4,
+    "max_colors": 2,
+    "typography": {
+      "max_weights": 2,
+      "forbidden": [
+        "serif",
+        "uppercase_prose"
+      ]
+    },
+    "anti_patterns": [
+      "no_gradients",
+      "no_logos",
+      "no_shadows"
+    ]
+  },
+  "brand": {
+    "identity": {
+      "name": "AIOX",
+      "tagline": "The Invisible Architecture"
+    },
+    "color_states": {
+      "dark": {
+        "background": "#000000",
+        "foreground": "#FFFFFF",
+        "stroke": "rgba(255, 255, 255, 0.85)",
+        "text_primary": "#FFFFFF",
+        "text_secondary": "rgba(255, 255, 255, 0.55)"
+      },
+      "inverted": {
+        "background": "#FFFFFF",
+        "foreground": "#000000",
+        "stroke": "rgba(0, 0, 0, 0.85)",
+        "text_primary": "#000000",
+        "text_secondary": "rgba(0, 0, 0, 0.55)"
+      },
+      "accent": {
+        "color": "#FF3366",
+        "use": "Only for pulsing dot or momentary highlight",
+        "max_screen_coverage": "2%"
+      }
+    },
+    "materials": {
+      "grain": 0.06,
+      "stroke_width": {
+        "primary": 1.5,
+        "secondary": 0.5,
+        "container": 0.8
+      }
+    },
+    "anti_patterns": [
+      "NEVER use gradients",
+      "NEVER use shadows or glow",
+      "NEVER use glassmorphism",
+      "NEVER show tech logos (Python, Postgres, etc.)",
+      "NEVER use serif fonts",
+      "NEVER use text-transform: uppercase (except brand name)"
+    ]
+  },
+  "audio": {
+    "voice_profile": {
+      "provider": "elevenlabs",
+      "voice_id": "premade/adam",
+      "stability": 0.5,
+      "similarity_boost": 0.75,
+      "style": 0.0,
+      "use_speaker_boost": true
+    }
+  }
+}

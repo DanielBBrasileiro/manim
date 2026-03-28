@@ -1,0 +1,20 @@
+meta:
+  project: "Limitless Benchmark"
+  active_identity: "aiox_default"
+  
+strategy:
+  pacing: "cinematic"
+  
+tech_plan:
+  physics_model: "organic_nodes"
+  
+design_overlay:
+  theme: "dark"
+  
+scenes:
+  - engine: "manim"
+    script: "scenes/dynamic_neural_mesh.py" # Relativo à engines/manim
+    scene: "NeuralMesh"
+    
+# O nome da composição que o React vai renderizar
+composition: "CinematicNarrative-v4"

@@ -1,0 +1,18 @@
+[
+  {
+    "event": "user_ready",
+    "timestamp_ms": 1000
+  },
+  {
+    "event": "kafka_hit",
+    "timestamp_ms": 4999
+  },
+  {
+    "event": "ml_processing_start",
+    "timestamp_ms": 9000
+  },
+  {
+    "event": "ml_complete",
+    "timestamp_ms": 12000
+  }
+]

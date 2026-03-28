@@ -1,0 +1,8 @@
+[31mError: You passed /Users/daniel/Documents/Bordeless/manim/engines/remotion/src/index.tsx as your entry point, but this file does not contain "registerRoot". You should use the file that calls registerRoot() as the entry point. To ignore this error, pass "ignoreRegisterRootWarning" to bundle(). This error cannot be ignored on the CLI.[39m
+[31m    at validateEntryPoint (/Users/daniel/Documents/Bordeless/manim/engines/remotion/node_modules/@remotion/bundler/dist/bundle.js:155:15)[39m
+[31m    at async Object.internalBundle (/Users/daniel/Documents/Bordeless/manim/engines/remotion/node_modules/@remotion/bundler/dist/bundle.js:169:9)[39m
+[31m    at async bundleOnCli (/Users/daniel/Documents/Bordeless/manim/engines/remotion/node_modules/@remotion/cli/dist/setup-cache.js:150:21)[39m
+[31m    at async bundleOnCliOrTakeServeUrl (/Users/daniel/Documents/Bordeless/manim/engines/remotion/node_modules/@remotion/cli/dist/setup-cache.js:35:21)[39m
+[31m    at async renderVideoFlow (/Users/daniel/Documents/Bordeless/manim/engines/remotion/node_modules/@remotion/cli/dist/render-flows/render.js:167:53)[39m
+[31m    at async render (/Users/daniel/Documents/Bordeless/manim/engines/remotion/node_modules/@remotion/cli/dist/render.js:168:5)[39m
+[31m    at async cli (/Users/daniel/Documents/Bordeless/manim/engines/remotion/node_modules/@remotion/cli/dist/index.js:98:13)[39m

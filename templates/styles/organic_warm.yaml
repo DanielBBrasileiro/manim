@@ -1,0 +1,38 @@
+# Inspired by: Notion, Headspace, Patagonia
+name: "Organic Warm"
+id: organic_warm
+
+palette:
+  mode: warm_neutral
+  background: "#FDFBF7"
+  surface: "#F5F0E8"
+  text_primary: "#2D2A26"
+  text_secondary: "#7A7368"
+  accent: "#D4622B"               # Terracotta
+  accent_secondary: "#5B8A72"    # Sage
+  max_colors_per_frame: 4
+
+typography:
+  heading:
+    family: "Fraunces, Georgia, serif"
+    weight: 600
+    size: "2.25rem"
+  body:
+    family: "Inter, sans-serif"
+    weight: 400
+    size: "1rem"
+    line_height: 1.7
+
+composition:
+  negative_space_ratio: 0.5
+  rounded_corners: "16px"
+  organic_shapes: encouraged
+
+motion:
+  philosophy: "breathing, natural, unhurried"
+  default_spring: { stiffness: 50, damping: 24 }
+
+effects:
+  grain: 0.03
+  paper_texture: true
+  shadows: { allowed: true, style: "warm_diffused" }

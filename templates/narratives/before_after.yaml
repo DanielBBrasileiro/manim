@@ -1,0 +1,24 @@
+name: "Before / After"
+id: before_after
+best_for: [static, carousel, video]
+
+acts:
+  - name: before
+    ratio: 0.40
+    emotion: discomfort
+    rules:
+      - "Show the problem state"
+      - "Visual tension: misalignment, clutter, wrong colors"
+
+  - name: transition
+    ratio: 0.15
+    emotion: shift
+    rules:
+      - "Hard cut or morph"
+
+  - name: after
+    ratio: 0.45
+    emotion: relief
+    rules:
+      - "Show the resolved state"
+      - "Visual harmony: alignment, space, right colors"

@@ -1,0 +1,14 @@
+name: "Single Statement"
+id: single_statement
+best_for: [static, story]
+
+acts:
+  - name: statement
+    ratio: 1.0
+    emotion: confidence
+    rules:
+      - "One message. Maximum space."
+      - "Typography IS the visual"
+      - "Background is atmosphere, not content"
+      - "If static: 60%+ of canvas is empty"
+      - "If video: text enters alone, holds 3s, exits"

@@ -1,0 +1,42 @@
+# =============================================================================
+# Universal Scene Contract (v1.0)
+# This contract defines the data exchange pattern between Antigravity
+# and the various rendering engines (Manim, Motion Canvas, Remotion).
+# =============================================================================
+
+schema_version: "1.0"
+
+# Common Scene Properties
+scene_id: string          # e.g., "kafka_source"
+type: string              # "technical" | "branding" | "motion" | "sales"
+engine: string            # "manim" | "motion-canvas" | "remotion"
+duration_sec: float       # target duration
+
+# Layout & Frame
+aspect_ratio: "16:9"      # "16:9" | "9:16" | "1:1"
+resolution:
+  width: 1920
+  height: 1080
+
+# The Engine-Specific Payload
+# Each engine interprets these based on its internal templates.
+input:
+  headline: string        # Main title/text
+  subtitle: string        # Secondary text
+  path: string            # Main visual path or description
+  assets:                 # List of required assets
+    - name: string
+      path: string        # relative to assets/
+
+# Visual Style (Inherited from tokens.json if empty)
+style:
+  background_color: string
+  primary_color: string
+  secondary_color: string
+  font: string
+
+# Output Expectations
+output:
+  file_name: string       # e.g., "scene_01.mp4"
+  format: "mp4"           # or "webm"
+  target_dir: string      # relative to engines/<engine>/output/

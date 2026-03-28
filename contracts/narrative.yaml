@@ -1,0 +1,43 @@
+# contracts/narrative.yaml v4
+
+structure:
+  default_arc: three_act
+  acts:
+    genesis:
+      duration_ratio: 0.25          # 25% of total time
+      energy: [0.0, 0.3]
+      emotion: curiosity
+      rules:
+        - "A single visual element is born"
+        - "Textual silence in the first 2 seconds"
+        - "Slow and organic movement (damping > 20)"
+        
+    turbulence:
+      duration_ratio: 0.45          # 45% of total time
+      energy: [0.3, 1.0]
+      emotion: tension
+      rules:
+        - "Visual multiplication: containers split, lines cross"
+        - "Increasing noise and chaos on the main curve"
+        - "Climax with color inversion or scale drop"
+        - "Text appears as narration, not as a label"
+        
+    resolution:
+      duration_ratio: 0.30          # 30% of total time
+      energy: [1.0, 0.6]
+      emotion: mastery
+      rules:
+        - "Chaos reorganizes into higher order"
+        - "Final curve higher than the original"
+        - "One word. Just one. As a signature"
+        - "Subtle branding in the last second"
+
+pacing:
+  text_minimum_gap: 1.5s           # Minimum between text appearances
+  max_text_words_per_screen: 5     # Anti-visual pollution
+  silence_ratio: 0.3               # 30% of the video without any text
+
+emotional_palette:
+  curiosity: { motion: slow_organic, space: generous_negative }
+  tension: { motion: fast_chaotic, space: compressed_dense }
+  mastery: { motion: settled_confident, space: balanced_elegant }

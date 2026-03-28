@@ -1,0 +1,6 @@
+platform: instagram
+type: static
+dimensions: { width: 1080, height: 1080, aspect: "1:1" }
+safe_zones: { all: 6% }
+export: { format: png, dpi: 144 }
+engine: static

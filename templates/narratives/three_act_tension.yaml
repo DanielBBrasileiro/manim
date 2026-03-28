@@ -1,0 +1,36 @@
+name: "Three Act Tension"
+id: three_act_tension
+best_for: [video, story]
+
+acts:
+  - name: genesis
+    ratio: 0.25
+    emotion: curiosity
+    energy: [0.0, 0.3]
+    rules:
+      - "One element born from nothing"
+      - "No text for first 2 seconds"
+      - "Slow organic motion"
+    primitives: [dot_pulse, curve_grow, container_fade]
+
+  - name: turbulence
+    ratio: 0.45
+    emotion: tension
+    energy: [0.3, 1.0]
+    rules:
+      - "Complexity multiplies"
+      - "Containers split and rotate"
+      - "Curve breaks boundaries"
+      - "Climax: color inversion or scale shift"
+    primitives: [noise_increase, container_split, boundary_break, color_invert]
+
+  - name: resolution
+    ratio: 0.30
+    emotion: mastery
+    energy: [1.0, 0.6]
+    rules:
+      - "Chaos settles into higher order"
+      - "Final curve higher than original"
+      - "One word as signature"
+      - "Brand in last 2 seconds, subtle"
+    primitives: [noise_resolve, container_settle, diagonal_accent]

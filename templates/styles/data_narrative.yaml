@@ -1,0 +1,46 @@
+# Inspired by: NYT Graphics, Pudding, Observable
+name: "Data Narrative"
+id: data_narrative
+
+palette:
+  mode: light_dominant
+  background: "#FFFFFF"
+  surface: "#F8F9FA"
+  text_primary: "#1A1A2E"
+  text_secondary: "#6C757D"
+  data_palette:
+    - "#4361EE"
+    - "#F72585"
+    - "#4CC9F0"
+    - "#7209B7"
+  axis_color: "#DEE2E6"
+  max_colors_per_frame: 4
+
+typography:
+  heading:
+    family: "National 2, Georgia, serif"
+    weight: 700
+    size: "2rem"
+  body:
+    family: "Atlas Grotesk, Inter, sans-serif"
+    weight: 400
+    size: "1.0625rem"
+    line_height: 1.7
+  data_label:
+    family: "Atlas Grotesk, Inter, sans-serif"
+    weight: 500
+    size: "0.75rem"
+
+composition:
+  negative_space_ratio: 0.45
+  scrollytelling: true
+  annotation_style: "hand_drawn_circles"
+
+motion:
+  philosophy: "revelatory, progressive, educational"
+  default_spring: { stiffness: 100, damping: 20 }
+  data_transition: "morphing"
+
+effects:
+  grain: 0
+  annotations: { hand_drawn_style: true }

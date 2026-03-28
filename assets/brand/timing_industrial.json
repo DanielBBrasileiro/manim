@@ -1,0 +1,26 @@
+[
+  {
+    "event": "lake_ready",
+    "timestamp_ms": 1500
+  },
+  {
+    "event": "rust_ready",
+    "timestamp_ms": 3500
+  },
+  {
+    "event": "python_ready",
+    "timestamp_ms": 6799
+  },
+  {
+    "event": "db_ready",
+    "timestamp_ms": 9500
+  },
+  {
+    "event": "tableau_ready",
+    "timestamp_ms": 12000
+  },
+  {
+    "event": "pipeline_complete",
+    "timestamp_ms": 13500
+  }
+]

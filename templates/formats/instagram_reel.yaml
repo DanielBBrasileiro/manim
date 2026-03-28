@@ -1,0 +1,20 @@
+platform: instagram
+type: video
+dimensions:
+  width: 1080
+  height: 1920
+  aspect: "9:16"
+duration:
+  min: 5
+  max: 90
+  sweet_spot: 15
+fps: 60
+safe_zones:
+  top: 12%      # Status bar / username overlap
+  bottom: 15%   # Caption / CTA overlap
+  sides: 5%
+export:
+  format: mp4
+  codec: h264
+  bitrate: "8M"
+engine_sequence: [manim, remotion]

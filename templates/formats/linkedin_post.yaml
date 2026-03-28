@@ -1,0 +1,12 @@
+platform: linkedin
+type: static
+dimensions:
+  width: 1080
+  height: 1350
+  aspect: "4:5"
+safe_zones:
+  all: 8%
+export:
+  format: png
+  dpi: 144
+engine: static

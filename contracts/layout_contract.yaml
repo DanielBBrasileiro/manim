@@ -1,0 +1,17 @@
+# Layout Contract v3.0 (Elite Tier)
+# Spatial UI and Composition Rules
+
+grid:
+  columns: 12
+  gutter: "32px"
+  margin: "64px"
+
+composition:
+  aspect_ratio: "16:9"
+  safe_zone: "10%"
+  hierarchy_focal_point: "center_top"
+
+spatial_ui:
+  depth_layers: 4
+  parallax_intensity: 0.05
+  label_anchor: "relative_bottom"

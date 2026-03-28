@@ -1,0 +1,68 @@
+# ═══════════════════════════════════════
+# Inspired by: Balenciaga, Bloomberg, The Outline
+# Signature: Massive type. Hard edges. No mercy.
+# ═══════════════════════════════════════
+
+name: "Brutalist Raw"
+id: brutalist_raw
+
+palette:
+  mode: high_contrast
+  background: "#FFFFFF"
+  text_primary: "#000000"
+  accent: "#FF0000"
+  border: "#000000"
+  max_colors_per_frame: 3
+
+typography:
+  heading:
+    family: "Helvetica Neue, Arial Black, sans-serif"
+    weight: 900
+    size: "clamp(3rem, 10vw, 7rem)"
+    tracking: "-0.04em"
+    text_transform: uppercase
+  body:
+    family: "Helvetica Neue, Arial, sans-serif"
+    weight: 400
+    size: "0.875rem"
+    line_height: 1.35
+  label:
+    family: "Courier New, monospace"
+    weight: 400
+    size: "0.6875rem"
+    text_transform: uppercase
+    tracking: "0.1em"
+
+composition:
+  negative_space_ratio: 0.25      # Dense. Intentionally.
+  grid_visible: true
+  border_style: "2px solid #000"
+  text_overflow: allowed
+  asymmetry: encouraged
+  overlap: encouraged
+
+motion:
+  philosophy: "abrupt, mechanical, confrontational"
+  default_spring: { stiffness: 300, damping: 12 }
+  transitions:
+    allowed: [hard_cut, linear]
+    forbidden: [smooth, ease, bounce]
+
+effects:
+  grain: 0.12
+  noise_texture: true
+  halftone: optional
+
+narrative_devices:
+  - "Type IS the visual (not decoration)"
+  - "Scale contrast: massive headlines vs tiny labels"
+  - "Grid as visible structural element"
+  - "Red as the only color accent, used for danger/emphasis"
+  - "Monowidth fonts for data/labels"
+
+anti_patterns:
+  - "Rounded corners"
+  - "Soft shadows"
+  - "Gradients"
+  - "Centered layouts"
+  - "Friendly or approachable tone"

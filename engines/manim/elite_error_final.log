@@ -1,0 +1,118 @@
+╭─ Traceback (most recent ─╮
+│ /Users/daniel/.pyenv/ver │
+│ sions/3.12.3/lib/python3 │
+│ .12/site-packages/manim/ │
+│ cli/render/commands.py:1 │
+│ 25 in render             │
+│                          │
+│   122 │   │   │   try:   │
+│   123 │   │   │   │   wi │
+│   124 │   │   │   │   │  │
+│ ❱ 125 │   │   │   │   │  │
+│   126 │   │   │   except │
+│   127 │   │   │   │   er │
+│   128 │   │   │   │   sy │
+│                          │
+│ /Users/daniel/.pyenv/ver │
+│ sions/3.12.3/lib/python3 │
+│ .12/site-packages/manim/ │
+│ scene/scene.py:259 in    │
+│ render                   │
+│                          │
+│    256 │   │   """       │
+│    257 │   │   self.setu │
+│    258 │   │   try:      │
+│ ❱  259 │   │   │   self. │
+│    260 │   │   except En │
+│    261 │   │   │   pass  │
+│    262 │   │   except Re │
+│                          │
+│ /Users/daniel/Documents/ │
+│ Bordeless/manim/engines/ │
+│ manim/python_db_elite.py │
+│ :29 in construct         │
+│                          │
+│   26 │   │   │   raise F │
+│   27 │   │               │
+│   28 │   │   # Instancia │
+│ ❱ 29 │   │   source = SV │
+│   30 │   │   dest = SVGM │
+│   31 │   │               │
+│   32 │   │   # 2. Execut │
+│                          │
+│ /Users/daniel/.pyenv/ver │
+│ sions/3.12.3/lib/python3 │
+│ .12/site-packages/manim/ │
+│ mobject/svg/svg_mobject. │
+│ py:150 in __init__       │
+│                          │
+│   147 │   │   │   path_s │
+│   148 │   │   self.path_ │
+│   149 │   │              │
+│ ❱ 150 │   │   self.init_ │
+│   151 │   │              │
+│   152 │   │   self.set_s │
+│   153 │   │   │   fill_c │
+│                          │
+│ /Users/daniel/.pyenv/ver │
+│ sions/3.12.3/lib/python3 │
+│ .12/site-packages/manim/ │
+│ mobject/svg/svg_mobject. │
+│ py:177 in                │
+│ init_svg_mobject         │
+│                          │
+│   174 │   │   │   │   se │
+│   175 │   │   │   │   re │
+│   176 │   │              │
+│ ❱ 177 │   │   self.gener │
+│   178 │   │   if use_svg │
+│   179 │   │   │   SVG_HA │
+│   180                    │
+│                          │
+│ /Users/daniel/.pyenv/ver │
+│ sions/3.12.3/lib/python3 │
+│ .12/site-packages/manim/ │
+│ mobject/svg/svg_mobject. │
+│ py:199 in                │
+│ generate_mobject         │
+│                          │
+│   196 │   def generate_m │
+│   197 │   │   """Parse t │
+│   198 │   │   file_path  │
+│ ❱ 199 │   │   element_tr │
+│   200 │   │   new_tree = │
+│   201 │   │   # Create a │
+│   202 │   │   modified_f │
+│                          │
+│ /Users/daniel/.pyenv/ver │
+│ sions/3.12.3/lib/python3 │
+│ .12/xml/etree/ElementTre │
+│ e.py:1204 in parse       │
+│                          │
+│   1201 │                 │
+│   1202 │   """           │
+│   1203 │   tree = Elemen │
+│ ❱ 1204 │   tree.parse(so │
+│   1205 │   return tree   │
+│   1206                   │
+│   1207                   │
+│                          │
+│ /Users/daniel/.pyenv/ver │
+│ sions/3.12.3/lib/python3 │
+│ .12/xml/etree/ElementTre │
+│ e.py:569 in parse        │
+│                          │
+│    566 │   │   │   │   │ │
+│    567 │   │   │   │   │ │
+│    568 │   │   │   │   │ │
+│ ❱  569 │   │   │   │   │ │
+│    570 │   │   │   │   │ │
+│    571 │   │   │   while │
+│    572 │   │   │   │   p │
+╰──────────────────────────╯
+╭──────────────────────────╮
+│                          │
+│ ▲                        │
+╰──────────────────────────╯
+ParseError: no element 
+found: line 1, column 0

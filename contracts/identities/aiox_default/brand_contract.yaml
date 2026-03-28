@@ -1,0 +1,24 @@
+# Brand Contract v3.0 (Elite Tier)
+# Single Source of Truth for Visual Identity
+
+identity:
+  name: "Fireship Dark Data"
+  version: 3.0
+
+colors:
+  primary: "#FF3366"     # Cyber Red
+  secondary: "#800020"   # Burgundy
+  background: "#09090B"  # Off-black
+  text: "#E4E4E7"        # Zinc-200
+  accent: "#38BDF8"      # Sky Blue (Secondary Highlight)
+
+typography:
+  heading_font: "Cal Sans"
+  body_font: "Inter"
+  code_font: "JetBrains Mono"
+  scale: 1.25            # Modular Scale
+
+materials:
+  glass_blur: "16px"
+  border_radius: "12px"
+  grain_intensity: 0.15

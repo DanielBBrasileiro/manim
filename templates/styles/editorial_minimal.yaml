@@ -1,0 +1,87 @@
+# ═══════════════════════════════════════
+# Inspired by: Stripe, Linear, Vercel, Raycast
+# Signature: Clean, confident, spacious, technical but approachable.
+# ═══════════════════════════════════════
+
+name: "Editorial Minimal"
+id: editorial_minimal
+
+palette:
+  mode: light_dominant
+  background: "#FFFFFF"
+  surface: "#F7F8FA"
+  text_primary: "#0A2540"
+  text_secondary: "#475569"
+  accent: "#6366F1"               # Indigo
+  accent_secondary: "#06B6D4"    # Cyan
+  border: "rgba(0, 0, 0, 0.08)"
+  max_colors_per_frame: 3
+
+typography:
+  heading:
+    family: "Inter, -apple-system, sans-serif"
+    weight: 600
+    tracking: "-0.02em"
+    size: "2.5rem"
+  body:
+    family: "Inter, -apple-system, sans-serif"
+    weight: 400
+    size: "1.0625rem"             # 17px
+    line_height: 1.65
+  code:
+    family: "JetBrains Mono, Fira Code, monospace"
+    weight: 400
+    size: "0.875rem"
+  caption:
+    family: "Inter, sans-serif"
+    weight: 500
+    size: "0.75rem"
+    tracking: "0.05em"
+    text_transform: uppercase
+    color: text_secondary
+
+composition:
+  negative_space_ratio: 0.5
+  max_content_width: "680px"
+  section_gap: "80px"
+  card:
+    radius: "12px"
+    padding: "32px"
+    shadow: "0 1px 3px rgba(0,0,0,0.04), 0 6px 24px rgba(0,0,0,0.04)"
+    border: "1px solid rgba(0,0,0,0.06)"
+  border_breathing: 48px
+
+motion:
+  philosophy: "restrained, precise, intentional"
+  default_spring: { stiffness: 120, damping: 18, mass: 1.0 }
+  transitions:
+    allowed: [smooth, ease_out_expo]
+    forbidden: [bounce, overshoot]
+  stagger_delay: 0.06
+
+effects:
+  grain: 0
+  gradients:
+    allowed: true
+    style: "subtle_mesh"          # Not linear, mesh-style
+    max_opacity: 0.15
+  shadows:
+    allowed: true
+    style: "diffused"             # Never hard shadows
+  blur: false
+  glassmorphism: false
+
+narrative_devices:
+  - "Typography hierarchy as primary storytelling"
+  - "Generous whitespace as confidence signal"
+  - "Accent color used surgically (CTAs, highlights)"
+  - "Cards and surfaces to create depth"
+  - "Code snippets as proof of craft"
+
+anti_patterns:
+  - "Dense layouts"
+  - "More than 3 colors visible"
+  - "Hard shadows or drop shadows"
+  - "Decorative illustrations"
+  - "Rounded corners > 16px"
+  - "Gradients on text"

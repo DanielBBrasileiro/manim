@@ -1,0 +1,70 @@
+# Contrato Narrativo v1.0 (AIOX Limitless Engine)
+# Define o vocabulário espacial, físico e rítmico para a IA.
+
+layouts:
+  hero_central:
+    description: "Foco absoluto num único nó ou texto central. Requer no mínimo 60% de espaço negativo no ecrã."
+    intent: "Autoridade e foco singular."
+  swiss_grid:
+    description: "Divisão matemática rigorosa. Múltiplos elementos alinhados numa grelha invisível."
+    intent: "Comparação, ordem, estruturação de sistemas complexos."
+  split_screen:
+    description: "Divisão dicotómica do ecrã (vertical ou horizontal)."
+    intent: "Contraste (ex: A Ilusão vs. A Realidade, Caos vs. Ordem)."
+
+physics_styles:
+  vector_flow:
+    description: "Movimento contínuo e direcional simulando correntes fluidas."
+    easing: "linear ou smooth"
+  magnetic_pull:
+    description: "Atração implacável de elementos periféricos para um núcleo central."
+    easing: "exponential_in_out"
+  spring_impact:
+    description: "Entrada agressiva com um leve sobressalto (bounce) para demonstrar peso e importância."
+    easing: "spring (Remotion) / there_and_back (Manim)"
+  cinematic_breathe:
+    description: "Movimento quase impercetível (escala de 1.0 para 1.02 ao longo de segundos) para manter o ecrã vivo."
+    easing: "smooth"
+
+story_arcs:
+  kinetic_hook:
+    intent: "Captura de atenção imediata (Scroll-stopper)."
+    pacing: "Agressivo (mudanças a cada 1-2 segundos)."
+    structure:
+      - phase: "O Problema"
+        duration: "0s-2s"
+        action: "Geometria caótica, tipografia brutalista, movimento spring_impact."
+      - phase: "O Vácuo"
+        duration: "2s-3s"
+        action: "Limpeza total do ecrã. Silêncio visual absoluto."
+      - phase: "A Solução"
+        duration: "3s+"
+        action: "Layout hero_central revelando a tese ou conceito chave."
+
+  mindset_shift:
+    intent: "Quebra de paradigmas e revelação de leis universais ou reflexões."
+    pacing: "Lento, intencional e hipnótico."
+    structure:
+      - phase: "A Desconstrução"
+        duration: "0s-4s"
+        action: "Partículas ou nós dispersos movendo-se em cinematic_breathe."
+      - phase: "A Convergência"
+        duration: "4s-7s"
+        action: "Aplicação de magnetic_pull. Os elementos unem-se formando uma única linha ou ponto focal."
+      - phase: "A Lei"
+        duration: "7s+"
+        action: "Tipografia elegante (serifa, se permitido) revelando a mensagem no centro, enquanto a geometria pulsa subtilmente."
+
+  data_revelation:
+    intent: "Transformar a perceção de sistemas complexos em clareza absoluta."
+    pacing: "Progressivo (começa caótico, termina limpo)."
+    structure:
+      - phase: "O Ruído"
+        duration: "0s-3s"
+        action: "Layout swiss_grid com dados/nós interligados de forma desordenada."
+      - phase: "A Orquestração"
+        duration: "3s-6s"
+        action: "Aplicação de vector_flow. As linhas alinham-se num padrão lógico perfeito."
+      - phase: "O Insight"
+        duration: "6s+"
+        action: "O nó principal ilumina-se com a cor de sotaque (accent_color), e o valor/texto surge com peso máximo."

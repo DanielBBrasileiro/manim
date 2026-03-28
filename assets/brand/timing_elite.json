@@ -1,0 +1,14 @@
+[
+  {
+    "event": "source_ready",
+    "timestamp_ms": 1999
+  },
+  {
+    "event": "dest_ready",
+    "timestamp_ms": 4499
+  },
+  {
+    "event": "pipeline_complete",
+    "timestamp_ms": 19500
+  }
+]

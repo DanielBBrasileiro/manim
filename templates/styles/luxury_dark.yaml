@@ -1,0 +1,40 @@
+# Inspired by: Apple keynotes, Porsche, Aesop
+name: "Luxury Dark"
+id: luxury_dark
+
+palette:
+  mode: dark_dominant
+  background: "#0A0A0A"
+  surface: "#141414"
+  text_primary: "#F5F5F5"
+  text_secondary: "rgba(255,255,255,0.5)"
+  accent: "#C9A96E"               # Gold
+  border: "rgba(255,255,255,0.08)"
+  max_colors_per_frame: 3
+
+typography:
+  heading:
+    family: "SF Pro Display, Helvetica Neue, sans-serif"
+    weight: 600
+    tracking: "-0.02em"
+    size: "2.5rem"
+  body:
+    family: "SF Pro Text, Helvetica Neue, sans-serif"
+    weight: 300
+    size: "1.125rem"
+    line_height: 1.7
+
+composition:
+  negative_space_ratio: 0.65
+  text_alignment: center
+  max_content_width: "600px"
+
+motion:
+  philosophy: "slow, deliberate, premium"
+  default_spring: { stiffness: 60, damping: 28 }
+
+effects:
+  grain: 0.04
+  gradients: { allowed: true, style: "dark_radial", max_opacity: 0.2 }
+  shadows: false
+  glow: { allowed: true, color: accent, radius: "120px", opacity: 0.08 }
