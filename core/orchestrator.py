@@ -5,7 +5,8 @@ import os
 import sys
 import shutil
 from pathlib import Path
-from core.creative.decision_engine import CreativeDecisionEngine
+from core.compiler.creative_compiler import compile_seed
+from core.runtime.graph_runtime import GraphRuntime
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -14,35 +15,51 @@ class AgenticOrchestrator:
         self.brief_path = brief_path
         if not os.path.exists(brief_path):
             raise FileNotFoundError(f"❌ AIOX Falha: Briefing não encontrado em {brief_path}")
-            
+
         with open(brief_path, "r") as f:
             self.brief = yaml.safe_load(f)
-        
-        self.cde = CreativeDecisionEngine()
+
+        self.creative_result = None
         os.makedirs("assets/brand", exist_ok=True)
         
     def run_creative_decision(self):
-        """Fase Aria/Zara: Transforma o creative_seed ou creative_direction em um plano estruturado."""
+        """Fase Aria/Zara: Transforma o creative_seed em um plano estruturado via compiler v4.5."""
         if "creative_seed" not in self.brief and "creative_direction" not in self.brief:
             return
 
-        print("🔮 CDE: Ativando Creative Decision Engine (Aria & Zara v2)...")
-        plan = self.cde.generate_creative_plan(self.brief)
-        
-        # Merge o plano no briefing interno
+        print("🔮 Compiler v4.5: Ativando Creative Compiler (Aria & Zara v4.5)...")
+
+        seed = self.brief.get("creative_seed", {})
+        identity = self.brief.get("active_identity") or self.brief.get("meta", {}).get("active_identity", "aiox_default")
+
+        result = compile_seed(seed, identity=identity)
+        self.creative_result = result
+
+        plan = result["creative_plan"]
+
+        # Modo assistido (director_mode == "assisted"): pausa para aprovação humana
+        if self.brief.get("director_mode") == "assisted":
+            runtime = GraphRuntime(mode="assisted")
+            runtime.load_seed(seed)
+            runtime.state["intent"] = result["intent"]
+            runtime.state["plan"] = plan
+            runtime.state["signature"] = result["output_signature"]
+            runtime.pause_for_approval()
+
+        # Merge o plano no briefing interno (mesmo contrato de antes)
         self.brief["strategy"] = self.brief.get("strategy", {})
-        
+
         self.brief["tech_plan"] = self.brief.get("tech_plan", {})
         self.brief["tech_plan"]["archetype"] = plan["archetype"]
-        
+
         # Prepara o pacote de entropia para o IntelligenceLoader
         entropy_package = plan["interpretation"].copy()
         entropy_package["raw"] = plan["entropy"]
         self.brief["tech_plan"]["entropy"] = entropy_package
-        
+
         self.brief["design_overlay"] = self.brief.get("design_overlay", {})
         self.brief["design_overlay"]["aesthetic_family"] = plan["aesthetic_family"]
-        
+
         # Boilerplate Free: Injeta engine e React comp automaticamente se não existirem
         if "composition" not in self.brief:
             self.brief["composition"] = "CinematicNarrative-v4"
@@ -52,8 +69,7 @@ class AgenticOrchestrator:
                 "script": "scenes/cde_entropy_demo.py",
                 "scene": "EntropyDemo"
             }]
-        
-        # Persiste na memória (Opcional, comentei no CDE temporariamente)
+
         print(f"  ✨ Decisão Tomada: Arquétipo '{plan['archetype']}' | Zara Report: {plan['interpretation']['motion_signature']}")
 
     def sync_brand(self):
@@ -63,6 +79,18 @@ class AgenticOrchestrator:
 
     def extract_intelligence(self):
         print("🧠 AIOX: Extraindo parâmetros do briefing...")
+
+        # Quando o compiler v4.5 rodou, garante que tech_plan está sincronizado com creative_plan
+        if self.creative_result is not None:
+            creative_plan = self.creative_result["creative_plan"]
+            self.brief.setdefault("tech_plan", {})
+            self.brief["tech_plan"].setdefault("archetype", creative_plan.get("archetype"))
+            entropy_package = creative_plan.get("interpretation", {}).copy()
+            entropy_package["raw"] = creative_plan.get("entropy")
+            self.brief["tech_plan"].setdefault("entropy", entropy_package)
+            self.brief.setdefault("design_overlay", {})
+            self.brief["design_overlay"].setdefault("aesthetic_family", creative_plan.get("aesthetic_family"))
+
         required_keys = ["strategy", "tech_plan", "design_overlay"]
         for key in required_keys:
             if key not in self.brief:

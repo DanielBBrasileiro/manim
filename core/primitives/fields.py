@@ -54,6 +54,42 @@ class AIOXNoiseField:
             self.strength = 3.5
             self.lacunarity = 3.0
             self.persistence = 0.8
+        elif signature == "laminar_flow" or signature == "coherent_flow":
+            # Fluxo direcional suave, baixa turbulência
+            self.octaves = 1
+            self.strength = 0.08
+            self.lacunarity = 1.2
+            self.persistence = 0.2
+        elif signature == "oscillatory_wave" or signature == "pulsing_wave":
+            # Onda pulsante periódica
+            self.octaves = 3
+            self.strength = 0.4
+            self.lacunarity = 1.8
+            self.persistence = 0.5
+        elif signature == "convergence_field":
+            # Atração para centro, similar a vortex mas mais suave
+            self.octaves = 2
+            self.strength = 0.35
+            self.lacunarity = 1.6
+            self.persistence = 0.4
+        elif signature == "fragmented_noise":
+            # Fragmentado, quebrado, alta lacunarity
+            self.octaves = 5
+            self.strength = 1.2
+            self.lacunarity = 3.5
+            self.persistence = 0.6
+        elif signature == "chaotic_burst":
+            # Caótico explosivo, entre elastic_snap e chaotic_dispersion
+            self.octaves = 6
+            self.strength = 2.5
+            self.lacunarity = 2.8
+            self.persistence = 0.75
+        elif signature == "scattered_to_aligned":
+            # Começa disperso, converge para alinhamento
+            self.octaves = 4
+            self.strength = 0.9
+            self.lacunarity = 2.2
+            self.persistence = 0.55
         else:
             self.octaves = int(np.interp(0.5, [0, 1], [1, 6]))
             self.strength = 1.0
@@ -149,6 +185,39 @@ class AIOXNoiseField:
             breath_cycle = np.sin(time * 1.5) * 0.5 + 0.5
             vector *= (0.5 + breath_cycle)
 
+        elif self.signature in ("laminar_flow", "coherent_flow"):
+            # Fluxo laminar: componente dominante na direção x, perturbação mínima em y
+            vector[0] = abs(vector[0]) * self.strength  # fluxo unidirecional positivo
+            vector[1] *= 0.1  # turbulência lateral suprimida
+            vector[2] *= 0.05
+
+        elif self.signature in ("oscillatory_wave", "pulsing_wave"):
+            # Modulação periódica em amplitude
+            wave_cycle = np.sin(time * 2.5) * 0.5 + 0.5
+            vector *= (0.3 + wave_cycle * 0.7)
+
+        elif self.signature == "convergence_field":
+            # Atração suave para o centro (sem rotação, apenas puxão radial)
+            dist = np.sqrt(x*x + y*y) + 0.01
+            pull_vec = np.array([-x, -y, 0]) / dist
+            vector = vector * 0.3 + pull_vec * self.strength * 0.7
+
+        elif self.signature == "fragmented_noise":
+            # Vetores quebrados: inversão abrupta baseada em posição fracionária
+            if (int(abs(x) * 4) + int(abs(y) * 4)) % 2 == 0:
+                vector *= -0.8
+
+        elif self.signature == "chaotic_burst":
+            # Explosivo: magnitude amplificada em pulsos rápidos irregulares
+            burst = abs(np.sin(time * 7.3 + x * 2.1)) ** 0.4
+            vector *= (0.5 + burst * 2.0)
+
+        elif self.signature == "scattered_to_aligned":
+            # Começa caótico (t=0) e converge para fluxo laminar com o tempo
+            alignment = min(time / 5.0, 1.0)  # alinha completamente em ~5s
+            laminar_vec = np.array([self.strength, 0.0, 0.0])
+            vector = vector * (1.0 - alignment) + laminar_vec * alignment
+
         return vector
 
     def get_scalar(self, x: float, y: float, time: float = 0.0) -> float:
@@ -167,3 +236,142 @@ class AIOXNoiseField:
     @property
     def engine(self) -> str:
         return "opensimplex_fbm" if _HAS_SIMPLEX else "harmonic_fallback"
+
+
+def get_physics_preset(signature: str) -> dict:
+    """
+    Retorna configuração de PhysicsBody + campos para a Motion Signature.
+
+    Cada preset define:
+      - "noise_field": instância de AIOXNoiseField calibrada
+      - "mass": float — inércia da partícula (maior = mais resistente a forças)
+      - "damping": float — coeficiente de amortecimento (0=sem atrito, 1=parado)
+      - "gravity": float — aceleração gravitacional (negativa = anti-gravidade)
+      - "max_speed": float — velocidade máxima permitida
+      - "repulsion_radius": float — raio de repulsão entre partículas
+      - "description": str — intenção física do preset
+    """
+    presets = {
+        "vortex_pull": {
+            "noise_field": AIOXNoiseField(signature="vortex_pull"),
+            "mass": 0.8,
+            "damping": 0.05,
+            "gravity": 0.0,
+            "max_speed": 4.0,
+            "repulsion_radius": 0.3,
+            "description": "Partículas orbitam um atrator central com pouco atrito",
+        },
+        "elastic_snap": {
+            "noise_field": AIOXNoiseField(signature="elastic_snap"),
+            "mass": 0.3,
+            "damping": 0.6,
+            "gravity": 0.0,
+            "max_speed": 12.0,
+            "repulsion_radius": 0.1,
+            "description": "Partículas leves disparam e freiam abruptamente — snap elástico",
+        },
+        "chaotic_burst": {
+            "noise_field": AIOXNoiseField(signature="chaotic_burst"),
+            "mass": 0.5,
+            "damping": 0.02,
+            "gravity": -0.1,
+            "max_speed": 15.0,
+            "repulsion_radius": 0.05,
+            "description": "Explosão caótica com quase nenhum amortecimento e anti-gravidade leve",
+        },
+        "laminar_flow": {
+            "noise_field": AIOXNoiseField(signature="laminar_flow"),
+            "mass": 1.5,
+            "damping": 0.4,
+            "gravity": 0.0,
+            "max_speed": 1.0,
+            "repulsion_radius": 0.5,
+            "description": "Fluxo suave e ordenado — partículas pesadas com alto amortecimento",
+        },
+        "coherent_flow": {
+            "noise_field": AIOXNoiseField(signature="coherent_flow"),
+            "mass": 1.5,
+            "damping": 0.4,
+            "gravity": 0.0,
+            "max_speed": 1.0,
+            "repulsion_radius": 0.5,
+            "description": "Alias de laminar_flow — mesma física, nome semântico para entropy_interpreter",
+        },
+        "convergence_field": {
+            "noise_field": AIOXNoiseField(signature="convergence_field"),
+            "mass": 1.0,
+            "damping": 0.15,
+            "gravity": 0.0,
+            "max_speed": 2.5,
+            "repulsion_radius": 0.2,
+            "description": "Partículas são atraídas suavemente para o centro sem rotação intensa",
+        },
+        "oscillatory_wave": {
+            "noise_field": AIOXNoiseField(signature="oscillatory_wave"),
+            "mass": 0.9,
+            "damping": 0.1,
+            "gravity": 0.0,
+            "max_speed": 3.0,
+            "repulsion_radius": 0.35,
+            "description": "Partículas oscilam periodicamente — amortecimento baixo para manter ritmo",
+        },
+        "pulsing_wave": {
+            "noise_field": AIOXNoiseField(signature="pulsing_wave"),
+            "mass": 0.9,
+            "damping": 0.1,
+            "gravity": 0.0,
+            "max_speed": 3.0,
+            "repulsion_radius": 0.35,
+            "description": "Alias de oscillatory_wave — nome semântico para entropy_interpreter",
+        },
+        "chaotic_dispersion": {
+            "noise_field": AIOXNoiseField(signature="chaotic_dispersion"),
+            "mass": 0.6,
+            "damping": 0.03,
+            "gravity": 0.05,
+            "max_speed": 10.0,
+            "repulsion_radius": 0.08,
+            "description": "Dispersão tempestuosa com leve gravidade e quase sem atrito",
+        },
+        "fragmented_noise": {
+            "noise_field": AIOXNoiseField(signature="fragmented_noise"),
+            "mass": 0.4,
+            "damping": 0.35,
+            "gravity": 0.0,
+            "max_speed": 6.0,
+            "repulsion_radius": 0.15,
+            "description": "Fragmentos que se movem em direções abruptas com amortecimento moderado",
+        },
+        "scattered_to_aligned": {
+            "noise_field": AIOXNoiseField(signature="scattered_to_aligned"),
+            "mass": 1.1,
+            "damping": 0.2,
+            "gravity": 0.0,
+            "max_speed": 4.5,
+            "repulsion_radius": 0.25,
+            "description": "Inicia caótico e converge — massa média para transição gradual",
+        },
+        "breathing_field": {
+            "noise_field": AIOXNoiseField(signature="breathing_field"),
+            "mass": 2.0,
+            "damping": 0.5,
+            "gravity": 0.0,
+            "max_speed": 0.8,
+            "repulsion_radius": 0.6,
+            "description": "Expansão calma e cíclica — partículas pesadas e muito amortecidas",
+        },
+    }
+
+    if signature in presets:
+        return presets[signature]
+
+    # Fallback genérico para assinaturas desconhecidas
+    return {
+        "noise_field": AIOXNoiseField(signature=signature),
+        "mass": 1.0,
+        "damping": 0.2,
+        "gravity": 0.0,
+        "max_speed": 5.0,
+        "repulsion_radius": 0.3,
+        "description": f"Preset genérico para assinatura desconhecida: {signature}",
+    }
