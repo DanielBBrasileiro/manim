@@ -168,16 +168,22 @@ class ParticlePool(VGroup):
         self._intelligence = intelligence
         
         signature = self._intelligence.get("interpretation", {}).get("motion_signature", "breathing_field")
+        timeline = self._intelligence.get("timeline")
         
-        # Ajustes orgânicos baseados na "Personality" do movimento
+        # Ajustes orgânicos baseados na "Personality" do movimento inicial
         if signature == "elastic_snap":
             self.damping *= 0.3  # Menos atrito, "estala" rápido
         elif signature == "breathing_field":
             self.damping *= 1.5  # Mais arrasto, lento
             
-        # Noise field para variância orgânica (Assinatura Semântica)
-        from core.primitives.fields import AIOXNoiseField
-        self._noise = AIOXNoiseField(signature=signature)
+        # Noise field para variância orgânica (Assinatura Semântica Temporal ou Baseline)
+        from core.primitives.fields import AIOXNoiseField, TemporalNoiseField
+        
+        if timeline:
+            print("⏳ [TemporalEngine] Inicializando motor contínuo 0s~10s na piscina de partículas.")
+            self._noise = TemporalNoiseField(timeline=timeline, duration=8.0)
+        else:
+            self._noise = AIOXNoiseField(signature=signature)
 
         # Dots Manim pré-alocados (pool estático para performance)
         self._dots = [
@@ -329,9 +335,13 @@ class TrailPool(VGroup):
 
         from core.primitives.theme_loader import intelligence
         signature = intelligence.get("interpretation", {}).get("motion_signature", "breathing_field")
+        timeline = intelligence.get("timeline")
 
-        from core.primitives.fields import AIOXNoiseField
-        self._noise = AIOXNoiseField(signature=signature)
+        from core.primitives.fields import AIOXNoiseField, TemporalNoiseField
+        if timeline:
+            self._noise = TemporalNoiseField(timeline=timeline, duration=8.0)
+        else:
+            self._noise = AIOXNoiseField(signature=signature)
 
         # Pré-aloca linhas de rastro
         self._trails = [

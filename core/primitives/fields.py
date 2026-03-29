@@ -238,6 +238,48 @@ class AIOXNoiseField:
         return "opensimplex_fbm" if _HAS_SIMPLEX else "harmonic_fallback"
 
 
+class TemporalNoiseField:
+    """Motor Temporal (Fase 2): Interpola vetores FBM baseados numa Timeline DSL Contínua."""
+    def __init__(self, timeline: list, duration: float = 10.0):
+        self.timeline = timeline
+        self.duration = duration
+        self.fields = {}
+        
+        for block in timeline:
+            sig = block.get("behavior")
+            if sig and sig not in self.fields:
+                self.fields[sig] = AIOXNoiseField(signature=sig)
+                
+    def get_vector(self, point, time: float = 0.0) -> np.ndarray:
+        t_norm = (time % self.duration) / self.duration
+        
+        # Encontra em qual bloco da timeline o tempo normalizado [0, 1] está cainendo
+        for i, block in enumerate(self.timeline):
+            p_start, p_end = block["phase"]
+            
+            if p_start <= t_norm <= p_end:
+                sig1 = block["behavior"]
+                vec1 = self.fields[sig1].get_vector(point, time)
+                
+                # Suavização (Blend) se estiver perto da transição final do bloco (>80% do bloco)
+                local_t = (t_norm - p_start) / (p_end - p_start + 1e-6)
+                if local_t > 0.8 and i + 1 < len(self.timeline):
+                    next_block = self.timeline[i + 1]
+                    sig2 = next_block["behavior"]
+                    vec2 = self.fields[sig2].get_vector(point, time)
+                    
+                    # Fator de interpolação: 0 no início da zona de transição, 1 no final
+                    blend_factor = (local_t - 0.8) / 0.2
+                    return vec1 * (1.0 - blend_factor) + vec2 * blend_factor
+                    
+                return vec1
+                
+        # Fallback de segurança se o tempo vazar (último comportamento da timeline)
+        if self.timeline:
+            return self.fields[self.timeline[-1]["behavior"]].get_vector(point, time)
+        return np.zeros(3)
+
+
 def get_physics_preset(signature: str) -> dict:
     """
     Retorna configuração de PhysicsBody + campos para a Motion Signature.

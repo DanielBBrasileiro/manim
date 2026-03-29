@@ -25,20 +25,20 @@ class GraphRuntime:
         self.state["status"] = "compiling"
         
     def step_interpret(self):
-        print("🧠 [Runtime] Parseando Intenção (Aria)")
-        from core.compiler.intent_parser import parse_intent
-        self.state["intent"] = parse_intent(self.state["input"])
+        print("🧠 [Runtime] Parseando Intenção de Texto Livre (N-Grams)")
+        from core.compiler.creative_compiler import compile_seed
+        
+        # Na Fase 5 o Compilador processa tudo de uma vez. O Runtime reage à matriz.
+        self.compilation_result = compile_seed(self.state["input"])
+        self.state["intent"] = str(self.compilation_result["intent"])
         
     def step_plan(self):
-        print("🧬 [Runtime] Gerando Creative Plan (Aria + Zara)")
-        from core.compiler.plan_generator import generate_plan
-        # O CDE v4.5 atua aqui
-        self.state["plan"] = generate_plan(self.state["intent"])
+        print("🧬 [Runtime] Gerando Creative Plan (RuleEngine DSL + Mutation Optimizer)")
+        self.state["plan"] = self.compilation_result["creative_plan"]
         
     def step_simulate(self):
         print("🎭 [Runtime] Simulando Output Signature")
-        from core.compiler.signature_simulator import simulate_signature
-        self.state["signature"] = simulate_signature(self.state["plan"])
+        self.state["signature"] = self.compilation_result["output_signature"]
         
     def pause_for_approval(self):
         """No Modo 2, expõe o plano para o usuário antes de instanciar render."""

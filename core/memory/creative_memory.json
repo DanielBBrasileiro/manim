@@ -63,6 +63,88 @@
         "density": "high",
         "rhythm": "irregular"
       }
+    },
+    {
+      "timestamp": 1774747969.285225,
+      "intent": "Intent(tension='medium', density='medium', transformation='emergence', pacing='cinematic', tone='dark', raw_tokens=[])",
+      "creative_plan": {
+        "archetype": "emergence",
+        "aesthetic_family": "silent_architecture",
+        "pacing": "cinematic",
+        "entropy": {
+          "physical": 0.3,
+          "structural": 0.2,
+          "aesthetic": 0.4
+        },
+        "interpretation": {
+          "regime": "oscillatory",
+          "motion_signature": "inward_to_outward",
+          "stability": "high",
+          "rhythm": "periodic",
+          "flow": "linear",
+          "grid_type": "adaptive"
+        }
+      },
+      "output_signature": {
+        "structure": "emergence",
+        "motion": "inward_to_outward",
+        "density": "low",
+        "rhythm": "periodic"
+      }
+    },
+    {
+      "timestamp": 1774748490.365042,
+      "intent": "Intent(tension='medium', density='medium', transformation='emergence', pacing='cinematic', tone='dark', raw_tokens=[])",
+      "creative_plan": {
+        "archetype": "emergence",
+        "aesthetic_family": "silent_architecture",
+        "pacing": "cinematic",
+        "entropy": {
+          "physical": 0.5282297918563782,
+          "structural": 0.4677842218570567,
+          "aesthetic": 0.5521301663254443
+        },
+        "interpretation": {
+          "regime": "oscillatory",
+          "motion_signature": "oscillatory_wave",
+          "stability": "high",
+          "rhythm": "periodic",
+          "flow": "linear",
+          "grid_type": "adaptive"
+        },
+        "timeline": [
+          {
+            "phase": [
+              0.0,
+              0.4
+            ],
+            "behavior": "coherent_flow",
+            "tension": "low"
+          },
+          {
+            "phase": [
+              0.4,
+              0.8
+            ],
+            "behavior": "inward_to_outward",
+            "tension": "medium"
+          },
+          {
+            "phase": [
+              0.8,
+              1.0
+            ],
+            "behavior": "convergence_field",
+            "tension": "high"
+          }
+        ]
+      },
+      "output_signature": {
+        "structure": "emergence",
+        "motion": "oscillatory_wave",
+        "density": "low",
+        "rhythm": "periodic"
+      }
     }
   ],
   "stats": {

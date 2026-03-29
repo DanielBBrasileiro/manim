@@ -1,88 +1,6 @@
 # CONTEXTO DO PROJETO: manim
 
 ==================================================
-📄 AIOX_STUDIO_CONTEXT.md
-==================================================
-```md
-# branding — Limitless Engine (v4.3)
-
-> **Paradigma: Qualidade Exponencial & Baixo Nível de Abstração.**
-> Você (Antigravity) não é um preenchedor de templates. Você é um Engenheiro Visual.
-> Para cada pedido do usuário, você deve ESCREVER CÓDIGO CUSTOMIZADO de física (Manim) e composição (Remotion) para atingir exatamente o layout, efeito e impacto solicitados. Velocidade não importa; qualidade cinematográfica é a única métrica.
-
-## O Fluxo de Execução (Siga estritamente)
-
-Quando o usuário pedir a criação de um vídeo/imagem:
-
-1. **Fase de Setup (YAML):**
-   - Crie o `briefings/<nome_do_projeto>.yaml`.
-   - Defina a `active_identity` e as chaves obrigatórias (`strategy`, `tech_plan`, `design_overlay`).
-   - Indique os caminhos dos scripts dinâmicos que você VAI CRIAR (ex: `engines/manim/scenes/dynamic_<nome>.py`).
-
-2. **Fase de Engenharia Matemática (Manim):**
-   - Escreva o script Python em `engines/manim/scenes/`.
-   - **Regra de Ouro:** Importe TUDO de `core.primitives` (`AIOXDot`, `AIOXLine`, `AIOXLogo`, `theme`). NUNCA use cores hardcoded (como `WHITE` ou `#FFF`).
-   - Você tem liberdade absoluta para manipular coordenadas, criar colisões, usar `ValueTrackers`, câmeras 3D e equações paramétricas para criar os efeitos visuais pedidos.
-   - Logos e SVGs (arquivos locais) são permitidos usando o primitivo `AIOXLogo`.
-
-3. **Fase de Tipografia e Composição (Remotion):**
-   - Escreva ou edite a composição React em `engines/remotion/src/compositions/`.
-   - Sincronize o texto perfeitamente com os eventos visuais do vídeo de fundo gerado pelo Manim.
-   - Use o `theme.json` para definir cores de fontes.
-
-4. **Fase de Renderização (Orquestrador):**
-   - Execute: `python3 core/orchestrator.py briefings/<nome_do_projeto>.yaml`
-   - Se houver erro de compilação ou matemática no Manim, LEIA o erro no terminal, corrija o seu código e rode novamente até a perfeição.
-
-## As 5 Personas do Engine (Consulte antes de criar)
-
-| Persona | Arquivo | Papel |
-|---------|---------|-------|
-| **Aria** | `.agents/personas/architect.md` | Arco narrativo, metáforas, validação emocional |
-| **Dara** | `.agents/personas/data-engineer.md` | Código Manim, primitivos matemáticos |
-| **Uma** | `.agents/personas/ux-design-expert.md` | Hierarquia visual, contraste, espaço negativo |
-| **Kael** | `.agents/personas/motion-director.md` | Timing, ritmo, breath points, stagger |
-| **Zara** | `.agents/personas/entropy-calibrator.md` | Arbitragem entropy vs determinismo |
-
-**Ordem de consulta:** Aria → Zara → Kael → Dara → Uma (revisão)
-
-## Leis Estéticas Atuais
-1. **Espaço Negativo:** Mínimo de 40% de respiro.
-2. **Cromatização Estrita:** Use apenas as cores do `theme.json`. SVGs devem usar `currentColor` (monochrome).
-3. **Física Cinematográfica:** Movimentos devem usar spring physics (contracts/motion.yaml). Zero linear.
-4. **SVG Primitivos:** Use `assets/svg/primitives/` para metáforas visuais. NUNCA logos de tecnologia.
-5. **Feedback Loop:** Após cada render, preencha `sessions/last_render.md` antes de iniciar a próxima cena.
-
-## A Lei do Caos Controlado (Procedural Variability)
-Você é um motor generativo. Nunca crie duas animações iguais, a menos que o briefing exija `entropy: 0.0`.
-
-**Sempre leia `creative.entropy` no briefing YAML e consulte Zara antes de escrever código.**
-
-Mapeamento rápido:
-- `entropy: 0.0–0.2` → Seed fixo, valores exatos (Dara no controle)
-- `entropy: 0.3–0.6` → Ranges em elementos secundários, sem seed
-- `entropy: 0.7–1.0` → Perlin noise, lag_ratio aleatório, posições orgânicas (Zara no controle)
-
-Para variabilidade use sempre as noise functions de Zara:
-- Vento: `np.sin(t * 1.3) * np.cos(t * 0.7 + phi) * amplitude`
-- Respiração: `1.0 + 0.03 * np.sin(t * 2.1)`
-- Turbulência: `np.sin(t * 4.7) * np.cos(t * 2.3) * np.sin(t * 1.1)`
-
-## Skills Ativas (v4.4)
-
-Invoque antes de cada fase correspondente:
-
-| Skill | Arquivo | Quando usar |
-|-------|---------|-------------|
-| **storytelling-optimizer** | `.agents/skills/storytelling-optimizer/SKILL.md` | Antes de escrever qualquer código — valida arco VISTA, Poster Test, retention hooks |
-| **brand-enveloper** | `.agents/skills/brand-enveloper/SKILL.md` | Antes de qualquer export final — valida cor, tipografia, espaço, assina entrega |
-| **precision-renderer** | `.agents/skills/precision-renderer/SKILL.md` | Ao renderizar para entrega final — define perfil MASTERFILE/DELIVERY/PREVIEW, checklist pós-render |
-
-**Regra:** `storytelling-optimizer` → `brand-enveloper` → `precision-renderer` (nesta ordem no pipeline)
-
-```
-
-==================================================
 📄 requirements.txt
 ==================================================
 ```txt
@@ -369,9 +287,17 @@ def main():
     args = parser.parse_args()
     
     if args.command == "create":
+        import yaml
         print(f"🚀 IGNITION: AIOX Studio Engine -> Lendo {args.briefing}")
-        orch = AgenticOrchestrator(args.briefing)
-        orch.run_pipeline()
+        with open(args.briefing, "r") as f:
+            brief = yaml.safe_load(f)
+            
+        # ⚛️ Roteamento para a Fase 4: O Grafo de Estado (Sistema Operacional Criativo)
+        from core.runtime.graph_runtime import GraphRuntime
+        
+        # O modo 'assisted' engatilha a aprovação do plano (Modo 2).
+        runtime = GraphRuntime(mode="assisted")
+        runtime.run_full(brief)
         
     elif args.command == "sync":
         subprocess.run(["python3", "core/cli/brand.py", args.identity], check=True)
@@ -421,6 +347,8 @@ import os
 import sys
 import shutil
 from pathlib import Path
+from core.compiler.creative_compiler import compile_seed
+from core.runtime.graph_runtime import GraphRuntime
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -429,12 +357,63 @@ class AgenticOrchestrator:
         self.brief_path = brief_path
         if not os.path.exists(brief_path):
             raise FileNotFoundError(f"❌ AIOX Falha: Briefing não encontrado em {brief_path}")
-            
+
         with open(brief_path, "r") as f:
             self.brief = yaml.safe_load(f)
-        
+
+        self.creative_result = None
         os.makedirs("assets/brand", exist_ok=True)
         
+    def run_creative_decision(self):
+        """Fase Aria/Zara: Transforma o creative_seed em um plano estruturado via compiler v4.5."""
+        if "creative_seed" not in self.brief and "creative_direction" not in self.brief:
+            return
+
+        print("🔮 Compiler v4.5: Ativando Creative Compiler (Aria & Zara v4.5)...")
+
+        seed = self.brief.get("creative_seed", {})
+        identity = self.brief.get("active_identity") or self.brief.get("meta", {}).get("active_identity", "aiox_default")
+
+        result = compile_seed(seed, identity=identity)
+        self.creative_result = result
+
+        plan = result["creative_plan"]
+
+        # Modo assistido (director_mode == "assisted"): pausa para aprovação humana
+        if self.brief.get("director_mode") == "assisted":
+            runtime = GraphRuntime(mode="assisted")
+            runtime.load_seed(seed)
+            runtime.state["intent"] = result["intent"]
+            runtime.state["plan"] = plan
+            runtime.state["signature"] = result["output_signature"]
+            runtime.pause_for_approval()
+
+        # Merge o plano no briefing interno (mesmo contrato de antes)
+        self.brief["strategy"] = self.brief.get("strategy", {})
+
+        self.brief["tech_plan"] = self.brief.get("tech_plan", {})
+        self.brief["tech_plan"]["archetype"] = plan["archetype"]
+
+        # Prepara o pacote de entropia para o IntelligenceLoader
+        entropy_package = plan["interpretation"].copy()
+        entropy_package["raw"] = plan["entropy"]
+        self.brief["tech_plan"]["entropy"] = entropy_package
+
+        self.brief["design_overlay"] = self.brief.get("design_overlay", {})
+        self.brief["design_overlay"]["aesthetic_family"] = plan["aesthetic_family"]
+
+        # Boilerplate Free: Injeta engine e React comp automaticamente se não existirem
+        if "composition" not in self.brief:
+            self.brief["composition"] = "CinematicNarrative-v4"
+        if "scenes" not in self.brief or not self.brief["scenes"]:
+            self.brief["scenes"] = [{
+                "engine": "manim",
+                "script": "scenes/cde_entropy_demo.py",
+                "scene": "EntropyDemo"
+            }]
+
+        print(f"  ✨ Decisão Tomada: Arquétipo '{plan['archetype']}' | Zara Report: {plan['interpretation']['motion_signature']}")
+
     def sync_brand(self):
         print("🧬 AIOX: Sincronizando contratos de marca...")
         identity = self.brief.get("meta", {}).get("active_identity", "aiox_default")
@@ -442,6 +421,18 @@ class AgenticOrchestrator:
 
     def extract_intelligence(self):
         print("🧠 AIOX: Extraindo parâmetros do briefing...")
+
+        # Quando o compiler v4.5 rodou, garante que tech_plan está sincronizado com creative_plan
+        if self.creative_result is not None:
+            creative_plan = self.creative_result["creative_plan"]
+            self.brief.setdefault("tech_plan", {})
+            self.brief["tech_plan"].setdefault("archetype", creative_plan.get("archetype"))
+            entropy_package = creative_plan.get("interpretation", {}).copy()
+            entropy_package["raw"] = creative_plan.get("entropy")
+            self.brief["tech_plan"].setdefault("entropy", entropy_package)
+            self.brief.setdefault("design_overlay", {})
+            self.brief["design_overlay"].setdefault("aesthetic_family", creative_plan.get("aesthetic_family"))
+
         required_keys = ["strategy", "tech_plan", "design_overlay"]
         for key in required_keys:
             if key not in self.brief:
@@ -599,6 +590,7 @@ class AgenticOrchestrator:
 
     def run_pipeline(self):
         try:
+            self.run_creative_decision()
             self.sync_brand()
             tech_plan = self.extract_intelligence()
             
@@ -621,6 +613,1612 @@ if __name__ == "__main__":
         sys.exit(1)
     orch = AgenticOrchestrator(sys.argv[1])
     orch.run_pipeline()
+
+```
+
+==================================================
+📄 core/tools/preview_tool.py
+==================================================
+```py
+"""
+preview_tool.py — AIOX Studio fast preview generator.
+Generates a visual wireframe (PNG via matplotlib, or SVG fallback) in < 1s.
+No Manim, no numpy required.
+"""
+
+import os
+import math
+import random
+import datetime
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent.parent
+OUTPUT_DIR = ROOT / "output" / "preview"
+
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+def _entropy(plan: dict, key: str) -> float:
+    """Return normalised entropy value [0.0 – 1.0] for a key."""
+    raw = plan.get("entropy", {}).get(key, 0.5)
+    try:
+        return max(0.0, min(1.0, float(raw)))
+    except (TypeError, ValueError):
+        return 0.5
+
+
+def _regime(plan: dict) -> str:
+    return plan.get("interpretation", {}).get("regime", "laminar").lower()
+
+
+def _motion_sig(plan: dict) -> str:
+    return plan.get("interpretation", {}).get("motion_signature", "")
+
+
+def _pacing(plan: dict) -> str:
+    return str(plan.get("pacing", ""))
+
+
+def _archetype(plan: dict) -> str:
+    return str(plan.get("archetype", "unknown"))
+
+
+def _aesthetic(plan: dict) -> str:
+    return str(plan.get("aesthetic_family", ""))
+
+
+def _output_path(plan: dict, ext: str, output_path: str = None) -> Path:
+    if output_path:
+        return Path(output_path)
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    archetype_slug = _archetype(plan).lower().replace(" ", "_")
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    return OUTPUT_DIR / f"preview_{archetype_slug}_{ts}.{ext}"
+
+
+# ---------------------------------------------------------------------------
+# matplotlib path
+# ---------------------------------------------------------------------------
+
+def _generate_matplotlib(plan: dict, output_path: str = None) -> str:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import matplotlib.patches as mpatches
+
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    fig.patch.set_facecolor("#000000")
+    ax.set_facecolor("#000000")
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.axis("off")
+
+    regime = _regime(plan)
+    phys = _entropy(plan, "physical")
+    struct = _entropy(plan, "structural")
+    aest = _entropy(plan, "aesthetic")
+    motion_sig = _motion_sig(plan)
+
+    # --- procedural geometry ---
+    rng = random.Random(42)
+
+    if regime == "laminar":
+        # smooth parallel horizontal lines with slight wave
+        n_lines = 8
+        for i in range(n_lines):
+            y_base = 0.15 + (i / (n_lines - 1)) * 0.65
+            xs = [j / 200 for j in range(201)]
+            ys = [y_base + 0.015 * math.sin(2 * math.pi * x * 3 + i) * phys for x in xs]
+            alpha = 0.4 + 0.5 * (1 - abs(i - n_lines / 2) / (n_lines / 2))
+            ax.plot(xs, ys, color="#00BFFF", linewidth=0.8, alpha=alpha)
+
+    elif regime == "oscillatory":
+        # sinusoidal waves, amplitude driven by physical entropy
+        n_waves = 5
+        for i in range(n_waves):
+            freq = 2 + i * 1.5
+            amp = 0.05 + phys * 0.15
+            y_off = 0.2 + i * 0.13
+            xs = [j / 200 for j in range(201)]
+            ys = [y_off + amp * math.sin(2 * math.pi * freq * x) for x in xs]
+            ax.plot(xs, ys, color="#7B68EE", linewidth=1.0, alpha=0.75)
+
+    elif regime == "turbulent":
+        # scattered points seeded for reproducibility
+        n_pts = int(80 + phys * 120)
+        for _ in range(n_pts):
+            x = rng.gauss(0.5, 0.22)
+            y = rng.gauss(0.5, 0.22)
+            x = max(0.02, min(0.98, x))
+            y = max(0.12, min(0.85, y))
+            ax.plot(x, y, "o", color="#FF4500", markersize=2.5, alpha=0.6)
+
+    elif regime in ("vortex",) or "vortex" in motion_sig.lower():
+        # spiral of points
+        n_pts = 120
+        for k in range(n_pts):
+            t = k / n_pts * 4 * math.pi
+            r = 0.04 + 0.28 * (t / (4 * math.pi))
+            x = 0.5 + r * math.cos(t)
+            y = 0.5 + r * math.sin(t) * 0.6
+            alpha = 0.3 + 0.6 * (k / n_pts)
+            ax.plot(x, y, "o", color="#00FF99", markersize=2, alpha=alpha)
+    else:
+        # default: simple diagonal gradient lines
+        for i in range(12):
+            t = i / 11
+            ax.plot([0, 1], [t * 0.7 + 0.1, (1 - t) * 0.7 + 0.1],
+                    color="#AAAAAA", linewidth=0.6, alpha=0.4)
+
+    # --- entropy bar at bottom ---
+    bar_y = 0.04
+    bar_h = 0.04
+    segments = [
+        (0.05, struct, "#4FC3F7", "structural"),
+        (0.38, aest,   "#CE93D8", "aesthetic"),
+        (0.71, phys,   "#FF8A65", "physical"),
+    ]
+    for bx, val, color, _ in segments:
+        # background
+        ax.add_patch(mpatches.FancyBboxPatch(
+            (bx, bar_y), 0.25, bar_h,
+            boxstyle="round,pad=0.005", linewidth=0,
+            facecolor="#222222"))
+        # fill
+        ax.add_patch(mpatches.FancyBboxPatch(
+            (bx, bar_y), 0.25 * val, bar_h,
+            boxstyle="round,pad=0.005", linewidth=0,
+            facecolor=color, alpha=0.8))
+
+    # entropy labels
+    ax.text(0.055, bar_y + bar_h + 0.01, f"STR {struct:.2f}",
+            color="#4FC3F7", fontsize=5.5, fontfamily="monospace")
+    ax.text(0.385, bar_y + bar_h + 0.01, f"AES {aest:.2f}",
+            color="#CE93D8", fontsize=5.5, fontfamily="monospace")
+    ax.text(0.715, bar_y + bar_h + 0.01, f"PHY {phys:.2f}",
+            color="#FF8A65", fontsize=5.5, fontfamily="monospace")
+
+    # --- text overlays ---
+    ax.text(0.5, 0.95, _archetype(plan).upper(),
+            color="white", fontsize=13, fontfamily="monospace",
+            ha="center", va="top", fontweight="bold")
+
+    info_parts = []
+    if motion_sig:
+        info_parts.append(motion_sig)
+    if _pacing(plan):
+        info_parts.append(f"pacing:{_pacing(plan)}")
+    if _aesthetic(plan):
+        info_parts.append(_aesthetic(plan))
+    ax.text(0.5, 0.88, "  |  ".join(info_parts),
+            color="#AAAAAA", fontsize=6.5, fontfamily="monospace",
+            ha="center", va="top")
+
+    # --- regime badge ---
+    ax.text(0.98, 0.95, f"[{regime}]",
+            color="#00FF99", fontsize=7, fontfamily="monospace",
+            ha="right", va="top")
+
+    dest = _output_path(plan, "png", output_path)
+    fig.savefig(str(dest), dpi=120, bbox_inches="tight",
+                facecolor="#000000", pad_inches=0.05)
+    plt.close(fig)
+    return str(dest)
+
+
+# ---------------------------------------------------------------------------
+# SVG fallback path
+# ---------------------------------------------------------------------------
+
+def _generate_svg(plan: dict, output_path: str = None) -> str:
+    W, H = 800, 450
+    regime = _regime(plan)
+    phys = _entropy(plan, "physical")
+    struct = _entropy(plan, "structural")
+    aest = _entropy(plan, "aesthetic")
+    motion_sig = _motion_sig(plan)
+    archetype = _archetype(plan)
+    rng = random.Random(42)
+
+    shapes: list[str] = []
+
+    # background
+    shapes.append(f'<rect width="{W}" height="{H}" fill="#000000"/>')
+
+    # procedural geometry
+    if regime == "laminar":
+        n = 8
+        for i in range(n):
+            y_base = int(80 + (i / (n - 1)) * 260)
+            pts = []
+            for xi in range(0, W + 1, 5):
+                x = xi
+                y = y_base + int(12 * math.sin(2 * math.pi * (xi / W) * 3 + i) * phys)
+                pts.append(f"{x},{y}")
+            shapes.append(
+                f'<polyline points="{" ".join(pts)}" fill="none" '
+                f'stroke="#00BFFF" stroke-width="1" opacity="0.6"/>')
+
+    elif regime == "oscillatory":
+        for i in range(5):
+            freq = 2 + i * 1.5
+            amp = int((0.05 + phys * 0.15) * H)
+            y_off = int(0.2 * H + i * 0.13 * H)
+            pts = []
+            for xi in range(0, W + 1, 4):
+                x = xi
+                y = y_off + int(amp * math.sin(2 * math.pi * freq * (xi / W)))
+                pts.append(f"{x},{y}")
+            shapes.append(
+                f'<polyline points="{" ".join(pts)}" fill="none" '
+                f'stroke="#7B68EE" stroke-width="1.2" opacity="0.75"/>')
+
+    elif regime == "turbulent":
+        n_pts = int(80 + phys * 120)
+        for _ in range(n_pts):
+            cx = int(rng.gauss(W / 2, W * 0.22))
+            cy = int(rng.gauss(H * 0.5, H * 0.22))
+            cx = max(10, min(W - 10, cx))
+            cy = max(60, min(H - 60, cy))
+            shapes.append(
+                f'<circle cx="{cx}" cy="{cy}" r="3" '
+                f'fill="#FF4500" opacity="0.6"/>')
+
+    elif regime in ("vortex",) or "vortex" in motion_sig.lower():
+        n_pts = 120
+        for k in range(n_pts):
+            t = k / n_pts * 4 * math.pi
+            r = int((0.04 + 0.28 * (t / (4 * math.pi))) * min(W, H))
+            cx = int(W / 2 + r * math.cos(t))
+            cy = int(H / 2 + r * math.sin(t) * 0.6)
+            op = round(0.3 + 0.6 * (k / n_pts), 2)
+            shapes.append(
+                f'<circle cx="{cx}" cy="{cy}" r="2.5" '
+                f'fill="#00FF99" opacity="{op}"/>')
+    else:
+        for i in range(12):
+            t = i / 11
+            y1 = int((t * 0.7 + 0.1) * H)
+            y2 = int(((1 - t) * 0.7 + 0.1) * H)
+            shapes.append(
+                f'<line x1="0" y1="{y1}" x2="{W}" y2="{y2}" '
+                f'stroke="#AAAAAA" stroke-width="0.8" opacity="0.4"/>')
+
+    # entropy bars
+    bar_y = H - 35
+    bar_h = 16
+    segs = [
+        (40,  struct, "#4FC3F7", f"STR {struct:.2f}"),
+        (305, aest,   "#CE93D8", f"AES {aest:.2f}"),
+        (568, phys,   "#FF8A65", f"PHY {phys:.2f}"),
+    ]
+    bar_w = 200
+    for bx, val, color, label in segs:
+        shapes.append(
+            f'<rect x="{bx}" y="{bar_y}" width="{bar_w}" height="{bar_h}" '
+            f'rx="3" fill="#222222"/>')
+        shapes.append(
+            f'<rect x="{bx}" y="{bar_y}" width="{int(bar_w * val)}" height="{bar_h}" '
+            f'rx="3" fill="{color}" opacity="0.85"/>')
+        shapes.append(
+            f'<text x="{bx + 4}" y="{bar_y - 4}" fill="{color}" '
+            f'font-family="monospace" font-size="10">{label}</text>')
+
+    # archetype title
+    shapes.append(
+        f'<text x="{W // 2}" y="32" fill="white" font-family="monospace" '
+        f'font-size="20" font-weight="bold" text-anchor="middle">'
+        f'{archetype.upper()}</text>')
+
+    # info line
+    info_parts = []
+    if motion_sig:
+        info_parts.append(motion_sig)
+    if _pacing(plan):
+        info_parts.append(f"pacing:{_pacing(plan)}")
+    if _aesthetic(plan):
+        info_parts.append(_aesthetic(plan))
+    info_str = "  |  ".join(info_parts)
+    shapes.append(
+        f'<text x="{W // 2}" y="52" fill="#AAAAAA" font-family="monospace" '
+        f'font-size="11" text-anchor="middle">{info_str}</text>')
+
+    # regime badge
+    shapes.append(
+        f'<text x="{W - 10}" y="28" fill="#00FF99" font-family="monospace" '
+        f'font-size="12" text-anchor="end">[{regime}]</text>')
+
+    svg = (
+        f'<?xml version="1.0" encoding="UTF-8"?>\n'
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" '
+        f'viewBox="0 0 {W} {H}">\n'
+        + "\n".join(f"  {s}" for s in shapes)
+        + "\n</svg>\n"
+    )
+
+    dest = _output_path(plan, "svg", output_path)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(svg, encoding="utf-8")
+    return str(dest)
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+
+def generate_preview(plan: dict, output_path: str = None) -> str:
+    """
+    Generate a fast visual preview (< 1s) of the given plan.
+
+    Tries matplotlib first (PNG); falls back to pure-SVG if unavailable.
+    Returns the absolute path to the generated file.
+    """
+    try:
+        return _generate_matplotlib(plan, output_path)
+    except ImportError:
+        return _generate_svg(plan, output_path)
+
+
+def generate_ascii_preview(plan: dict) -> str:
+    """
+    Return a ~10-line ASCII art preview of the plan for quick terminal display.
+    No external dependencies.
+    """
+    regime = _regime(plan)
+    phys = _entropy(plan, "physical")
+    struct = _entropy(plan, "structural")
+    aest = _entropy(plan, "aesthetic")
+    archetype = _archetype(plan)
+    motion_sig = _motion_sig(plan)
+    pacing = _pacing(plan)
+    aesthetic = _aesthetic(plan)
+
+    W = 52  # inner width
+    border = "+" + "-" * W + "+"
+
+    def bar(val: float, w: int = 14) -> str:
+        filled = int(round(val * w))
+        return "[" + "#" * filled + "." * (w - filled) + "]"
+
+    def center(text: str) -> str:
+        return "| " + text.center(W - 2) + " |"
+
+    def left(text: str) -> str:
+        truncated = text[: W - 2]
+        return "| " + truncated.ljust(W - 2) + " |"
+
+    # regime visualisation row (5 chars wide pattern)
+    rng = random.Random(int(phys * 100))
+    if regime == "laminar":
+        vis = "~" * W
+    elif regime == "oscillatory":
+        vis = "".join("~" if math.sin(i * 0.4) > 0 else "-" for i in range(W))
+    elif regime == "turbulent":
+        vis = "".join(rng.choice(".*+  ") for _ in range(W))
+    elif regime == "vortex" or "vortex" in motion_sig.lower():
+        vis = "".join(rng.choice("oO°  ") for _ in range(W))
+    else:
+        vis = "-" * W
+
+    lines = [
+        border,
+        center(archetype.upper()),
+        center(f"[{regime}]  {aesthetic}"),
+        "| " + vis[:W] + " |",
+        "| " + vis[:W] + " |",
+        border,
+        left(f" PHY {bar(phys)}  {phys:.2f}"),
+        left(f" STR {bar(struct)}  {struct:.2f}"),
+        left(f" AES {bar(aest)}  {aest:.2f}"),
+        border,
+        left(f" motion : {motion_sig}"),
+        left(f" pacing : {pacing}"),
+        border,
+    ]
+    return "\n".join(lines)
+
+```
+
+==================================================
+📄 core/tools/render_tool.py
+==================================================
+```py
+import os
+import subprocess
+import shutil
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent.parent
+
+def run_manim(scene_name: str, script_path: str):
+    print(f"💎 [Manim Tool] Renderizando geometria de {scene_name}...")
+    env = dict(os.environ, PYTHONPATH=str(ROOT))
+    cmd = ["manim", "-f", "-qh", script_path, scene_name]
+    subprocess.run(cmd, check=True, cwd=str(ROOT / "engines" / "manim"), env=env)
+
+def bridge_engines(scene_name: str, script_path: str):
+    script_name = Path(script_path).stem
+    manim_output = ROOT / "engines" / "manim" / "media" / "videos" / script_name / "1080p60" / f"{scene_name}.mp4"
+    remotion_public = ROOT / "engines" / "remotion" / "public" / "manim_base.mp4"
+    if manim_output.exists():
+        print(f"🌉 [Bridge Tool] Injetando {scene_name} no React...")
+        os.makedirs(remotion_public.parent, exist_ok=True)
+        shutil.copy(manim_output, remotion_public)
+
+def run_remotion(comp="CinematicNarrative-v4"):
+    print(f"🎬 [Remotion Tool] Compondo narrativa final...")
+    os.makedirs(ROOT / "output" / "renders", exist_ok=True)
+    cmd = ["npx", "remotion", "render", "src/index.tsx", comp, f"../../output/renders/{comp}.mp4", "--force"]
+    subprocess.run(cmd, check=True, cwd=str(ROOT / "engines" / "remotion"))
+
+def render_pipeline(plan: dict):
+    """Encapsula a mecânica dura do antigo Orchestrator."""
+    scene_name = "EntropyDemo"
+    script_path = "scenes/cde_entropy_demo.py"
+    
+    # Simula gravação do tech_plan para a cena ler
+    import json
+    with open(ROOT / "assets" / "brand" / "dynamic_data.json", "w") as f:
+        # Retrocompatibilidade com IntelligenceLoader
+        entropy_package = plan["interpretation"].copy()
+        entropy_package["raw"] = plan["entropy"]
+        
+        json.dump({
+            "tech_plan": {
+                "archetype": plan["archetype"],
+                "entropy": entropy_package
+            },
+            "design_overlay": {
+                "aesthetic_family": plan["aesthetic_family"]
+            }
+        }, f, indent=2)
+
+    try:
+        run_manim(scene_name, script_path)
+        bridge_engines(scene_name, script_path)
+        run_remotion()
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+```
+
+==================================================
+📄 core/tools/memory_tool.py
+==================================================
+```py
+import json
+
+def save_entry(entry: dict, path: str = 'core/memory/creative_memory.json'):
+    try:
+        with open(path, 'r') as f: data = json.load(f)
+    except FileNotFoundError:
+        data = {'history': []}
+    data['history'].append(entry)
+    with open(path, 'w') as f: json.dump(data, f, indent=2)
+
+
+def save_entry_with_vector(entry: dict, path: str = 'core/memory/creative_memory.json',
+                           archetypes_dir: str = 'contracts/narrative/archetypes'):
+    """Save entry and also embed its semantic vector into the record for future retrieval.
+
+    The vector is stored under entry['_semantic_vector'] before persisting to disk.
+    If semantic_memory is unavailable the entry is saved without a vector (graceful degradation).
+    """
+    try:
+        from core.memory.semantic_memory import encode_signature
+        vector = encode_signature(entry, archetypes_dir=archetypes_dir)
+        entry = dict(entry)           # shallow copy — don't mutate caller's dict
+        entry['_semantic_vector'] = vector
+    except Exception:
+        pass  # proceed without vector if encoding fails
+
+    save_entry(entry, path=path)
+
+```
+
+==================================================
+📄 core/tools/__init__.py
+==================================================
+```py
+
+```
+
+==================================================
+📄 core/memory/__init__.py
+==================================================
+```py
+
+```
+
+==================================================
+📄 core/memory/semantic_memory.py
+==================================================
+```py
+"""
+semantic_memory.py — Semantic vector memory for Persona Uma (AIOX Studio)
+
+Encodes creative signatures as ~10-dimensional numeric vectors and computes
+cosine similarity to measure how different a new signature is from recent history.
+No external ML libraries required — uses numpy if available, math otherwise.
+"""
+
+import math
+import os
+import yaml
+
+# ---------------------------------------------------------------------------
+# Encoding maps
+# ---------------------------------------------------------------------------
+
+PACING_MAP = {
+    "cinematic": 0.2,
+    "slow": 0.3,
+    "meditative": 0.35,
+    "dynamic": 0.8,
+    "rhythmic": 0.65,
+    "urgent": 1.0,
+    "fast": 0.9,
+}
+
+AESTHETIC_FAMILY_MAP = {
+    "silent_architecture": 0.0,
+    "brutalist_signal": 0.33,
+    "organic_field": 0.66,
+    "data_narrative": 1.0,
+}
+
+# entropy_profile string → (physical, structural, aesthetic) numeric approximations
+ENTROPY_PROFILE_STRING_MAP = {
+    "low_to_medium":  (0.15, 0.15, 0.40),
+    "low_to_high":    (0.15, 0.15, 0.85),
+    "medium_to_high": (0.50, 0.50, 0.85),
+    "high_to_low":    (0.85, 0.85, 0.15),
+    "high_structural": (0.50, 0.90, 0.50),
+    "high":           (0.85, 0.85, 0.85),
+    "medium":         (0.50, 0.50, 0.50),
+    "low":            (0.15, 0.15, 0.15),
+}
+
+# motion_bias strings → hash-like stable float
+MOTION_BIAS_MAP = {
+    "scattered_to_aligned": 0.10,
+    "inward_to_outward":    0.20,
+    "outward_to_inward":    0.30,
+    "lateral":              0.40,
+    "rotational":           0.50,
+    "oscillating":          0.60,
+    "pulsing":              0.70,
+    "collapsing":           0.80,
+    "expanding":            0.90,
+    "breathing_field":      0.55,
+}
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+def _stable_hash_norm(s: str) -> float:
+    """Return a stable 0-1 float from a string using Python's built-in hash seed=0 trick."""
+    # Use sum of (char * position) to get a seed-independent, stable hash
+    if not s:
+        return 0.5
+    h = 0
+    for i, c in enumerate(s):
+        h = (h * 31 + ord(c)) & 0xFFFFFFFF
+    return (h % 10000) / 10000.0
+
+
+def _load_archetype_meta(archetype_name: str, archetypes_dir: str) -> dict:
+    """Load YAML for a given archetype id. Returns {} on failure."""
+    if not archetype_name:
+        return {}
+    path = os.path.join(archetypes_dir, f"{archetype_name}.yaml")
+    try:
+        with open(path, "r") as f:
+            return yaml.safe_load(f) or {}
+    except Exception:
+        return {}
+
+
+def _resolve_entropy_triple(entry: dict) -> tuple:
+    """
+    Extract (physical, structural, aesthetic) floats from an entry dict.
+    Handles both flat dict entries and nested creative_plan entries.
+    Returns (physical, structural, aesthetic) each in [0, 1].
+    """
+    # Try direct top-level entropy_profile dict
+    ep = entry.get("entropy_profile", {})
+
+    if isinstance(ep, dict):
+        raw = ep.get("raw", ep)
+        physical   = float(raw.get("physical",   ep.get("physical",   0.5)))
+        structural = float(raw.get("structural", ep.get("structural", 0.5)))
+        aesthetic  = float(raw.get("aesthetic",  ep.get("aesthetic",  0.5)))
+        return (physical, structural, aesthetic)
+
+    if isinstance(ep, str):
+        return ENTROPY_PROFILE_STRING_MAP.get(ep, (0.5, 0.5, 0.5))
+
+    # Try nested creative_plan.entropy
+    cp = entry.get("creative_plan", {})
+    if cp:
+        ent = cp.get("entropy", {})
+        if ent:
+            return (
+                float(ent.get("physical",   0.5)),
+                float(ent.get("structural", 0.5)),
+                float(ent.get("aesthetic",  0.5)),
+            )
+
+    return (0.5, 0.5, 0.5)
+
+
+def _resolve_pacing(entry: dict) -> float:
+    pacing = entry.get("pacing")
+    if not pacing:
+        pacing = entry.get("creative_plan", {}).get("pacing", "dynamic")
+    return PACING_MAP.get(str(pacing).lower(), 0.5)
+
+
+def _resolve_aesthetic_family(entry: dict) -> float:
+    fam = entry.get("aesthetic_family")
+    if not fam:
+        fam = entry.get("creative_plan", {}).get("aesthetic_family", "")
+    return AESTHETIC_FAMILY_MAP.get(str(fam).lower(), 0.5)
+
+
+def _resolve_archetype_name(entry: dict) -> str:
+    name = (
+        entry.get("narrative_archetype")
+        or entry.get("archetype")
+        or entry.get("creative_plan", {}).get("archetype")
+        or entry.get("output_signature", {}).get("structure")
+        or ""
+    )
+    return str(name).lower().strip()
+
+
+def _resolve_motion_signature(entry: dict) -> str:
+    ms = (
+        entry.get("motion_bias")
+        or entry.get("creative_plan", {}).get("interpretation", {}).get("motion_signature")
+        or entry.get("output_signature", {}).get("motion")
+        or ""
+    )
+    return str(ms).lower().strip()
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+
+def encode_signature(
+    signature: dict,
+    archetypes_dir: str = "contracts/narrative/archetypes",
+) -> list:
+    """
+    Encode a creative signature as a numeric vector of 10 dimensions.
+
+    Dimensions:
+      0  physical entropy (from signature or archetype YAML)
+      1  structural entropy
+      2  aesthetic entropy
+      3  pacing numeric
+      4  aesthetic_family numeric
+      5  archetype name hash (stable, 0-1)
+      6  motion_signature hash (stable, 0-1)
+      7  archetype YAML entropy_profile physical approx
+      8  archetype YAML entropy_profile structural approx
+      9  archetype YAML entropy_profile aesthetic approx
+    """
+    # -- dims 0-2: entropy from the signature itself
+    phys, struct, aes = _resolve_entropy_triple(signature)
+
+    # -- dim 3: pacing
+    pacing_val = _resolve_pacing(signature)
+
+    # -- dim 4: aesthetic family
+    aesthetic_val = _resolve_aesthetic_family(signature)
+
+    # -- dim 5: archetype name hash
+    arch_name = _resolve_archetype_name(signature)
+    arch_hash = _stable_hash_norm(arch_name)
+
+    # -- dim 6: motion signature hash
+    motion_str = _resolve_motion_signature(signature)
+    if not motion_str:
+        # try loading from archetype YAML
+        meta = _load_archetype_meta(arch_name, archetypes_dir)
+        motion_str = str(meta.get("motion_bias", "")).lower()
+    motion_val = MOTION_BIAS_MAP.get(motion_str, _stable_hash_norm(motion_str))
+
+    # -- dims 7-9: archetype YAML entropy profile
+    meta = _load_archetype_meta(arch_name, archetypes_dir)
+    yaml_ep = meta.get("entropy_profile", "medium")
+    if isinstance(yaml_ep, str):
+        yp, ys, ya = ENTROPY_PROFILE_STRING_MAP.get(yaml_ep, (0.5, 0.5, 0.5))
+    else:
+        yp, ys, ya = 0.5, 0.5, 0.5
+
+    return [phys, struct, aes, pacing_val, aesthetic_val, arch_hash, motion_val, yp, ys, ya]
+
+
+def cosine_similarity(v1: list, v2: list) -> float:
+    """
+    Cosine similarity between two equal-length numeric vectors.
+    Returns value in [-1, 1]; practically [0, 1] for non-negative vectors.
+    Falls back to pure math if numpy is unavailable.
+    """
+    try:
+        import numpy as np
+        a = np.array(v1, dtype=float)
+        b = np.array(v2, dtype=float)
+        norm_a = np.linalg.norm(a)
+        norm_b = np.linalg.norm(b)
+        if norm_a == 0 or norm_b == 0:
+            return 0.0
+        return float(np.dot(a, b) / (norm_a * norm_b))
+    except ImportError:
+        dot = sum(x * y for x, y in zip(v1, v2))
+        norm_a = math.sqrt(sum(x * x for x in v1))
+        norm_b = math.sqrt(sum(y * y for y in v2))
+        if norm_a == 0 or norm_b == 0:
+            return 0.0
+        return dot / (norm_a * norm_b)
+
+
+def vector_similarity(v1: list, v2: list) -> float:
+    """
+    Similarity metric designed for bounded [0,1] feature vectors.
+
+    Pure cosine similarity clusters near 1.0 when all components are positive,
+    making it ineffective for discrimination here. This function uses normalised
+    Euclidean distance as the primary measure, with a calibration factor to
+    spread the similarity range across [0, 1] for typical creative signatures.
+
+    Returns similarity in [0, 1] — higher means more similar.
+
+    Calibration:
+      - Max possible Euclidean distance in [0,1]^n is sqrt(n) ≈ 3.16 for n=10
+      - Typical observed distances between distinct signatures: 0.3–0.55 of max
+      - We rescale so that ~0.55*max_dist maps to similarity=0.0 (very different)
+        and 0 distance maps to 1.0 (identical)
+      - effective_max = 0.55 * sqrt(n)  (signatures differing by ~half max = 0 similarity)
+    """
+    n = len(v1)
+    if n == 0:
+        return 0.0
+
+    try:
+        import numpy as np
+        euc_dist = float(np.linalg.norm(np.array(v1, dtype=float) - np.array(v2, dtype=float)))
+    except ImportError:
+        euc_dist = math.sqrt(sum((a - b) ** 2 for a, b in zip(v1, v2)))
+
+    # Calibrated normalisation: signatures at ~55% of max_dist are considered 0-similar
+    effective_max = 0.55 * math.sqrt(n)
+    similarity = 1.0 - (euc_dist / effective_max)
+    return max(0.0, min(1.0, similarity))
+
+
+def get_diversity_score(
+    current_signature: dict,
+    history: list,
+    top_k: int = 5,
+    archetypes_dir: str = "contracts/narrative/archetypes",
+) -> float:
+    """
+    Return a diversity score in [0.0, 1.0]:
+      1.0 = completely unique compared to recent history
+      0.0 = identical to the most recent entry
+
+    Algorithm:
+      1. Encode current_signature into a vector.
+      2. Encode up to top_k most recent history entries.
+      3. Compute cosine similarity between current and each history vector.
+      4. Take the MAXIMUM similarity (worst-case / most-similar comparison).
+      5. diversity_score = 1.0 - max_similarity
+         → High similarity → low diversity (penalised)
+         → Low similarity → high diversity (rewarded)
+    """
+    if not history:
+        return 1.0
+
+    current_vec = encode_signature(current_signature, archetypes_dir)
+
+    recent = history[-top_k:] if len(history) >= top_k else history
+    similarities = []
+    for entry in recent:
+        try:
+            hist_vec = encode_signature(entry, archetypes_dir)
+            sim = vector_similarity(current_vec, hist_vec)
+            similarities.append(sim)
+        except Exception:
+            continue
+
+    if not similarities:
+        return 1.0
+
+    max_sim = max(similarities)
+    # Clamp to [0, 1] to handle floating-point edge cases
+    diversity = 1.0 - max(0.0, min(1.0, max_sim))
+    return round(diversity, 4)
+
+```
+
+==================================================
+📄 core/memory/creative_memory.json
+==================================================
+```json
+{
+  "last_updated": "2026-03-28T21:00:00Z",
+  "history": [
+    {
+      "narrative_archetype": "emergence",
+      "aesthetic_family": "silent_architecture",
+      "entropy_profile": {
+        "structural": 0.1,
+        "aesthetic": 0.2,
+        "physical": 0.3
+      },
+      "pacing": "cinematic",
+      "metadata": {
+        "persona": "Aria",
+        "logic": "v4.5-CDE-Internal"
+      }
+    },
+    {
+      "narrative_archetype": "fragmented_reveal",
+      "aesthetic_family": "silent_architecture",
+      "entropy_profile": {
+        "regime": "laminar",
+        "rhythm": "breathing",
+        "flow": "linear",
+        "stability": "medium",
+        "grid_type": "adaptive",
+        "primary_signature": "breathing_field",
+        "raw": {
+          "structural": 0.4,
+          "aesthetic": 0.8,
+          "physical": 0.2
+        }
+      },
+      "pacing": "dynamic",
+      "metadata": {
+        "persona": "Aria & Zara",
+        "logic": "v4.5-CDE-Internal"
+      }
+    },
+    {
+      "timestamp": 1774745113.651531,
+      "intent": "chaos_to_order slow tension high",
+      "creative_plan": {
+        "archetype": "chaos_to_order",
+        "aesthetic_family": "silent_architecture",
+        "entropy": {
+          "physical": 0.8,
+          "structural": 0.6,
+          "aesthetic": 0.7
+        },
+        "interpretation": {
+          "regime": "turbulent",
+          "motion_signature": "scattered_to_aligned",
+          "stability": "medium",
+          "rhythm": "irregular",
+          "flow": "nonlinear"
+        },
+        "pacing": "dynamic"
+      },
+      "output_signature": {
+        "structure": "chaos_to_order",
+        "motion": "scattered_to_aligned",
+        "density": "high",
+        "rhythm": "irregular"
+      }
+    },
+    {
+      "timestamp": 1774747969.285225,
+      "intent": "Intent(tension='medium', density='medium', transformation='emergence', pacing='cinematic', tone='dark', raw_tokens=[])",
+      "creative_plan": {
+        "archetype": "emergence",
+        "aesthetic_family": "silent_architecture",
+        "pacing": "cinematic",
+        "entropy": {
+          "physical": 0.3,
+          "structural": 0.2,
+          "aesthetic": 0.4
+        },
+        "interpretation": {
+          "regime": "oscillatory",
+          "motion_signature": "inward_to_outward",
+          "stability": "high",
+          "rhythm": "periodic",
+          "flow": "linear",
+          "grid_type": "adaptive"
+        }
+      },
+      "output_signature": {
+        "structure": "emergence",
+        "motion": "inward_to_outward",
+        "density": "low",
+        "rhythm": "periodic"
+      }
+    }
+  ],
+  "stats": {
+    "total_videos": 2,
+    "favorite_archetypes": {},
+    "last_aesthetic_family": "silent_architecture",
+    "last_archetype": "fragmented_reveal"
+  }
+}
+```
+
+==================================================
+📄 core/intelligence/ai_brain.py
+==================================================
+```py
+"""
+AI Native Brain — Anthropic API integration para decisões criativas.
+Fallback para heurísticas se SDK não disponível ou sem API key.
+"""
+
+import os
+import hashlib
+import threading
+
+# In-memory cache: {intent_hash: archetype}
+_archetype_cache: dict = {}
+# In-memory cache: {identity_hash: aesthetic_family}
+_aesthetic_cache: dict = {}
+
+_SDK_AVAILABLE = None  # lazy-check on first call
+
+
+def _check_sdk() -> bool:
+    """Verifica se o SDK da Anthropic está disponível e a API key existe."""
+    global _SDK_AVAILABLE
+    if _SDK_AVAILABLE is not None:
+        return _SDK_AVAILABLE
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        _SDK_AVAILABLE = False
+        return False
+    try:
+        import anthropic  # noqa: F401
+        _SDK_AVAILABLE = True
+    except ImportError:
+        _SDK_AVAILABLE = False
+    return _SDK_AVAILABLE
+
+
+def _hash(text: str) -> str:
+    return hashlib.md5(text.encode()).hexdigest()
+
+
+def call_aria_llm(intent: str, available_archetypes: list, archetype_descriptions: dict) -> str | None:
+    """
+    Chama Claude Haiku para escolher o melhor archetype dado o intent.
+    Retorna nome do archetype ou None se falhar.
+    """
+    if not _check_sdk():
+        print("⚡ [Aria] Fallback para heurísticas (SDK não disponível)")
+        return None
+
+    cache_key = _hash(intent)
+    if cache_key in _archetype_cache:
+        return _archetype_cache[cache_key]
+
+    # Monta descrições concisas a partir dos dados YAML
+    descriptions_text = ""
+    for name in available_archetypes:
+        data = archetype_descriptions.get(name, {})
+        structure = data.get("structure", [])
+        entropy = data.get("entropy_profile", "")
+        motion = data.get("motion_bias", "")
+        parts = []
+        if structure:
+            parts.append("structure: " + "→".join(str(s) for s in structure))
+        if entropy:
+            parts.append(f"entropy: {entropy}")
+        if motion:
+            parts.append(f"motion: {motion}")
+        descriptions_text += f"- {name}: {', '.join(parts)}\n"
+
+    archetypes_list = ", ".join(available_archetypes)
+
+    prompt = f"""You are a creative director AI. Given the user's creative intent, choose the single most fitting narrative archetype from the list below.
+
+Available archetypes:
+{descriptions_text}
+User intent: "{intent}"
+
+Respond with ONLY the archetype name (exactly as listed). No explanation, no punctuation.
+Valid names: {archetypes_list}"""
+
+    result_holder = [None]
+    exception_holder = [None]
+
+    def _call():
+        try:
+            import anthropic
+            client = anthropic.Anthropic()
+            message = client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=20,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            raw = message.content[0].text.strip().lower().replace(" ", "_")
+            # Valida que a resposta é um archetype válido
+            if raw in available_archetypes:
+                result_holder[0] = raw
+            else:
+                # Tenta match parcial
+                for name in available_archetypes:
+                    if name in raw or raw in name:
+                        result_holder[0] = name
+                        break
+        except Exception as e:
+            exception_holder[0] = e
+
+    t = threading.Thread(target=_call, daemon=True)
+    t.start()
+    t.join(timeout=3.0)
+
+    if t.is_alive() or exception_holder[0] or result_holder[0] is None:
+        if t.is_alive():
+            print("⚡ [Aria] Timeout na chamada ao Claude Haiku — fallback para heurísticas")
+        elif exception_holder[0]:
+            print(f"⚡ [Aria] Erro na API: {exception_holder[0]} — fallback para heurísticas")
+        return None
+
+    print(f"🧠 [Aria LLM] Usando Claude Haiku para decisão criativa... → {result_holder[0]}")
+    _archetype_cache[cache_key] = result_holder[0]
+    return result_holder[0]
+
+
+def call_aesthetic_llm(identity: str, intent: str = "") -> str | None:
+    """
+    Chama Claude Haiku para escolher aesthetic_family.
+    Retorna nome da família ou None se falhar.
+    """
+    if not _check_sdk():
+        print("⚡ [Aria] Fallback para heurísticas (SDK não disponível)")
+        return None
+
+    cache_key = _hash(f"{identity}::{intent}")
+    if cache_key in _aesthetic_cache:
+        return _aesthetic_cache[cache_key]
+
+    families = ["silent_architecture", "brutalist_signal", "organic_field", "data_narrative"]
+    families_text = "\n".join(f"- {f}" for f in families)
+
+    intent_line = f'\nCreative intent context: "{intent}"' if intent else ""
+
+    prompt = f"""You are a creative director AI. Choose the most fitting visual aesthetic family for the given brand identity.
+
+Available aesthetic families:
+{families_text}
+
+Descriptions:
+- silent_architecture: minimal, geometric, spatial, quiet elegance
+- brutalist_signal: raw, high contrast, bold typography, direct
+- organic_field: fluid, natural flow, soft curves, biological
+- data_narrative: information-dense, structured, analytical, systematic
+
+Brand identity: "{identity}"{intent_line}
+
+Respond with ONLY the aesthetic family name (exactly as listed). No explanation.
+Valid names: {', '.join(families)}"""
+
+    result_holder = [None]
+    exception_holder = [None]
+
+    def _call():
+        try:
+            import anthropic
+            client = anthropic.Anthropic()
+            message = client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=30,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            raw = message.content[0].text.strip().lower().replace(" ", "_")
+            if raw in families:
+                result_holder[0] = raw
+            else:
+                for name in families:
+                    if name in raw or raw in name:
+                        result_holder[0] = name
+                        break
+        except Exception as e:
+            exception_holder[0] = e
+
+    t = threading.Thread(target=_call, daemon=True)
+    t.start()
+    t.join(timeout=3.0)
+
+    if t.is_alive() or exception_holder[0] or result_holder[0] is None:
+        if t.is_alive():
+            print("⚡ [Aria] Timeout na chamada ao Claude Haiku — fallback para heurísticas")
+        elif exception_holder[0]:
+            print(f"⚡ [Aria] Erro na API: {exception_holder[0]} — fallback para heurísticas")
+        return None
+
+    print(f"🧠 [Aria LLM] Usando Claude Haiku para decisão criativa... → {result_holder[0]}")
+    _aesthetic_cache[cache_key] = result_holder[0]
+    return result_holder[0]
+
+```
+
+==================================================
+📄 core/intelligence/__init__.py
+==================================================
+```py
+
+```
+
+==================================================
+📄 core/intelligence/entropy_interpreter.py
+==================================================
+```py
+def interpret_entropy(entropy):
+    """
+    Transforma dicionário de números brutos de entropia
+    em uma interpretação de Comportamento e Dinâmica (Zara v2).
+
+    Parâmetros esperados em `entropy`:
+      - "physical"   (float 0-1): nível de energia física / agitação cinética
+      - "structural" (float 0-1): grau de desordem estrutural / fragmentação
+
+    Retorna:
+      - regime            : "laminar" | "oscillatory" | "turbulent"
+      - motion_signature  : assinatura de movimento mapeada para AIOXNoiseField
+      - stability         : "high" | "medium" | "low"
+      - rhythm            : "regular" | "periodic" | "irregular" | "erratic"
+      - flow              : "linear" | "nonlinear"
+      - grid_type         : "regular" | "adaptive" | "fragmented"
+    """
+    phys = entropy.get("physical", 0.5)
+    struc = entropy.get("structural", 0.5)
+
+    # 1. Determinação do Regime
+    if phys < 0.3:
+        regime = "laminar"
+    elif phys < 0.7:
+        regime = "oscillatory"
+    else:
+        regime = "turbulent"
+
+    # 2. Definição do Tipo de Fluxo (Flow)
+    if phys < 0.5:
+        flow = "linear"
+    else:
+        flow = "nonlinear"
+
+    # 3. Motion Signatures e Ritmo — lógica expandida
+    if regime == "laminar":
+        # phys < 0.3: fluxo laminar, sem turbulência
+        if flow == "linear" and phys < 0.3:
+            # Fluxo puramente laminar e direcional
+            motion_signature = "laminar_flow"
+            rhythm = "regular"
+        else:
+            # Laminar mas com alguma coerência macro
+            motion_signature = "coherent_flow"
+            rhythm = "regular"
+
+    elif regime == "oscillatory":
+        # 0.3 <= phys < 0.7: regime oscilatório
+        if 0.3 <= phys < 0.5:
+            # Oscilação suave, próxima ao laminar — usa oscillatory_wave
+            motion_signature = "oscillatory_wave"
+            rhythm = "periodic"
+        elif struc < 0.3 and phys >= 0.5:
+            # Estrutura muito fragmentada em regime oscilatório = ruído fragmentado
+            motion_signature = "fragmented_noise"
+            rhythm = "irregular"
+        elif struc > 0.6:
+            # Alta desordem estrutural em oscilação = dispersão crescente
+            motion_signature = "scattered_to_aligned"
+            rhythm = "irregular"
+        else:
+            # Oscilação padrão — alias semântico para uso pelo entropy_interpreter
+            motion_signature = "pulsing_wave"
+            rhythm = "periodic"
+
+    else:
+        # Turbulent: phys >= 0.7
+        if struc < 0.3 and phys > 0.7:
+            # Baixa estrutura + alta energia física = explosão caótica
+            motion_signature = "chaotic_burst"
+            rhythm = "erratic"
+        elif struc > 0.6:
+            # Alta desordem estrutural + turbulência = dispersão caótica
+            motion_signature = "chaotic_dispersion"
+            rhythm = "erratic"
+        elif struc < 0.5:
+            # Turbulento mas com núcleo ordenado = vórtice
+            motion_signature = "vortex_pull"
+            rhythm = "irregular"
+        else:
+            # Turbulento com convergência moderada
+            motion_signature = "convergence_field"
+            rhythm = "irregular"
+
+    # 4. Cálculo da Estabilidade Macro
+    if struc < 0.3:
+        stability = "high"
+    elif struc < 0.7:
+        stability = "medium"
+    else:
+        stability = "low"
+
+    # 5. Tipo de Grid — regular/adaptive/fragmented baseado no regime
+    if regime == "laminar":
+        grid_type = "regular"
+    elif regime == "oscillatory":
+        grid_type = "adaptive"
+    else:
+        # turbulent
+        if struc > 0.6:
+            grid_type = "fragmented"
+        else:
+            grid_type = "adaptive"
+
+    return {
+        "regime": regime,
+        "motion_signature": motion_signature,
+        "stability": stability,
+        "rhythm": rhythm,
+        "flow": flow,
+        "grid_type": grid_type,
+    }
+
+```
+
+==================================================
+📄 core/contracts/__init__.py
+==================================================
+```py
+
+```
+
+==================================================
+📄 core/runtime/graph_runtime.py
+==================================================
+```py
+import json
+import time
+
+class GraphRuntime:
+    """
+    O Motor de Execução (Stateful Orchestration).
+    Executa blocos da intenção criativa como nós de um grafo,
+    permitindo pausa, inspeção do estado e retomada (Modo 2 assistido).
+    """
+    def __init__(self, mode="assisted"):
+        self.mode = mode # 'assisted' (Modo 2) ou 'autonomous' (Modo 3)
+        self.state = {
+            "input": {},
+            "intent": None,
+            "plan": None,
+            "signature": None,
+            "manifest": None,
+            "approved": False,
+            "output": None,
+            "status": "idle" # idle, compiling, paused_for_approval, rendering, done
+        }
+    
+    def load_seed(self, seed: dict):
+        self.state["input"] = seed
+        self.state["status"] = "compiling"
+        
+    def step_interpret(self):
+        print("🧠 [Runtime] Parseando Intenção de Texto Livre (N-Grams)")
+        from core.compiler.creative_compiler import compile_seed
+        
+        # Na Fase 5 o Compilador processa tudo de uma vez. O Runtime reage à matriz.
+        self.compilation_result = compile_seed(self.state["input"])
+        self.state["intent"] = str(self.compilation_result["intent"])
+        
+    def step_plan(self):
+        print("🧬 [Runtime] Gerando Creative Plan (RuleEngine DSL + Mutation Optimizer)")
+        self.state["plan"] = self.compilation_result["creative_plan"]
+        
+    def step_simulate(self):
+        print("🎭 [Runtime] Simulando Output Signature")
+        self.state["signature"] = self.compilation_result["output_signature"]
+        
+    def pause_for_approval(self):
+        """No Modo 2, expõe o plano para o usuário antes de instanciar render."""
+        if self.mode == "assisted":
+            self.state["status"] = "paused_for_approval"
+            print("\n" + "="*50)
+            print("👁  [DIRETOR ASSISTIDO] Plano Criativo Pronto para Revisão")
+            print("="*50)
+            print(f"🎬 Intenção: {self.state['intent']}")
+            print(f"🧬 Arquétipo: {self.state['plan'].get('archetype')} | Estética: {self.state['plan'].get('aesthetic_family')}")
+            print(f"🔥 Motion Signature: {self.state['signature'].get('motion')}")
+            print("="*50)
+            print("Aguardando confirmação do Diretor para Renderizar...")
+            # Na CLI real, aqui teríamos o prompt com 'input()'.
+            try:
+                ans = input("Continuar para renderização? [Y/n]: ")
+                if ans.strip().lower() in ['n', 'no']:
+                    print("🛑 [Diretor] Operação abortada. Nenhum frame foi renderizado.")
+                    return
+            except EOFError:
+                pass
+            
+            # Se aprovou, segue o fluxo
+            self.continue_execution()
+            
+    def continue_execution(self):
+        self.state["approved"] = True
+        self.state["status"] = "rendering"
+        self.step_render()
+        self.step_log()
+        
+    def step_render(self):
+        print("⚙️ [Runtime] Engatilhando Render Tool")
+        from core.tools.render_tool import render_pipeline
+        self.state["output"] = render_pipeline(self.state["plan"])
+        self.state["status"] = "done"
+        print("🏆 [Runtime] Cinema de Dados entregue.")
+        
+    def step_log(self):
+        from core.tools.memory_tool import save_entry
+        save_entry({
+            "timestamp": time.time(),
+            "intent": self.state["intent"],
+            "creative_plan": self.state["plan"],
+            "output_signature": self.state["signature"]
+        })
+        print("🧠 [Runtime] Decisão gravada na Memória Criativa.")
+
+    def run_full(self, seed: dict):
+        """Fluxo contínuo (usado para Testes ou Modo 3)."""
+        self.load_seed(seed)
+        self.step_interpret()
+        self.step_plan()
+        self.step_simulate()
+        
+        if self.mode == "autonomous":
+            self.continue_execution()
+        else:
+            self.pause_for_approval()
+            
+        return self.state
+
+```
+
+==================================================
+📄 core/runtime/__init__.py
+==================================================
+```py
+
+```
+
+==================================================
+📄 core/agents/aria.py
+==================================================
+```py
+import random
+import os
+import yaml
+from pathlib import Path
+
+# AI Native Brain — optional LLM integration (graceful fallback se indisponível)
+try:
+    from core.intelligence import ai_brain as _ai_brain
+except ImportError:
+    _ai_brain = None
+
+
+def _load_archetypes(archetypes_dir="contracts/narrative/archetypes"):
+    archetypes = {}
+    if not os.path.exists(archetypes_dir):
+        return archetypes
+    for f in os.listdir(archetypes_dir):
+        if f.endswith(".yaml"):
+            with open(os.path.join(archetypes_dir, f), 'r') as file:
+                data = yaml.safe_load(file)
+                archetypes[Path(f).stem] = data
+    return archetypes
+
+
+def decide_archetype(intent: str) -> str:
+    """
+    Persona Aria: Decisão criativa do Arco Narrativo.
+    Analisa a intenção e define o arquétipo.
+
+    Tenta Claude Haiku via ai_brain primeiro; fallback para heurísticas de keywords.
+    """
+    archetypes = _load_archetypes()
+    available = list(archetypes.keys())
+
+    # --- AI Native Brain (LLM path) ---
+    if _ai_brain is not None and available:
+        llm_result = _ai_brain.call_aria_llm(intent, available, archetypes)
+        if llm_result:
+            return llm_result
+
+    # --- Fallback: heurísticas por keyword (comportamento original intacto) ---
+    intent_lower = intent.lower()
+
+    if any(w in intent_lower for w in ["scale", "growth", "birth", "emergence", "starting"]):
+        return "emergence"
+    if any(w in intent_lower for w in ["chaos_to_order", "alignment", "harmony"]):
+        return "chaos_to_order"
+    if any(w in intent_lower for w in ["speed", "tension", "fragment", "complex", "chaos"]):
+        return "fragmented_reveal"
+    if any(w in intent_lower for w in ["attraction", "collapse", "singularity"]):
+        return "gravitational_collapse"
+
+    return random.choice(available) if available else "emergence"
+
+
+def select_aesthetic_family(identity: str, intent: str = "") -> str:
+    """
+    Persona Aria: Escolha da linguagem estética.
+
+    Tenta Claude Haiku via ai_brain primeiro; fallback para lógica original.
+    """
+    # --- AI Native Brain (LLM path) ---
+    if _ai_brain is not None:
+        llm_result = _ai_brain.call_aesthetic_llm(identity, intent)
+        if llm_result:
+            return llm_result
+
+    # --- Fallback: lógica original intacta ---
+    families = ["silent_architecture", "brutalist_signal", "organic_field", "data_narrative"]
+    if identity == "aiox_default":
+        return "silent_architecture"
+    return random.choice(families)
+
+```
+
+==================================================
+📄 core/agents/__init__.py
+==================================================
+```py
+
+```
+
+==================================================
+📄 core/agents/zara.py
+==================================================
+```py
+from core.agents.aria import _load_archetypes
+
+def define_entropy(archetype_name: str, base_entropy=0.5) -> dict:
+    """
+    Persona Zara: Engenharia Física e Comportamental.
+    Define as escalas brutas de entropia que alimentarão o Interpreter.
+    """
+    archetypes = _load_archetypes()
+    archetype = archetypes.get(archetype_name, {})
+    profile = archetype.get("entropy_profile", "medium")
+    
+    # Mapeamento do perfil string para mix escalar bruto
+    if profile == "low_to_medium":
+        return {"physical": 0.3, "structural": 0.2, "aesthetic": 0.4}
+    elif profile == "high_to_low":
+        return {"physical": 0.8, "structural": 0.6, "aesthetic": 0.7}
+    elif profile == "low_to_high":
+        return {"physical": 0.4, "structural": 0.3, "aesthetic": 0.5}
+    elif profile == "high_structural":
+        return {"physical": 0.6, "structural": 0.9, "aesthetic": 0.6}
+    elif profile == "rhythmic":
+        return {"physical": 0.5, "structural": 0.5, "aesthetic": 0.5}
+    
+    return {"structural": base_entropy, "aesthetic": base_entropy, "physical": base_entropy}
+
+def resolve_motion_bias(archetype_name: str) -> str:
+    """Extrai a assinatura primária forçada pelo arquétipo (se houver)."""
+    archetypes = _load_archetypes()
+    arch_data = archetypes.get(archetype_name, {})
+    return arch_data.get("motion_bias")
+
+```
+
+==================================================
+📄 core/agents/dara.py
+==================================================
+```py
+def build_scene(plan: dict):
+    '''Persona Dara: Engine Orchestrator.'''
+    from core.tools.render_tool import render_pipeline
+    return render_pipeline(plan)
+
+```
+
+==================================================
+📄 core/agents/kael.py
+==================================================
+```py
+def define_pacing(intent: str, archetype: str) -> str:
+    '''Persona Kael: Temporização e Ritmo Master.'''
+    intent_lower = intent.lower()
+    if 'pacing slow' in intent_lower: return 'cinematic'
+    if 'pacing fast' in intent_lower: return 'dynamic'
+    return 'cinematic' if archetype == 'emergence' else 'dynamic'
+
+```
+
+==================================================
+📄 core/agents/uma.py
+==================================================
+```py
+import json
+import random
+
+try:
+    from core.memory import semantic_memory as _sem
+    _SEMANTIC_AVAILABLE = True
+except ImportError:
+    try:
+        import sys, os
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+        from core.memory import semantic_memory as _sem
+        _SEMANTIC_AVAILABLE = True
+    except ImportError:
+        _sem = None
+        _SEMANTIC_AVAILABLE = False
+
+
+def evaluate(signature: dict, history_path: str = 'core/memory/creative_memory.json') -> bool:
+    '''Persona Uma: Memory and Repetition Control.
+
+    Uses semantic vector similarity when available (semantic_memory module).
+    Falls back to exact archetype string comparison if semantic_memory is absent.
+
+    Blocking logic (semantic mode):
+      diversity_score < 0.3  → block with 85% probability (too similar to history)
+      diversity_score > 0.7  → always accept (genuinely diverse)
+      0.3 ≤ score ≤ 0.7     → probabilistic acceptance proportional to diversity
+    '''
+    try:
+        with open(history_path, 'r') as f:
+            data = json.load(f)
+        history = data.get('history', [])
+    except FileNotFoundError:
+        history = []
+
+    if not history:
+        return True
+
+    # --- Semantic path ---
+    if _SEMANTIC_AVAILABLE and _sem is not None:
+        try:
+            diversity_score = _sem.get_diversity_score(signature, history, top_k=5)
+
+            if diversity_score < 0.3:
+                # Very similar to recent history — block with 85% probability
+                return random.random() >= 0.85
+
+            if diversity_score > 0.7:
+                # Genuinely diverse — always accept
+                return True
+
+            # Intermediate zone [0.3, 0.7] — linear probability
+            # Maps 0.3→30% accept, 0.7→100% accept
+            accept_probability = (diversity_score - 0.3) / (0.7 - 0.3)
+            return random.random() < accept_probability
+
+        except Exception:
+            # Semantic evaluation failed — fall through to legacy logic
+            pass
+
+    # --- Legacy fallback: exact archetype string comparison ---
+    last_entry = history[-1]
+    last_archetype = last_entry.get('creative_plan', {}).get('archetype')
+    if signature.get('structure') == last_archetype:
+        return False if random.random() < 0.7 else True
+
+    return True
 
 ```
 
@@ -958,9 +2556,21 @@ class ParticlePool(VGroup):
         self._emit_accumulator = 0.0
         self._time = 0.0
 
-        # Noise field para variância orgânica
+        # Conecta a Inteligência Semântica da Zona Zara
+        from core.primitives.theme_loader import intelligence
+        self._intelligence = intelligence
+        
+        signature = self._intelligence.get("interpretation", {}).get("motion_signature", "breathing_field")
+        
+        # Ajustes orgânicos baseados na "Personality" do movimento
+        if signature == "elastic_snap":
+            self.damping *= 0.3  # Menos atrito, "estala" rápido
+        elif signature == "breathing_field":
+            self.damping *= 1.5  # Mais arrasto, lento
+            
+        # Noise field para variância orgânica (Assinatura Semântica)
         from core.primitives.fields import AIOXNoiseField
-        self._noise = AIOXNoiseField(entropy=entropy)
+        self._noise = AIOXNoiseField(signature=signature)
 
         # Dots Manim pré-alocados (pool estático para performance)
         self._dots = [
@@ -976,8 +2586,19 @@ class ParticlePool(VGroup):
         spread = self.emitter_spread
         rng = np.random
         self._positions[index] = self.emitter_pos + rng.uniform(-spread, spread, 3) * [1, 1, 0]
-        speed = np.interp(self.entropy, [0, 1], [0.3, 2.0])
-        angle = rng.uniform(0, 2 * np.pi)
+        
+        # Velocidade atrelada à entropia física bruta (a intensidade verdadeira)
+        phys = self._intelligence.get("entropy", {}).get("physical", 0.5)
+        speed = np.interp(phys, [0, 1], [0.3, 2.5])
+        
+        # O Regime Comportamental e flow direcionam a dispersão
+        flow = self._intelligence.get("interpretation", {}).get("flow", "nonlinear")
+        if flow == "linear":
+            # Emissão direcional
+            angle = rng.uniform(-np.pi/16, np.pi/16)
+        else:
+            angle = rng.uniform(0, 2 * np.pi)
+            
         self._velocities[index] = np.array([
             np.cos(angle) * speed * rng.uniform(0.5, 1.5),
             np.sin(angle) * speed * rng.uniform(0.5, 1.5),
@@ -1099,8 +2720,11 @@ class TrailPool(VGroup):
         self._emit_acc = 0.0
         self._time = 0.0
 
+        from core.primitives.theme_loader import intelligence
+        signature = intelligence.get("interpretation", {}).get("motion_signature", "breathing_field")
+
         from core.primitives.fields import AIOXNoiseField
-        self._noise = AIOXNoiseField(entropy=entropy)
+        self._noise = AIOXNoiseField(signature=signature)
 
         # Pré-aloca linhas de rastro
         self._trails = [
@@ -1223,6 +2847,51 @@ class ThemeLoader:
 # Instância global para facilitar importação
 theme = ThemeLoader()
 
+class IntelligenceLoader:
+    """Carrega o contexto unificado gerado pelo CDE para a cena Manim."""
+    def __init__(self):
+        self._data = self._load_data()
+
+    def _load_data(self):
+        base_dir = Path(__file__).resolve().parent.parent.parent
+        data_path = base_dir / "assets" / "brand" / "dynamic_data.json"
+        
+        if not os.path.exists(data_path):
+            return {}
+            
+        with open(data_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+
+    def get_intelligence(self):
+        """Unifica o CDE (dynamic_data) na nova estrutura semântica."""
+        # Se não houver dados gerados, retorna um mock seguro
+        if not self._data:
+            return {
+                "entropy": {"physical": 0.5, "structural": 0.5, "aesthetic": 0.5},
+                "interpretation": {"regime": "laminar", "motion_signature": "coherent_flow", "stability": "high", "rhythm": "regular", "flow": "linear"},
+                "creative": {"archetype": "emergence", "aesthetic_family": "aiox_default"}
+            }
+
+        tech_plan = self._data.get("tech_plan", {})
+        design = self._data.get("design_overlay", {})
+        
+        # dynamic_data.json atual tem tech_plan.entropy misturado. Vamos extrair "raw" para formar "entropy".
+        imported_entropy = tech_plan.get("entropy", {})
+        raw_entropy = imported_entropy.pop("raw", {"physical": 0.5, "structural": 0.5, "aesthetic": 0.5})
+        
+        # Retorna o modelo V2 de Inteligência
+        return {
+            "entropy": raw_entropy,
+            "interpretation": imported_entropy,  # Regime, rhythm, motion_signature
+            "creative": {
+                "archetype": tech_plan.get("archetype", "emergence"),
+                "aesthetic_family": design.get("aesthetic_family", "aiox_default")
+            }
+        }
+
+# Expor o dicionário unificado diretamente
+intelligence = IntelligenceLoader().get_intelligence()
+
 ```
 
 ==================================================
@@ -1252,19 +2921,83 @@ class AIOXNoiseField:
     """
     Campo vetorial procedural baseado em FBM (Fractal Brownian Motion).
 
-    entropy: 0.0 = vento calmo e suave | 1.0 = tempestade caótica orgânica
-    seed:    None = único a cada render | int = determinístico (entropy ≤ 0.2)
+    Agora reativo à Persona Zara: recebe uma "Motion Signature" semântica
+    em vez de um número cego.
     """
 
-    def __init__(self, entropy: float = 0.5, seed: int = None):
-        self.entropy = entropy
+    def __init__(self, signature: str = "breathing_field", strength_override=None, seed: int = None):
+        self.signature = signature
         self.seed = seed
 
-        # Complexidade = número de oitavas FBM
-        self.octaves = int(np.interp(entropy, [0, 1], [1, 6]))
-        self.strength = float(np.interp(entropy, [0, 1], [0.08, 2.8]))
-        self.lacunarity = 2.0       # frequência dobra a cada oitava
-        self.persistence = 0.5      # amplitude cai 50% a cada oitava
+        # Assinaturas Visuais definem a matemática do caos
+        if signature == "breathing_field":
+            # Calmo, lento, expansão laminar
+            self.octaves = 2
+            self.strength = 0.15
+            self.lacunarity = 1.5
+            self.persistence = 0.3
+        elif signature == "vortex_pull":
+            # Giro central, atrator
+            self.octaves = 3
+            self.strength = 0.6
+            self.lacunarity = 2.0
+            self.persistence = 0.5
+        elif signature == "chaotic_dispersion":
+            # Alta variação, rajadas, tempestuoso
+            self.octaves = 5
+            self.strength = 1.8
+            self.lacunarity = 2.5
+            self.persistence = 0.7
+        elif signature == "elastic_snap":
+            # Fraturado, afiado, quebra de ritmo
+            self.octaves = 6
+            self.strength = 3.5
+            self.lacunarity = 3.0
+            self.persistence = 0.8
+        elif signature == "laminar_flow" or signature == "coherent_flow":
+            # Fluxo direcional suave, baixa turbulência
+            self.octaves = 1
+            self.strength = 0.08
+            self.lacunarity = 1.2
+            self.persistence = 0.2
+        elif signature == "oscillatory_wave" or signature == "pulsing_wave":
+            # Onda pulsante periódica
+            self.octaves = 3
+            self.strength = 0.4
+            self.lacunarity = 1.8
+            self.persistence = 0.5
+        elif signature == "convergence_field":
+            # Atração para centro, similar a vortex mas mais suave
+            self.octaves = 2
+            self.strength = 0.35
+            self.lacunarity = 1.6
+            self.persistence = 0.4
+        elif signature == "fragmented_noise":
+            # Fragmentado, quebrado, alta lacunarity
+            self.octaves = 5
+            self.strength = 1.2
+            self.lacunarity = 3.5
+            self.persistence = 0.6
+        elif signature == "chaotic_burst":
+            # Caótico explosivo, entre elastic_snap e chaotic_dispersion
+            self.octaves = 6
+            self.strength = 2.5
+            self.lacunarity = 2.8
+            self.persistence = 0.75
+        elif signature == "scattered_to_aligned":
+            # Começa disperso, converge para alinhamento
+            self.octaves = 4
+            self.strength = 0.9
+            self.lacunarity = 2.2
+            self.persistence = 0.55
+        else:
+            self.octaves = int(np.interp(0.5, [0, 1], [1, 6]))
+            self.strength = 1.0
+            self.lacunarity = 2.0
+            self.persistence = 0.5
+
+        if strength_override is not None:
+            self.strength = strength_override
 
         if _HAS_SIMPLEX:
             _seed = seed if seed is not None else np.random.randint(0, 2**31)
@@ -1329,6 +3062,62 @@ class AIOXNoiseField:
         norm = np.linalg.norm(vector)
         if norm > 1e-6:
             vector = (vector / norm) * self.strength
+
+        # Aplicação de Forças Especiais por Assinatura
+        if self.signature == "vortex_pull":
+            # Espiral concêntrico em direção ao centro
+            dist = np.sqrt(x*x + y*y) + 0.01
+            # Rotação anti-horária
+            vortex_vec = np.array([-y, x, 0]) / dist
+            # Puxão magnético fraco pro centro
+            pull_vec = np.array([-x, -y, 0]) / dist
+            
+            # Mistura FBM com vórtice perfeito
+            vector = vector * 0.4 + (vortex_vec * 0.8 + pull_vec * 0.3) * self.strength
+            
+        elif self.signature == "elastic_snap":
+            # Vetores saltam erraticamente em posições fracionárias
+            if int(time * 10) % 3 == 0:
+                vector *= 2.5
+                
+        elif self.signature == "breathing_field":
+            # Pulso senoidal lento no tempo
+            breath_cycle = np.sin(time * 1.5) * 0.5 + 0.5
+            vector *= (0.5 + breath_cycle)
+
+        elif self.signature in ("laminar_flow", "coherent_flow"):
+            # Fluxo laminar: componente dominante na direção x, perturbação mínima em y
+            vector[0] = abs(vector[0]) * self.strength  # fluxo unidirecional positivo
+            vector[1] *= 0.1  # turbulência lateral suprimida
+            vector[2] *= 0.05
+
+        elif self.signature in ("oscillatory_wave", "pulsing_wave"):
+            # Modulação periódica em amplitude
+            wave_cycle = np.sin(time * 2.5) * 0.5 + 0.5
+            vector *= (0.3 + wave_cycle * 0.7)
+
+        elif self.signature == "convergence_field":
+            # Atração suave para o centro (sem rotação, apenas puxão radial)
+            dist = np.sqrt(x*x + y*y) + 0.01
+            pull_vec = np.array([-x, -y, 0]) / dist
+            vector = vector * 0.3 + pull_vec * self.strength * 0.7
+
+        elif self.signature == "fragmented_noise":
+            # Vetores quebrados: inversão abrupta baseada em posição fracionária
+            if (int(abs(x) * 4) + int(abs(y) * 4)) % 2 == 0:
+                vector *= -0.8
+
+        elif self.signature == "chaotic_burst":
+            # Explosivo: magnitude amplificada em pulsos rápidos irregulares
+            burst = abs(np.sin(time * 7.3 + x * 2.1)) ** 0.4
+            vector *= (0.5 + burst * 2.0)
+
+        elif self.signature == "scattered_to_aligned":
+            # Começa caótico (t=0) e converge para fluxo laminar com o tempo
+            alignment = min(time / 5.0, 1.0)  # alinha completamente em ~5s
+            laminar_vec = np.array([self.strength, 0.0, 0.0])
+            vector = vector * (1.0 - alignment) + laminar_vec * alignment
+
         return vector
 
     def get_scalar(self, x: float, y: float, time: float = 0.0) -> float:
@@ -1347,6 +3136,145 @@ class AIOXNoiseField:
     @property
     def engine(self) -> str:
         return "opensimplex_fbm" if _HAS_SIMPLEX else "harmonic_fallback"
+
+
+def get_physics_preset(signature: str) -> dict:
+    """
+    Retorna configuração de PhysicsBody + campos para a Motion Signature.
+
+    Cada preset define:
+      - "noise_field": instância de AIOXNoiseField calibrada
+      - "mass": float — inércia da partícula (maior = mais resistente a forças)
+      - "damping": float — coeficiente de amortecimento (0=sem atrito, 1=parado)
+      - "gravity": float — aceleração gravitacional (negativa = anti-gravidade)
+      - "max_speed": float — velocidade máxima permitida
+      - "repulsion_radius": float — raio de repulsão entre partículas
+      - "description": str — intenção física do preset
+    """
+    presets = {
+        "vortex_pull": {
+            "noise_field": AIOXNoiseField(signature="vortex_pull"),
+            "mass": 0.8,
+            "damping": 0.05,
+            "gravity": 0.0,
+            "max_speed": 4.0,
+            "repulsion_radius": 0.3,
+            "description": "Partículas orbitam um atrator central com pouco atrito",
+        },
+        "elastic_snap": {
+            "noise_field": AIOXNoiseField(signature="elastic_snap"),
+            "mass": 0.3,
+            "damping": 0.6,
+            "gravity": 0.0,
+            "max_speed": 12.0,
+            "repulsion_radius": 0.1,
+            "description": "Partículas leves disparam e freiam abruptamente — snap elástico",
+        },
+        "chaotic_burst": {
+            "noise_field": AIOXNoiseField(signature="chaotic_burst"),
+            "mass": 0.5,
+            "damping": 0.02,
+            "gravity": -0.1,
+            "max_speed": 15.0,
+            "repulsion_radius": 0.05,
+            "description": "Explosão caótica com quase nenhum amortecimento e anti-gravidade leve",
+        },
+        "laminar_flow": {
+            "noise_field": AIOXNoiseField(signature="laminar_flow"),
+            "mass": 1.5,
+            "damping": 0.4,
+            "gravity": 0.0,
+            "max_speed": 1.0,
+            "repulsion_radius": 0.5,
+            "description": "Fluxo suave e ordenado — partículas pesadas com alto amortecimento",
+        },
+        "coherent_flow": {
+            "noise_field": AIOXNoiseField(signature="coherent_flow"),
+            "mass": 1.5,
+            "damping": 0.4,
+            "gravity": 0.0,
+            "max_speed": 1.0,
+            "repulsion_radius": 0.5,
+            "description": "Alias de laminar_flow — mesma física, nome semântico para entropy_interpreter",
+        },
+        "convergence_field": {
+            "noise_field": AIOXNoiseField(signature="convergence_field"),
+            "mass": 1.0,
+            "damping": 0.15,
+            "gravity": 0.0,
+            "max_speed": 2.5,
+            "repulsion_radius": 0.2,
+            "description": "Partículas são atraídas suavemente para o centro sem rotação intensa",
+        },
+        "oscillatory_wave": {
+            "noise_field": AIOXNoiseField(signature="oscillatory_wave"),
+            "mass": 0.9,
+            "damping": 0.1,
+            "gravity": 0.0,
+            "max_speed": 3.0,
+            "repulsion_radius": 0.35,
+            "description": "Partículas oscilam periodicamente — amortecimento baixo para manter ritmo",
+        },
+        "pulsing_wave": {
+            "noise_field": AIOXNoiseField(signature="pulsing_wave"),
+            "mass": 0.9,
+            "damping": 0.1,
+            "gravity": 0.0,
+            "max_speed": 3.0,
+            "repulsion_radius": 0.35,
+            "description": "Alias de oscillatory_wave — nome semântico para entropy_interpreter",
+        },
+        "chaotic_dispersion": {
+            "noise_field": AIOXNoiseField(signature="chaotic_dispersion"),
+            "mass": 0.6,
+            "damping": 0.03,
+            "gravity": 0.05,
+            "max_speed": 10.0,
+            "repulsion_radius": 0.08,
+            "description": "Dispersão tempestuosa com leve gravidade e quase sem atrito",
+        },
+        "fragmented_noise": {
+            "noise_field": AIOXNoiseField(signature="fragmented_noise"),
+            "mass": 0.4,
+            "damping": 0.35,
+            "gravity": 0.0,
+            "max_speed": 6.0,
+            "repulsion_radius": 0.15,
+            "description": "Fragmentos que se movem em direções abruptas com amortecimento moderado",
+        },
+        "scattered_to_aligned": {
+            "noise_field": AIOXNoiseField(signature="scattered_to_aligned"),
+            "mass": 1.1,
+            "damping": 0.2,
+            "gravity": 0.0,
+            "max_speed": 4.5,
+            "repulsion_radius": 0.25,
+            "description": "Inicia caótico e converge — massa média para transição gradual",
+        },
+        "breathing_field": {
+            "noise_field": AIOXNoiseField(signature="breathing_field"),
+            "mass": 2.0,
+            "damping": 0.5,
+            "gravity": 0.0,
+            "max_speed": 0.8,
+            "repulsion_radius": 0.6,
+            "description": "Expansão calma e cíclica — partículas pesadas e muito amortecidas",
+        },
+    }
+
+    if signature in presets:
+        return presets[signature]
+
+    # Fallback genérico para assinaturas desconhecidas
+    return {
+        "noise_field": AIOXNoiseField(signature=signature),
+        "mass": 1.0,
+        "damping": 0.2,
+        "gravity": 0.0,
+        "max_speed": 5.0,
+        "repulsion_radius": 0.3,
+        "description": f"Preset genérico para assinatura desconhecida: {signature}",
+    }
 
 ```
 
@@ -4055,6 +5983,650 @@ if __name__ == "__main__":
 ```
 
 ==================================================
+📄 core/creative/decision_engine.py
+==================================================
+```py
+import yaml
+import json
+import os
+import random
+from pathlib import Path
+
+class CreativeDecisionEngine:
+    def __init__(self, memory_path="core/memory/creative_memory.json", archetypes_dir="contracts/narrative/archetypes"):
+        self.memory_path = memory_path
+        self.archetypes_dir = archetypes_dir
+        self.history = self._load_json(memory_path)
+        self.archetypes = self._load_archetypes()
+        
+    def _load_json(self, path):
+        if not os.path.exists(path):
+            return {"history": []}
+        with open(path, 'r') as f:
+            return json.load(f)
+
+    def _load_archetypes(self):
+        archetypes = {}
+        if not os.path.exists(self.archetypes_dir):
+            return archetypes
+        for f in os.listdir(self.archetypes_dir):
+            if f.endswith(".yaml"):
+                with open(os.path.join(self.archetypes_dir, f), 'r') as file:
+                    data = yaml.safe_load(file)
+                    archetypes[Path(f).stem] = data
+        return archetypes
+
+    def decide_archetype(self, theme):
+        """
+        Simula a lógica da Persona 'Aria' (Creative Director).
+        No futuro, isso pode ser uma chamada de LLM via MCP.
+        """
+        # Mapping rústico (heurística) para a versão 4.5 demo
+        theme_lower = theme.lower()
+        if any(w in theme_lower for w in ["scale", "growth", "birth", "emergence", "starting"]):
+            return "emergence"
+        if any(w in theme_lower for w in ["speed", "tension", "fragment", "breaking", "complex"]):
+            return "fragmented_reveal"
+        if any(w in theme_lower for w in ["result", "order", "stability", "final", "organized"]):
+            return "resolution"
+        
+        # Default de segurança (mutação baseada no histórico)
+        available = list(self.archetypes.keys())
+        last_archetype = self.history.get("stats", {}).get("last_archetype")
+        if last_archetype in available and len(available) > 1:
+            available.remove(last_archetype)
+        return random.choice(available) if available else "emergence"
+
+    def select_aesthetic_family(self, identity):
+        """
+        Define a estética baseada na marca e intenção.
+        """
+        families = ["silent_architecture", "brutalist_signal", "organic_field", "data_narrative"]
+        # Por enquanto, escolhemos baseados na identidade ou aleatório inteligente
+        if identity == "aiox_default":
+            return "silent_architecture"
+        return random.choice(families)
+
+    def calculate_entropy_mix(self, archetype_name, base_entropy=0.5):
+        """
+        Calibra a base de entropia bruta (numbers) baseada no perfil do arquétipo.
+        """
+        archetype = self.archetypes.get(archetype_name, {})
+        profile = archetype.get("entropy_profile", "medium")
+        
+        # Mapeamento do perfil string para mix escalar bruto
+        if profile == "low_to_medium":
+            return {"physical": 0.3, "structural": 0.2, "aesthetic": 0.4}
+        elif profile == "high_to_low":
+            return {"physical": 0.8, "structural": 0.6, "aesthetic": 0.7}
+        elif profile == "low_to_high":
+            return {"physical": 0.4, "structural": 0.3, "aesthetic": 0.5}
+        elif profile == "high_structural":
+            return {"physical": 0.6, "structural": 0.9, "aesthetic": 0.6}
+        elif profile == "rhythmic":
+            return {"physical": 0.5, "structural": 0.5, "aesthetic": 0.5}
+        
+        return {"structural": base_entropy, "aesthetic": base_entropy, "physical": base_entropy}
+
+    def generate_creative_plan(self, brief):
+        """
+        Gera o plano final que Dara e a Engine de Matemática irão consumir.
+        """
+        # Extrair intenção do "creative_seed" ou do formato legado
+        if "creative_seed" in brief:
+            seed = brief["creative_seed"]
+            intent = f"{seed.get('transformation','')} {seed.get('pacing','')} tension {seed.get('tension','')}"
+        else:
+            intent = brief.get("meta", {}).get("project", "") + " " + str(brief.get("scenes", []))
+
+        identity = brief.get("meta", {}).get("active_identity", "aiox_default")
+        
+        selected_archetype = self.decide_archetype(intent)
+        selected_aesthetic = self.select_aesthetic_family(identity)
+        base_entropy = self.calculate_entropy_mix(selected_archetype)
+        
+        # Zara v2 (Interpretação Semântica)
+        from core.intelligence.entropy_interpreter import interpret_entropy
+        interpretation = interpret_entropy(base_entropy)
+
+        arch_data = self.archetypes.get(selected_archetype, {})
+        if "motion_bias" in arch_data:
+            interpretation["motion_signature"] = arch_data["motion_bias"]
+        
+        plan = {
+            "archetype": selected_archetype,
+            "aesthetic_family": selected_aesthetic,
+            "entropy": base_entropy,
+            "interpretation": interpretation,
+            "metadata": {
+                "persona": "Aria & Zara v2",
+                "logic": "v4.5-CDE-Director-Assisted"
+            }
+        }
+        
+        return plan
+
+    def save_to_memory(self, plan):
+        """
+        Persiste a decisão para evitar repetição no próximo ciclo.
+        """
+        self.history["history"].append(plan)
+        self.history["stats"]["total_videos"] = self.history["stats"].get("total_videos", 0) + 1
+        self.history["stats"]["last_archetype"] = plan["narrative_archetype"]
+        self.history["stats"]["last_aesthetic_family"] = plan["aesthetic_family"]
+        
+        with open(self.memory_path, 'w') as f:
+            json.dump(self.history, f, indent=2)
+
+```
+
+==================================================
+📄 core/creative/zara.py
+==================================================
+```py
+# core/creative/zara.py
+class EntropyAgentZara:
+    """
+    Persona: Engenheira Física e de Caos (Zara)
+    Objetivo: Transformar valores escalares de entropia em 'Motion Signatures' com personalidade.
+    Em vez de dizer 'noise_strength = 0.8', ela dita 'regime = turbulent, flow = non-linear'.
+    """
+    
+    @staticmethod
+    def interpret(entropy_dict):
+        phys = entropy_dict.get("physical", 0.5)
+        struc = entropy_dict.get("structural", 0.5)
+        aesth = entropy_dict.get("aesthetic", 0.5)
+        
+        # 1. Regime Físico e Assinatura de Movimento
+        if phys < 0.25:
+            regime = "laminar"
+            rhythm = "breathing"
+            flow = "linear"
+            primary_signature = "breathing_field"
+        elif phys < 0.60:
+            regime = "transitional"
+            rhythm = "pulsing"
+            flow = "vortex"
+            primary_signature = "vortex_pull"
+        elif phys < 0.85:
+            regime = "turbulent"
+            rhythm = "irregular"
+            flow = "non-linear"
+            primary_signature = "chaotic_dispersion"
+        else:
+            regime = "chaotic"
+            rhythm = "snapping"
+            flow = "fractured"
+            primary_signature = "elastic_snap"
+            
+        # 2. Estabilidade Estrutural
+        if struc < 0.3:
+            stability = "high"
+            grid_type = "ordered"
+        elif struc < 0.7:
+            stability = "medium"
+            grid_type = "adaptive"
+        else:
+            stability = "low"
+            grid_type = "fragmented"
+
+        return {
+            "regime": regime,
+            "rhythm": rhythm,
+            "flow": flow,
+            "stability": stability,
+            "grid_type": grid_type,
+            "primary_signature": primary_signature,
+            "raw": entropy_dict
+        }
+
+```
+
+==================================================
+📄 core/compiler/mutation_engine.py
+==================================================
+```py
+import random
+
+def mutate_entropy(plan: dict) -> dict:
+    """Aplica mutação genética contínua leve aos parâmetros físicos."""
+    for key in ['physical', 'structural', 'aesthetic']:
+        if key in plan["entropy"]:
+            change = random.uniform(-0.15, 0.15)
+            # Clamping 0.0 to 1.0
+            plan["entropy"][key] = max(0.0, min(1.0, plan["entropy"][key] + change))
+            
+    return plan
+
+def mutate_motion(plan: dict) -> dict:
+    """Aplica mutação categórica discreta na Motion Signature quando barrado pela Uma."""
+    # Conjunto canônico da Fase 3
+    options = [
+        "vortex_pull", "elastic_snap", "chaotic_burst", "laminar_flow",
+        "coherent_flow", "convergence_field", "oscillatory_wave",
+        "pulsing_wave", "chaotic_dispersion", "fragmented_noise",
+        "scattered_to_aligned", "breathing_field"
+    ]
+    
+    current = plan["interpretation"]["motion_signature"]
+    safe_options = [o for o in options if o != current]
+    
+    if safe_options:
+        plan["interpretation"]["motion_signature"] = random.choice(safe_options)
+        
+    return plan
+
+def mutate(plan: dict) -> dict:
+    """Orquestrador de Mutação Genética."""
+    import copy
+    mutated = copy.deepcopy(plan)
+    mutated = mutate_entropy(mutated)
+    
+    # 50% chance de mutar radicalmente a semântica de movimento se reprovado
+    if random.random() > 0.5:
+        mutated = mutate_motion(mutated)
+        
+    return mutated
+
+```
+
+==================================================
+📄 core/compiler/plan_generator.py
+==================================================
+```py
+from core.agents import aria, zara, kael
+from core.intelligence.entropy_interpreter import interpret_entropy
+
+def generate_plan(intent: str, identity: str = 'aiox_default') -> dict:
+    """
+    Compiler Phase 2: A espinha neural criativa (antigo CDE)
+    """
+    archetype = aria.decide_archetype(intent)
+    aesthetic = aria.select_aesthetic_family(identity)
+    entropy_base = zara.define_entropy(archetype)
+    
+    # Semantic interpretation by Zara v2
+    interpretation = interpret_entropy(entropy_base)
+    
+    # Motion bias extraction
+    bias = zara.resolve_motion_bias(archetype)
+    if bias: 
+        interpretation['motion_signature'] = bias
+        
+    pacing = kael.define_pacing(intent, archetype)
+    
+    return {
+        'archetype': archetype,
+        'aesthetic_family': aesthetic,
+        'entropy': entropy_base,
+        'interpretation': interpretation,
+        'pacing': pacing
+    }
+
+```
+
+==================================================
+📄 core/compiler/__init__.py
+==================================================
+```py
+
+```
+
+==================================================
+📄 core/compiler/rule_engine.py
+==================================================
+```py
+from typing import Callable, Dict
+from core.compiler.intent_parser import Intent
+import random
+
+class Rule:
+    def __init__(self, condition: Callable[[Intent], bool], action: Callable[[Dict], None]):
+        self.condition = condition
+        self.action = action
+
+def apply_rules(intent: Intent, identity: str = "aiox_default") -> dict:
+    """O Cérebro Racional Offline. Compila o plano-base a partir das Regras."""
+    plan = {
+        "archetype": "emergence",  # fallback master
+        "aesthetic_family": "silent_architecture",
+        "pacing": "cinematic"
+    }
+    
+    # === RULES DSL ===
+    RULES = [
+        # Transformation -> Archetype Mapping
+        Rule(
+            condition=lambda i: i.transformation == "chaos_to_order",
+            action=lambda p: p.update({"archetype": "chaos_to_order"})
+        ),
+        Rule(
+            condition=lambda i: i.transformation == "order_to_chaos",
+            action=lambda p: p.update({"archetype": "order_to_chaos"})
+        ),
+        Rule(
+            condition=lambda i: i.transformation == "gravitational_collapse",
+            action=lambda p: p.update({"archetype": "gravitational_collapse"})
+        ),
+        
+        # Tension Exceptions -> Force Archetypes
+        Rule(
+            condition=lambda i: i.tension == "high" and i.density == "high",
+            action=lambda p: p.update({"archetype": "fragmented_reveal"})
+        ),
+        Rule(
+            condition=lambda i: i.tension == "low" and i.density == "low",
+            action=lambda p: p.update({"archetype": "loop_stability"})
+        ),
+        
+        # Pacing Rules
+        Rule(
+            condition=lambda i: i.pacing == "dynamic",
+            action=lambda p: p.update({"pacing": "dynamic"})
+        ),
+        
+        # Aesthetic Theme Rules (Simulação do Design_System)
+        Rule(
+            condition=lambda i: i.tone == "light",
+            action=lambda p: p.update({"aesthetic_family": "corporate_lucid"})
+        ),
+        Rule(
+            condition=lambda i: i.tone == "dark" and identity == "aiox_default",
+            action=lambda p: p.update({"aesthetic_family": "silent_architecture"})
+        )
+    ]
+    
+    # Motor de Execução Linear das Leis
+    for rule in RULES:
+        if rule.condition(intent):
+            rule.action(plan)
+            
+    return plan
+
+```
+
+==================================================
+📄 core/compiler/intent_parser.py
+==================================================
+```py
+import re
+from dataclasses import dataclass, field
+from typing import List
+
+@dataclass
+class Intent:
+    tension: str
+    density: str
+    transformation: str
+    pacing: str
+    tone: str
+    raw_tokens: List[str] = field(default_factory=list)
+
+# Dicionários Semânticos (Lexicon)
+TENSION_MAP = {
+    "high": ["chaos", "explosion", "intense", "violent", "fragmented", "sharp", "fast", "tension", "turbulent"],
+    "low": ["calm", "minimal", "soft", "slow", "peaceful", "fluid", "continuous", "gentle"]
+}
+
+DENSITY_MAP = {
+    "high": ["dense", "crowded", "complex", "stars", "thousands", "particles", "heavy", "grid"],
+    "low": ["sparse", "clean", "minimalist", "empty", "void", "single", "focus", "light"]
+}
+
+TRANSFORMATION_MAP = {
+    "chaos_to_order": ["organize", "align", "structure", "harmony", "chaos to order", "sort"],
+    "order_to_chaos": ["explode", "shatter", "disperse", "entropy", "break", "order to chaos"],
+    "emergence": ["birth", "grow", "emerge", "scale", "appear", "starting", "reveal"],
+    "gravitational_collapse": ["attract", "collapse", "singularity", "pull", "center", "vortex"]
+}
+
+PACING_MAP = {
+    "cinematic": ["slow", "gradual", "epic", "cinematic", "smooth", "breathe"],
+    "dynamic": ["fast", "dynamic", "glitch", "sudden", "rhythmic", "beat", "snap"]
+}
+
+TONE_MAP = {
+    "dark": ["dark", "shadow", "cyber", "brutal", "abyss", "unknown"],
+    "light": ["light", "bright", "neon", "clean", "corporate", "lucid"]
+}
+
+def normalize(text: str) -> List[str]:
+    # Converte para minúsculas e remove pontuação não-essencial
+    text = text.lower()
+    text = re.sub(r'[^a-z0-9\s_]', '', text)
+    return text.split()
+
+def detect_score(tokens: List[str], concept_map: dict, default: str) -> str:
+    scores = {key: 0 for key in concept_map.keys()}
+    
+    # 1-gram
+    for word in tokens:
+        for key, keywords in concept_map.items():
+            if word in keywords:
+                scores[key] += 1
+                
+    # 2-grams (simplificado para "chaos to order" etc)
+    text_joined = " ".join(tokens)
+    for key, keywords in concept_map.items():
+        for kw in keywords:
+            if " " in kw and kw in text_joined:
+                scores[key] += 2  # Bigrams têm mais peso
+                
+    # Vencedor
+    best_match = max(scores.items(), key=lambda x: x[1])
+    if best_match[1] > 0:
+        return best_match[0]
+        
+    return default
+
+def parse_intent(seed: dict) -> Intent:
+    """Transforma o briefing natural (YAML ou texto livre) em um Objeto de Intenção Semântica."""
+    
+    # Extrai o texto consolidado
+    if isinstance(seed, dict):
+        # Se for um YAML estruturado
+        raw_text = " ".join([str(v) for v in seed.values() if isinstance(v, str)])
+    else:
+        # Se for string livre
+        raw_text = str(seed)
+        
+    tokens = normalize(raw_text)
+    
+    tension = detect_score(tokens, TENSION_MAP, "medium")
+    density = detect_score(tokens, DENSITY_MAP, "medium")
+    transformation = detect_score(tokens, TRANSFORMATION_MAP, "emergence")
+    pacing = detect_score(tokens, PACING_MAP, "cinematic")
+    tone = detect_score(tokens, TONE_MAP, "dark")
+    
+    return Intent(
+        tension=tension,
+        density=density,
+        transformation=transformation,
+        pacing=pacing,
+        tone=tone,
+        raw_tokens=tokens
+    )
+
+```
+
+==================================================
+📄 core/compiler/signature_simulator.py
+==================================================
+```py
+def simulate_signature(plan: dict) -> dict:
+    '''Constrói o preview virtual antes do render.'''
+    interp = plan.get('interpretation', {})
+    return {
+        'structure': plan.get('archetype'),
+        'motion': interp.get('motion_signature'),
+        'density': 'high' if plan.get('entropy', {}).get('physical', 0) > 0.6 else 'low',
+        'rhythm': interp.get('rhythm', 'regular')
+    }
+
+```
+
+==================================================
+📄 core/compiler/creative_compiler.py
+==================================================
+```py
+from .intent_parser import parse_intent
+from .rule_engine import apply_rules
+from .mutation_engine import mutate_entropy, mutate_motion
+from .scoring_engine import novelty_score, coherence_score
+from .signature_simulator import simulate_signature
+from core.agents import zara, kael
+
+import copy
+
+def enrich_with_entropy(plan: dict) -> dict:
+    """Invoca as personas físicas reais (Zara/Kael) com o arquétipo já escolhido pela Rule Engine."""
+    archetype = plan.get("archetype", "emergence")
+    
+    # Define entropia numérica bruta via regra ZARA
+    entropy_base = zara.define_entropy(archetype)
+    plan["entropy"] = entropy_base
+    
+    # Interpreta Semântica (turbulento, etc)
+    from core.intelligence.entropy_interpreter import interpret_entropy
+    interpretation = interpret_entropy(entropy_base)
+    
+    # Force bias if exists
+    bias = zara.resolve_motion_bias(archetype)
+    if bias:
+        interpretation["motion_signature"] = bias
+        
+    plan["interpretation"] = interpretation
+    
+    return plan
+
+def optimize(plan: dict) -> dict:
+    """The Darwinian Optimization Loop."""
+    best_plan = copy.deepcopy(plan)
+    max_score = 0.0
+    
+    for _ in range(5):
+        ns = novelty_score(best_plan)
+        cs = coherence_score(best_plan)
+        total = ns * 0.4 + cs * 0.6
+        
+        # Objetivo Satisfatório
+        if ns > 0.6 and cs > 0.8:
+            return best_plan
+            
+        if total > max_score:
+            max_score = total
+            
+        # O plano atualiza (Mutação)
+        best_plan = mutate_entropy(best_plan)
+        if ns < 0.4:
+            best_plan = mutate_motion(best_plan)
+            
+    # Retorna o melhor achado em 5 iterações rápidas
+    return best_plan
+
+def compile_seed(seed: dict, identity: str = 'aiox_default'):
+    """Ponto de Entrada Mestre do AIOX OS v5 (Autonomia)."""
+    
+    # 1. Parsing Semântico Pobre/Texto Livre -> Intent Objeto
+    intent = parse_intent(seed)
+    
+    # 2. Rule Engine (DSL Criativa substitui LLM de Arquétipo)
+    plan = apply_rules(intent, identity)
+    
+    # 3. Mapeamentos Primitivos Físicos (Zara original)
+    plan = enrich_with_entropy(plan)
+    
+    # 4. Scoring e Otimização Offline
+    plan = optimize(plan)
+    
+    # 5. Simulador Final
+    signature = simulate_signature(plan)
+    
+    return {
+        "intent": str(intent),
+        "creative_plan": plan,
+        "output_signature": signature,
+        "render_manifest": plan
+    }
+
+```
+
+==================================================
+📄 core/compiler/scoring_engine.py
+==================================================
+```py
+import json
+
+def compare_novelty(plan: dict, past_entry: dict) -> float:
+    """Calcula a similaridade reversa. Retorna 1 se for 100% diferente, 0 se idêntico."""
+    score = 0.0
+    past_plan = past_entry.get("creative_plan", {})
+    past_interp = past_plan.get("interpretation", {})
+    
+    # Similaridade Estrutural (Peso alto para arquétipo)
+    if plan["archetype"] != past_plan.get("archetype"): score += 0.4
+        
+    # Similaridade Física
+    if plan["interpretation"]["motion_signature"] != past_interp.get("motion_signature"): score += 0.4
+        
+    # Mutabilidade Fina
+    diff_phys = abs(plan.get("entropy", {}).get("physical", 0.5) - past_plan.get("entropy", {}).get("physical", 0.5))
+    score += min(0.2, diff_phys)
+    
+    return min(1.0, score)
+
+def novelty_score(plan: dict, memory_path: str = "core/memory/creative_memory.json") -> float:
+    try:
+        with open(memory_path, 'r') as f:
+            data = json.load(f)
+            history = data.get("history", [])
+            
+            if not history:
+                return 1.0 # Primeiro da história => 100% Original
+                
+            similarities = []
+            # Verifica apenas os últimos 5 para velocidade e relevância
+            for past in history[-5:]:
+                similarities.append(1.0 - compare_novelty(plan, past))
+                
+            return 1.0 - max(similarities)
+            
+    except FileNotFoundError:
+        return 1.0
+
+def coherence_score(plan: dict) -> float:
+    """
+    Motor Lógico: Aplica Leis do Design Limite. Se a Engine estiver propondo algo 
+    esteticamente inválido ou fisicamente inviável, corta aqui.
+    """
+    archetype = plan.get("archetype")
+    phys_ent = plan.get("entropy", {}).get("physical", 0.0)
+    
+    if archetype == "emergence" and phys_ent > 0.7:
+        # Nascer de forma turbulenta e violenta é paradoxo inaceitável para AIOX
+        return 0.3
+        
+    if archetype == "loop_stability" and phys_ent > 0.4:
+        # Loops devem ser imutáveis e constantes, entropia precisa estar super baixa
+        return 0.2
+        
+    if archetype == "chaos_to_order" and plan.get("pacing") == "dynamic":
+        # Ordenação veloz demais soa como explosão em reverso (glitchy). Coerência mediada.
+        return 0.6
+        
+    return 0.9
+
+def evaluate_plan(plan: dict) -> dict:
+    """Devolve a Matriz de Sanidade para o Loop."""
+    return {
+        "novelty": novelty_score(plan),
+        "coherence": coherence_score(plan)
+    }
+
+```
+
+==================================================
 📄 contracts/motion_contract.yaml
 ==================================================
 ```yaml
@@ -4471,6 +7043,280 @@ mood: "clean, confident, spacious, technical_but_approachable"
 ```
 
 ==================================================
+📄 contracts/narrative/archetypes/fragmented_reveal.yaml
+==================================================
+```yaml
+id: fragmented_reveal
+structure:
+- fragments
+- noise
+- convergence
+- reveal
+entropy_profile: high_structural
+
+```
+
+==================================================
+📄 contracts/narrative/archetypes/tension_release.yaml
+==================================================
+```yaml
+id: tension_release
+structure:
+- build
+- tension
+- break
+- relief
+
+```
+
+==================================================
+📄 contracts/narrative/archetypes/resolution.yaml
+==================================================
+```yaml
+# contracts/narrative/archetypes/resolution.yaml
+name: "Chaos Resolution"
+description: "Processo de ordem emergindo da complexidade absoluta."
+
+phases:
+  - id: "initial_chaos"
+    duration: 0.35
+    entropy: { structural: 0.9, aesthetic: 0.9, physical: 0.95 }
+    motion: { damping: 5, stiffness: 450 }
+    visual: "noise_cloud_immersion"
+    
+  - id: "singular_order"
+    duration: 0.40
+    entropy: { structural: 0.5, aesthetic: 0.3, physical: 0.4 }
+    motion: { damping: 80, stiffness: 200 }
+    visual: "attractor_focus"
+    
+  - id: "mastery"
+    duration: 0.25
+    entropy: { structural: 0.05, aesthetic: 0.0, physical: 0.0 }
+    motion: { damping: 100, stiffness: 50 }
+    visual: "final_minimal_monolith"
+
+rules:
+  - "Redução progressiva de entropia"
+  - "Convergência para o centro cardinal"
+  - "Silêncio visual nos últimos 2 segundos"
+
+```
+
+==================================================
+📄 contracts/narrative/archetypes/pulse.yaml
+==================================================
+```yaml
+id: pulse
+structure:
+- idle
+- oscillation
+- peak
+- decay
+entropy_profile: rhythmic
+
+```
+
+==================================================
+📄 contracts/narrative/archetypes/synchronization.yaml
+==================================================
+```yaml
+id: synchronization
+structure:
+- independent
+- drift
+- alignment
+- sync
+
+```
+
+==================================================
+📄 contracts/narrative/archetypes/expansion_field.yaml
+==================================================
+```yaml
+id: expansion_field
+structure:
+- seed
+- growth
+- diffusion
+- saturation
+motion_bias: outward
+
+```
+
+==================================================
+📄 contracts/narrative/archetypes/loop_stability.yaml
+==================================================
+```yaml
+id: loop_stability
+structure:
+- pattern
+- repetition
+- drift
+- return
+
+```
+
+==================================================
+📄 contracts/narrative/archetypes/chaos_to_order.yaml
+==================================================
+```yaml
+id: chaos_to_order
+structure:
+- chaos
+- conflict
+- alignment
+- harmony
+entropy_profile: high_to_low
+motion_bias: scattered_to_aligned
+
+```
+
+==================================================
+📄 contracts/narrative/archetypes/gravitational_collapse.yaml
+==================================================
+```yaml
+id: gravitational_collapse
+structure:
+- spread
+- attraction
+- collapse
+- singularity
+motion_bias: inward
+
+```
+
+==================================================
+📄 contracts/narrative/archetypes/signal_break.yaml
+==================================================
+```yaml
+id: signal_break
+structure:
+- signal
+- distortion
+- rupture
+- silence
+
+```
+
+==================================================
+📄 contracts/narrative/archetypes/order_to_chaos.yaml
+==================================================
+```yaml
+id: order_to_chaos
+structure:
+- structure
+- tension
+- break
+- dispersion
+entropy_profile: low_to_high
+
+```
+
+==================================================
+📄 contracts/narrative/archetypes/emergence.yaml
+==================================================
+```yaml
+id: emergence
+structure:
+- void
+- signal
+- expansion
+- stabilization
+entropy_profile: low_to_medium
+motion_bias: inward_to_outward
+
+```
+
+==================================================
+📄 contracts/narrative/archetypes/emergence_delayed.yaml
+==================================================
+```yaml
+id: emergence_delayed
+structure:
+- void_long
+- sudden_signal
+- rapid_growth
+
+```
+
+==================================================
+📄 contracts/motion/signatures/vortex_pull.yaml
+==================================================
+```yaml
+pattern: spiral_in
+rhythm: accelerating
+stability: high_center
+
+```
+
+==================================================
+📄 contracts/motion/signatures/chaotic_dispersion.yaml
+==================================================
+```yaml
+pattern: random_outward
+rhythm: irregular
+stability: low
+
+```
+
+==================================================
+📄 contracts/motion/signatures/oscillatory_wave.yaml
+==================================================
+```yaml
+pattern: sine_wave
+rhythm: periodic
+
+```
+
+==================================================
+📄 contracts/motion/signatures/convergence_field.yaml
+==================================================
+```yaml
+pattern: multi_to_center
+rhythm: accelerating
+
+```
+
+==================================================
+📄 contracts/motion/signatures/fragmented_noise.yaml
+==================================================
+```yaml
+pattern: broken_motion
+rhythm: chaotic
+
+```
+
+==================================================
+📄 contracts/motion/signatures/elastic_snap.yaml
+==================================================
+```yaml
+pattern: stretch_release
+rhythm: fast_peak
+
+```
+
+==================================================
+📄 contracts/motion/signatures/breathing_field.yaml
+==================================================
+```yaml
+pattern: expansion_contraction
+rhythm: slow
+stability: medium
+
+```
+
+==================================================
+📄 contracts/motion/signatures/laminar_flow.yaml
+==================================================
+```yaml
+pattern: linear_flow
+rhythm: constant
+stability: high
+
+```
+
+==================================================
 📄 contracts/identities/aiox_default/brand.yaml
 ==================================================
 ```yaml
@@ -4637,6 +7483,44 @@ voice_profile:
   similarity_boost: 0.75
   style: 0.0
   use_speaker_boost: true
+
+```
+
+==================================================
+📄 docs/system_handoff_v4.5.md
+==================================================
+```md
+# AIOX/Antigravity Engine v4.5 - Handoff Architecture 
+
+## 1. CORE PARADIGM SHIFT
+* **FROM:** Linear execution script (`entropy = 0.8` -> `noise_strength = 0.8`).
+* **TO:** Creative Operating System (`Intent -> Compiler -> State Graph -> Tools`).
+* **BEHAVIOR OVER MATH:** Entropy is now interpreted semantically (`turbulent`, `laminar`) by an intelligence layer before reaching the render engine (Manim). The math physics responds to `Motion Signatures` (e.g., `chaotic_dispersion`), not raw floats.
+
+## 2. CURRENT DIRECTORY ARCHITECTURE (`core/`)
+Refactored into a highly modular, MCP-like agentic hierarchy:
+
+*   **`compiler/` (The Brain):** Transforms `creative_seed.yaml` (natural language intent) into a structured manifest.
+    *   `creative_compiler.py`: Main orchestrator of the cognitive phase.
+    *   `intent_parser.py` / `plan_generator.py` / `signature_simulator.py`.
+*   **`runtime/` (State Machine):** `graph_runtime.py` handles the execution graph. Currently runs "Mode 2" (Assisted Director): pauses execution dynamically after generating a `creative_plan`, asks for human terminal approval `[Y/n]`, and only then fires the render engines.
+*   **`intelligence/` (Translators):** `entropy_interpreter.py` (Zara v2). Maps physical entropy (0.0-1.0) into regimes (`oscillatory`), flow, stability, and motion signatures.
+*   **`agents/` (Functions):** Personas translated to pure Python logic.
+    *   `aria.py`: Archetype & aesthetic decisions.
+    *   `zara.py`: Physical mapping.
+    *   `kael.py`: Pacing profiles.
+    *   `uma.py`: Anti-repetition logic leveraging JSON memory.
+*   **`tools/` (Muscles):** `render_tool.py` (Manim -> Remotion wrapper), `memory_tool.py`.
+*   **`contracts/` (Memory):** YAML-based library of 12 Narrative Archetypes (`emergence`, `fragmented_reveal`) and 8 Motion Signatures (`elastic_snap`, `vortex_pull`).
+
+## 3. DATA FLOW (Modo 2)
+`Input (creative_seed.yaml) -> Compiler (Aria/Zara dicts) -> GraphRuntime pauses -> Human approves -> Render Tool (Manim scene EntropyDemo generates MP4) -> Remotion bridges composition -> Final Output.`
+
+## 4. FUTURE EXPANSION PATHS (Actionable for AI)
+1.  **AI Native Brain (LLM API hook):** Replace deterministic heuristic strings in `agents/aria.py` and `compiler/` with real LLM API calls (Anthropic/Google). The system must natively "think" about intent instead of keyword matching.
+2.  **Deep Math Implementation:** The 8 `Motion Signatures` (e.g., `vortex_pull`, `elastic_snap`) are defined in contracts but need complex math translation inside `core.primitives` (Manim `fields.py` and `particle_system.py`). Elevate the physics engine!
+3.  **Preview Generation (`preview_tool.py`):** Before running the heavy 60fps Manim render upon human pause, generate a fast static SVG / lightweight wireframe matrix of what the exact frame 1 will look like for precise human validation.
+4.  **Autonomous Memory Embeddings:** Upgrade `creative_memory.json` into semantic local vector search to prevent style repetition across dozens of creations without relying on exactly matching archetype IDs.
 
 ```
 
@@ -5533,6 +8417,34 @@ A mudança fundamental é: você passa a ser o **roteirista** do vídeo, não o 
 ```
 
 ==================================================
+📄 briefings/test_zara_chaos.yaml
+==================================================
+```yaml
+# briefings/test_zara_chaos.yaml
+meta:
+  project: "Fragmented Chaos Dynamics"
+  active_identity: "aiox_default"
+
+creative_direction:
+  narrative_archetype: "auto" # O CDE vai mapear "Chaos" e "Fragmented" para "fragmented_reveal"
+  aesthetic_family: "auto"    
+  pacing_profile: "dynamic"
+  entropy_profile: "high_variance"
+
+scenes:
+  - engine: "manim"
+    script: "scenes/cde_entropy_demo.py"
+    scene: "EntropyDemo"
+    intent: "chaotic_data_explosion"
+
+composition: "CinematicNarrative-v4"
+
+output:
+  formats: ["mp4"]
+
+```
+
+==================================================
 📄 briefings/benchmark.yaml
 ==================================================
 ```yaml
@@ -5585,6 +8497,49 @@ scenes:
     scene: "EliteDataPipeline"
 
 composition: "EliteIndustrialPipeline"
+
+```
+
+==================================================
+📄 briefings/test_cde_evolution.yaml
+==================================================
+```yaml
+# briefings/test_cde_evolution.yaml
+meta:
+  project: "Neural Architecture Emergence"
+  active_identity: "aiox_default"
+
+creative_direction:
+  narrative_archetype: "auto" # O CDE escolherá 'emergence' com base no nome do projeto
+  aesthetic_family: "auto"    # O CDE escolherá 'silent_architecture' para aiox_default
+  pacing_profile: "cinematic"
+  entropy_profile: "high_variance"
+
+# Note: strategy, tech_plan e design_overlay serão gerados dinamicamente pelo CDE
+
+scenes:
+  - engine: "manim"
+    script: "scenes/dynamic_neural_mesh.py"
+    scene: "NeuralMesh"
+    intent: "genesis_of_data_nodes"
+
+composition: "CinematicNarrative-v4"
+
+output:
+  formats: ["mp4"]
+  png_frame_timestamps: [2.0, 5.0]
+
+```
+
+==================================================
+📄 briefings/creative_seed.yaml
+==================================================
+```yaml
+creative_seed:
+  tension: high
+  density: low
+  transformation: chaos_to_order
+  pacing: slow
 
 ```
 
@@ -6395,6 +9350,55 @@ class EliteDataPipeline(Scene):
         logger.log("pipeline_complete", self.renderer.time)
         self.wait(1)
         logger.save()
+
+```
+
+==================================================
+📄 engines/manim/scenes/cde_entropy_demo.py
+==================================================
+```py
+import numpy as np
+from manim import Scene, FadeOut
+from core.primitives.particle_system import ParticlePool
+from core.primitives.theme_loader import theme, intelligence
+
+class EntropyDemo(Scene):
+    """
+    Cena guiada 100% pela Inteligência Física da Zara (CDE).
+    Não há hardcodes de física; o Motion Signature é injetado via `intelligence.entropy`.
+    """
+    def construct(self):
+        # Fundo dinâmico da marca
+        self.camera.background_color = theme.colors["background"]
+        
+        # 🧠 O NOVO PARADIGMA: Lendo interpretações, não apenas números
+        interp = intelligence.get("interpretation", {})
+        regime = interp.get("regime", "laminar")
+        signature = interp.get("motion_signature", "breathing_field")
+        stability = interp.get("stability", "high")
+        
+        # Ajusta parâmetros de setup do pool baseado na estabilidade ditada por Zara
+        pt_radius = 0.04 if stability == "high" else 0.02
+        emit_rate = 40 if stability == "high" else 150
+        
+        # A própria ParticlePool puxa o motion_signature no seu construtor
+        pool = ParticlePool(
+            max_particles=400,
+            emit_rate=emit_rate,
+            dot_radius=pt_radius,
+            color=theme.accent_color,
+            lifetime_range=(1.5, 4.0),
+        )
+        
+        self.add(pool)
+        
+        # Revelação
+        self.play(pool.animate_birth(run_time=2))
+        
+        # Tempo para admirar o Motion Signature da Zara
+        self.wait(5)
+        
+        self.play(FadeOut(pool))
 
 ```
 

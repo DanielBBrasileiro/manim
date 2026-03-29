@@ -1,16 +1,17 @@
 {
   "tech_plan": {
-    "archetype": "chaos_to_order",
+    "archetype": "emergence",
     "entropy": {
-      "regime": "turbulent",
-      "motion_signature": "scattered_to_aligned",
-      "stability": "medium",
-      "rhythm": "irregular",
-      "flow": "nonlinear",
+      "regime": "oscillatory",
+      "motion_signature": "oscillatory_wave",
+      "stability": "high",
+      "rhythm": "periodic",
+      "flow": "linear",
+      "grid_type": "adaptive",
       "raw": {
-        "physical": 0.8,
-        "structural": 0.6,
-        "aesthetic": 0.7
+        "physical": 0.5282297918563782,
+        "structural": 0.4677842218570567,
+        "aesthetic": 0.5521301663254443
       }
     }
   },
