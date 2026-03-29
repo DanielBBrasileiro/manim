@@ -1,25 +1,20 @@
 {
-  "strategy": {
-    "pacing": "dynamic",
-    "hook_type": "atmospheric",
-    "energy_curve": [
-      0.1,
-      0.4,
-      0.9,
-      0.6
-    ]
-  },
   "tech_plan": {
-    "engine_layers": [
-      "manim",
-      "remotion"
-    ],
-    "physics_model": "aiox_verlet_v4",
-    "particles": 5000
+    "archetype": "chaos_to_order",
+    "entropy": {
+      "regime": "turbulent",
+      "motion_signature": "scattered_to_aligned",
+      "stability": "medium",
+      "rhythm": "irregular",
+      "flow": "nonlinear",
+      "raw": {
+        "physical": 0.8,
+        "structural": 0.6,
+        "aesthetic": 0.7
+      }
+    }
   },
-  "design": {
-    "theme": "monochrome_cinema",
-    "grain": 0.08,
-    "blur_ratio": 0.02
+  "design_overlay": {
+    "aesthetic_family": "silent_architecture"
   }
 }
