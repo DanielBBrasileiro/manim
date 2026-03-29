@@ -1,0 +1,24 @@
+# briefings/test_cde_evolution.yaml
+meta:
+  project: "Neural Architecture Emergence"
+  active_identity: "aiox_default"
+
+creative_direction:
+  narrative_archetype: "auto" # O CDE escolherá 'emergence' com base no nome do projeto
+  aesthetic_family: "auto"    # O CDE escolherá 'silent_architecture' para aiox_default
+  pacing_profile: "cinematic"
+  entropy_profile: "high_variance"
+
+# Note: strategy, tech_plan e design_overlay serão gerados dinamicamente pelo CDE
+
+scenes:
+  - engine: "manim"
+    script: "scenes/dynamic_neural_mesh.py"
+    scene: "NeuralMesh"
+    intent: "genesis_of_data_nodes"
+
+composition: "CinematicNarrative-v4"
+
+output:
+  formats: ["mp4"]
+  png_frame_timestamps: [2.0, 5.0]

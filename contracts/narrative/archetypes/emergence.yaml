@@ -1,0 +1,8 @@
+id: emergence
+structure:
+- void
+- signal
+- expansion
+- stabilization
+entropy_profile: low_to_medium
+motion_bias: inward_to_outward

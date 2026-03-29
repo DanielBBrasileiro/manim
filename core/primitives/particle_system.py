@@ -163,9 +163,21 @@ class ParticlePool(VGroup):
         self._emit_accumulator = 0.0
         self._time = 0.0
 
-        # Noise field para variância orgânica
+        # Conecta a Inteligência Semântica da Zona Zara
+        from core.primitives.theme_loader import intelligence
+        self._intelligence = intelligence
+        
+        signature = self._intelligence.get("interpretation", {}).get("motion_signature", "breathing_field")
+        
+        # Ajustes orgânicos baseados na "Personality" do movimento
+        if signature == "elastic_snap":
+            self.damping *= 0.3  # Menos atrito, "estala" rápido
+        elif signature == "breathing_field":
+            self.damping *= 1.5  # Mais arrasto, lento
+            
+        # Noise field para variância orgânica (Assinatura Semântica)
         from core.primitives.fields import AIOXNoiseField
-        self._noise = AIOXNoiseField(entropy=entropy)
+        self._noise = AIOXNoiseField(signature=signature)
 
         # Dots Manim pré-alocados (pool estático para performance)
         self._dots = [
@@ -181,8 +193,19 @@ class ParticlePool(VGroup):
         spread = self.emitter_spread
         rng = np.random
         self._positions[index] = self.emitter_pos + rng.uniform(-spread, spread, 3) * [1, 1, 0]
-        speed = np.interp(self.entropy, [0, 1], [0.3, 2.0])
-        angle = rng.uniform(0, 2 * np.pi)
+        
+        # Velocidade atrelada à entropia física bruta (a intensidade verdadeira)
+        phys = self._intelligence.get("entropy", {}).get("physical", 0.5)
+        speed = np.interp(phys, [0, 1], [0.3, 2.5])
+        
+        # O Regime Comportamental e flow direcionam a dispersão
+        flow = self._intelligence.get("interpretation", {}).get("flow", "nonlinear")
+        if flow == "linear":
+            # Emissão direcional
+            angle = rng.uniform(-np.pi/16, np.pi/16)
+        else:
+            angle = rng.uniform(0, 2 * np.pi)
+            
         self._velocities[index] = np.array([
             np.cos(angle) * speed * rng.uniform(0.5, 1.5),
             np.sin(angle) * speed * rng.uniform(0.5, 1.5),
@@ -304,8 +327,11 @@ class TrailPool(VGroup):
         self._emit_acc = 0.0
         self._time = 0.0
 
+        from core.primitives.theme_loader import intelligence
+        signature = intelligence.get("interpretation", {}).get("motion_signature", "breathing_field")
+
         from core.primitives.fields import AIOXNoiseField
-        self._noise = AIOXNoiseField(entropy=entropy)
+        self._noise = AIOXNoiseField(signature=signature)
 
         # Pré-aloca linhas de rastro
         self._trails = [

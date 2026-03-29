@@ -21,19 +21,47 @@ class AIOXNoiseField:
     """
     Campo vetorial procedural baseado em FBM (Fractal Brownian Motion).
 
-    entropy: 0.0 = vento calmo e suave | 1.0 = tempestade caótica orgânica
-    seed:    None = único a cada render | int = determinístico (entropy ≤ 0.2)
+    Agora reativo à Persona Zara: recebe uma "Motion Signature" semântica
+    em vez de um número cego.
     """
 
-    def __init__(self, entropy: float = 0.5, seed: int = None):
-        self.entropy = entropy
+    def __init__(self, signature: str = "breathing_field", strength_override=None, seed: int = None):
+        self.signature = signature
         self.seed = seed
 
-        # Complexidade = número de oitavas FBM
-        self.octaves = int(np.interp(entropy, [0, 1], [1, 6]))
-        self.strength = float(np.interp(entropy, [0, 1], [0.08, 2.8]))
-        self.lacunarity = 2.0       # frequência dobra a cada oitava
-        self.persistence = 0.5      # amplitude cai 50% a cada oitava
+        # Assinaturas Visuais definem a matemática do caos
+        if signature == "breathing_field":
+            # Calmo, lento, expansão laminar
+            self.octaves = 2
+            self.strength = 0.15
+            self.lacunarity = 1.5
+            self.persistence = 0.3
+        elif signature == "vortex_pull":
+            # Giro central, atrator
+            self.octaves = 3
+            self.strength = 0.6
+            self.lacunarity = 2.0
+            self.persistence = 0.5
+        elif signature == "chaotic_dispersion":
+            # Alta variação, rajadas, tempestuoso
+            self.octaves = 5
+            self.strength = 1.8
+            self.lacunarity = 2.5
+            self.persistence = 0.7
+        elif signature == "elastic_snap":
+            # Fraturado, afiado, quebra de ritmo
+            self.octaves = 6
+            self.strength = 3.5
+            self.lacunarity = 3.0
+            self.persistence = 0.8
+        else:
+            self.octaves = int(np.interp(0.5, [0, 1], [1, 6]))
+            self.strength = 1.0
+            self.lacunarity = 2.0
+            self.persistence = 0.5
+
+        if strength_override is not None:
+            self.strength = strength_override
 
         if _HAS_SIMPLEX:
             _seed = seed if seed is not None else np.random.randint(0, 2**31)
@@ -98,6 +126,29 @@ class AIOXNoiseField:
         norm = np.linalg.norm(vector)
         if norm > 1e-6:
             vector = (vector / norm) * self.strength
+
+        # Aplicação de Forças Especiais por Assinatura
+        if self.signature == "vortex_pull":
+            # Espiral concêntrico em direção ao centro
+            dist = np.sqrt(x*x + y*y) + 0.01
+            # Rotação anti-horária
+            vortex_vec = np.array([-y, x, 0]) / dist
+            # Puxão magnético fraco pro centro
+            pull_vec = np.array([-x, -y, 0]) / dist
+            
+            # Mistura FBM com vórtice perfeito
+            vector = vector * 0.4 + (vortex_vec * 0.8 + pull_vec * 0.3) * self.strength
+            
+        elif self.signature == "elastic_snap":
+            # Vetores saltam erraticamente em posições fracionárias
+            if int(time * 10) % 3 == 0:
+                vector *= 2.5
+                
+        elif self.signature == "breathing_field":
+            # Pulso senoidal lento no tempo
+            breath_cycle = np.sin(time * 1.5) * 0.5 + 0.5
+            vector *= (0.5 + breath_cycle)
+
         return vector
 
     def get_scalar(self, x: float, y: float, time: float = 0.0) -> float:

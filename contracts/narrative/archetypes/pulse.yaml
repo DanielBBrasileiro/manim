@@ -1,0 +1,7 @@
+id: pulse
+structure:
+- idle
+- oscillation
+- peak
+- decay
+entropy_profile: rhythmic

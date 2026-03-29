@@ -5,6 +5,7 @@ import os
 import sys
 import shutil
 from pathlib import Path
+from core.creative.decision_engine import CreativeDecisionEngine
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -17,8 +18,44 @@ class AgenticOrchestrator:
         with open(brief_path, "r") as f:
             self.brief = yaml.safe_load(f)
         
+        self.cde = CreativeDecisionEngine()
         os.makedirs("assets/brand", exist_ok=True)
         
+    def run_creative_decision(self):
+        """Fase Aria/Zara: Transforma o creative_seed ou creative_direction em um plano estruturado."""
+        if "creative_seed" not in self.brief and "creative_direction" not in self.brief:
+            return
+
+        print("🔮 CDE: Ativando Creative Decision Engine (Aria & Zara v2)...")
+        plan = self.cde.generate_creative_plan(self.brief)
+        
+        # Merge o plano no briefing interno
+        self.brief["strategy"] = self.brief.get("strategy", {})
+        
+        self.brief["tech_plan"] = self.brief.get("tech_plan", {})
+        self.brief["tech_plan"]["archetype"] = plan["archetype"]
+        
+        # Prepara o pacote de entropia para o IntelligenceLoader
+        entropy_package = plan["interpretation"].copy()
+        entropy_package["raw"] = plan["entropy"]
+        self.brief["tech_plan"]["entropy"] = entropy_package
+        
+        self.brief["design_overlay"] = self.brief.get("design_overlay", {})
+        self.brief["design_overlay"]["aesthetic_family"] = plan["aesthetic_family"]
+        
+        # Boilerplate Free: Injeta engine e React comp automaticamente se não existirem
+        if "composition" not in self.brief:
+            self.brief["composition"] = "CinematicNarrative-v4"
+        if "scenes" not in self.brief or not self.brief["scenes"]:
+            self.brief["scenes"] = [{
+                "engine": "manim",
+                "script": "scenes/cde_entropy_demo.py",
+                "scene": "EntropyDemo"
+            }]
+        
+        # Persiste na memória (Opcional, comentei no CDE temporariamente)
+        print(f"  ✨ Decisão Tomada: Arquétipo '{plan['archetype']}' | Zara Report: {plan['interpretation']['motion_signature']}")
+
     def sync_brand(self):
         print("🧬 AIOX: Sincronizando contratos de marca...")
         identity = self.brief.get("meta", {}).get("active_identity", "aiox_default")
@@ -183,6 +220,7 @@ class AgenticOrchestrator:
 
     def run_pipeline(self):
         try:
+            self.run_creative_decision()
             self.sync_brand()
             tech_plan = self.extract_intelligence()
             

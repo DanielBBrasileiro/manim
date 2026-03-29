@@ -1,0 +1,6 @@
+id: tension_release
+structure:
+- build
+- tension
+- break
+- relief

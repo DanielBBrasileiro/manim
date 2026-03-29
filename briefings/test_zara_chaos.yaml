@@ -1,0 +1,21 @@
+# briefings/test_zara_chaos.yaml
+meta:
+  project: "Fragmented Chaos Dynamics"
+  active_identity: "aiox_default"
+
+creative_direction:
+  narrative_archetype: "auto" # O CDE vai mapear "Chaos" e "Fragmented" para "fragmented_reveal"
+  aesthetic_family: "auto"    
+  pacing_profile: "dynamic"
+  entropy_profile: "high_variance"
+
+scenes:
+  - engine: "manim"
+    script: "scenes/cde_entropy_demo.py"
+    scene: "EntropyDemo"
+    intent: "chaotic_data_explosion"
+
+composition: "CinematicNarrative-v4"
+
+output:
+  formats: ["mp4"]

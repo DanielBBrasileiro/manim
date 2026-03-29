@@ -1,0 +1,7 @@
+id: expansion_field
+structure:
+- seed
+- growth
+- diffusion
+- saturation
+motion_bias: outward

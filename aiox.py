@@ -23,9 +23,17 @@ def main():
     args = parser.parse_args()
     
     if args.command == "create":
+        import yaml
         print(f"🚀 IGNITION: AIOX Studio Engine -> Lendo {args.briefing}")
-        orch = AgenticOrchestrator(args.briefing)
-        orch.run_pipeline()
+        with open(args.briefing, "r") as f:
+            brief = yaml.safe_load(f)
+            
+        # ⚛️ Roteamento para a Fase 4: O Grafo de Estado (Sistema Operacional Criativo)
+        from core.runtime.graph_runtime import GraphRuntime
+        
+        # O modo 'assisted' engatilha a aprovação do plano (Modo 2).
+        runtime = GraphRuntime(mode="assisted")
+        runtime.run_full(brief)
         
     elif args.command == "sync":
         subprocess.run(["python3", "core/cli/brand.py", args.identity], check=True)

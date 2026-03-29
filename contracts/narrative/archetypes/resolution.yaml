@@ -1,0 +1,27 @@
+# contracts/narrative/archetypes/resolution.yaml
+name: "Chaos Resolution"
+description: "Processo de ordem emergindo da complexidade absoluta."
+
+phases:
+  - id: "initial_chaos"
+    duration: 0.35
+    entropy: { structural: 0.9, aesthetic: 0.9, physical: 0.95 }
+    motion: { damping: 5, stiffness: 450 }
+    visual: "noise_cloud_immersion"
+    
+  - id: "singular_order"
+    duration: 0.40
+    entropy: { structural: 0.5, aesthetic: 0.3, physical: 0.4 }
+    motion: { damping: 80, stiffness: 200 }
+    visual: "attractor_focus"
+    
+  - id: "mastery"
+    duration: 0.25
+    entropy: { structural: 0.05, aesthetic: 0.0, physical: 0.0 }
+    motion: { damping: 100, stiffness: 50 }
+    visual: "final_minimal_monolith"
+
+rules:
+  - "Redução progressiva de entropia"
+  - "Convergência para o centro cardinal"
+  - "Silêncio visual nos últimos 2 segundos"

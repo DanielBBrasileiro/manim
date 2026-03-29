@@ -1,0 +1,7 @@
+id: fragmented_reveal
+structure:
+- fragments
+- noise
+- convergence
+- reveal
+entropy_profile: high_structural

@@ -1,0 +1,6 @@
+id: loop_stability
+structure:
+- pattern
+- repetition
+- drift
+- return

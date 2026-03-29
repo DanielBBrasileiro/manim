@@ -1,0 +1,6 @@
+id: synchronization
+structure:
+- independent
+- drift
+- alignment
+- sync

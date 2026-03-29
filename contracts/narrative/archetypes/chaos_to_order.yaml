@@ -1,0 +1,8 @@
+id: chaos_to_order
+structure:
+- chaos
+- conflict
+- alignment
+- harmony
+entropy_profile: high_to_low
+motion_bias: scattered_to_aligned

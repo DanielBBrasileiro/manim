@@ -1,0 +1,7 @@
+id: order_to_chaos
+structure:
+- structure
+- tension
+- break
+- dispersion
+entropy_profile: low_to_high

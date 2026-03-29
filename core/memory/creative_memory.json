@@ -1,0 +1,74 @@
+{
+  "last_updated": "2026-03-28T21:00:00Z",
+  "history": [
+    {
+      "narrative_archetype": "emergence",
+      "aesthetic_family": "silent_architecture",
+      "entropy_profile": {
+        "structural": 0.1,
+        "aesthetic": 0.2,
+        "physical": 0.3
+      },
+      "pacing": "cinematic",
+      "metadata": {
+        "persona": "Aria",
+        "logic": "v4.5-CDE-Internal"
+      }
+    },
+    {
+      "narrative_archetype": "fragmented_reveal",
+      "aesthetic_family": "silent_architecture",
+      "entropy_profile": {
+        "regime": "laminar",
+        "rhythm": "breathing",
+        "flow": "linear",
+        "stability": "medium",
+        "grid_type": "adaptive",
+        "primary_signature": "breathing_field",
+        "raw": {
+          "structural": 0.4,
+          "aesthetic": 0.8,
+          "physical": 0.2
+        }
+      },
+      "pacing": "dynamic",
+      "metadata": {
+        "persona": "Aria & Zara",
+        "logic": "v4.5-CDE-Internal"
+      }
+    },
+    {
+      "timestamp": 1774745113.651531,
+      "intent": "chaos_to_order slow tension high",
+      "creative_plan": {
+        "archetype": "chaos_to_order",
+        "aesthetic_family": "silent_architecture",
+        "entropy": {
+          "physical": 0.8,
+          "structural": 0.6,
+          "aesthetic": 0.7
+        },
+        "interpretation": {
+          "regime": "turbulent",
+          "motion_signature": "scattered_to_aligned",
+          "stability": "medium",
+          "rhythm": "irregular",
+          "flow": "nonlinear"
+        },
+        "pacing": "dynamic"
+      },
+      "output_signature": {
+        "structure": "chaos_to_order",
+        "motion": "scattered_to_aligned",
+        "density": "high",
+        "rhythm": "irregular"
+      }
+    }
+  ],
+  "stats": {
+    "total_videos": 2,
+    "favorite_archetypes": {},
+    "last_aesthetic_family": "silent_architecture",
+    "last_archetype": "fragmented_reveal"
+  }
+}
