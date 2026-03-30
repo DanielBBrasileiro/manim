@@ -21,6 +21,17 @@ class AgenticOrchestrator:
 
         self.creative_result = None
         os.makedirs("assets/brand", exist_ok=True)
+
+    def _load_asset_registry(self):
+        registry_path = ROOT / "assets" / "registry.json"
+        if not registry_path.exists():
+            return {}
+        try:
+            with open(registry_path, "r") as f:
+                data = json.load(f)
+            return data if isinstance(data, dict) else {}
+        except Exception:
+            return {}
         
     def run_creative_decision(self):
         """Fase Aria/Zara: Transforma o creative_seed em um plano estruturado via compiler v4.5."""
@@ -32,7 +43,7 @@ class AgenticOrchestrator:
         seed = self.brief.get("creative_seed", {})
         identity = self.brief.get("active_identity") or self.brief.get("meta", {}).get("active_identity", "aiox_default")
 
-        result = compile_seed(seed, identity=identity)
+        result = compile_seed(seed, identity=identity, asset_registry=self._load_asset_registry())
         self.creative_result = result
 
         plan = result["creative_plan"]

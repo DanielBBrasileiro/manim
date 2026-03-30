@@ -1,0 +1,40 @@
+{
+  "primitives": [
+    "particle_system",
+    "living_curve",
+    "physics_field",
+    "fbm_noise",
+    "neural_grid",
+    "narrative_container",
+    "storage_hex"
+  ],
+  "effects": [
+    "grain_overlay",
+    "color_inversion",
+    "post_glitch_light",
+    "diagonal_accent",
+    "motion_blur"
+  ],
+  "brand": {
+    "logos": [
+      "assets/logos/tech/logo.png"
+    ],
+    "palettes": [
+      "dark_mode",
+      "minimal_light",
+      "monochrome"
+    ],
+    "fonts": [
+      "system_sans",
+      "system_serif"
+    ]
+  },
+  "archetypes": [
+    "chaos_to_order",
+    "order_to_chaos",
+    "emergence",
+    "gravitational_collapse",
+    "fragmented_reveal",
+    "loop_stability"
+  ]
+}
