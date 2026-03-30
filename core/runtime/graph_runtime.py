@@ -1,5 +1,6 @@
 import json
 import time
+from core.intelligence.model_router import confidence_threshold
 
 class GraphRuntime:
     """
@@ -27,9 +28,15 @@ class GraphRuntime:
     def step_interpret(self):
         print("🧠 [Runtime] Parseando Intenção de Texto Livre (N-Grams)")
         from core.compiler.creative_compiler import compile_seed
-        
+        asset_registry = {}
+        try:
+            with open("assets/registry.json", "r") as f:
+                asset_registry = json.load(f)
+        except Exception:
+            asset_registry = {}
+
         # Na Fase 5 o Compilador processa tudo de uma vez. O Runtime reage à matriz.
-        self.compilation_result = compile_seed(self.state["input"])
+        self.compilation_result = compile_seed(self.state["input"], asset_registry=asset_registry)
         self.state["intent"] = str(self.compilation_result["intent"])
         
     def step_plan(self):
@@ -79,12 +86,31 @@ class GraphRuntime:
         
     def step_log(self):
         from core.tools.memory_tool import save_entry
-        save_entry({
+        from core.memory.feedback_store import save_training_pair
+
+        entry = {
             "timestamp": time.time(),
             "intent": self.state["intent"],
             "creative_plan": self.state["plan"],
             "output_signature": self.state["signature"]
-        })
+        }
+        save_entry(entry)
+
+        raw_input = self.state.get("input")
+        if isinstance(raw_input, dict):
+            prompt = " ".join(str(value) for value in raw_input.values() if isinstance(value, str))
+        else:
+            prompt = str(raw_input or "")
+
+        llm_scene_plan = (self.state.get("plan") or {}).get("llm_scene_plan")
+        llm_metadata = (self.state.get("plan") or {}).get("llm_metadata")
+        if llm_scene_plan:
+            save_training_pair(
+                prompt=prompt,
+                completion=llm_scene_plan,
+                approved=self.state["approved"],
+                metadata=llm_metadata,
+            )
         print("🧠 [Runtime] Decisão gravada na Memória Criativa.")
 
     def run_full(self, seed: dict):
@@ -93,8 +119,11 @@ class GraphRuntime:
         self.step_interpret()
         self.step_plan()
         self.step_simulate()
-        
-        if self.mode == "autonomous":
+
+        llm_confidence = float((self.state.get("plan") or {}).get("llm_confidence", 1.0 if (self.state.get("plan") or {}).get("llm_scene_plan") else 0.0))
+        if llm_confidence >= confidence_threshold():
+            self.continue_execution()
+        elif self.mode == "autonomous":
             self.continue_execution()
         else:
             self.pause_for_approval()
