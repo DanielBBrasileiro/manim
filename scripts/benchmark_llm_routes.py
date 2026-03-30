@@ -25,7 +25,7 @@ def main() -> int:
     parser.add_argument(
         "--task-types",
         nargs="+",
-        default=[TASK_FAST_PLAN, TASK_PLAN, TASK_QUALITY_PLAN],
+        default=[TASK_FAST_PLAN, TASK_PLAN],
         choices=[TASK_FAST_PLAN, TASK_PLAN, TASK_QUALITY_PLAN],
     )
     parser.add_argument("--disable-cache", action="store_true")

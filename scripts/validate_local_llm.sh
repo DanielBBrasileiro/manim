@@ -26,6 +26,12 @@ echo
 echo "4. Benchmark"
 python3 scripts/benchmark_llm_routes.py --iterations 2
 
+if [[ "${AIOX_LLM_VALIDATE_QUALITY:-0}" == "1" ]]; then
+  echo
+  echo "4b. Quality benchmark"
+  python3 scripts/benchmark_llm_routes.py --iterations 1 --task-types quality_plan --disable-cache
+fi
+
 echo
 echo "5. Cache behavior"
 python3 scripts/check_llm_cache_behavior.py

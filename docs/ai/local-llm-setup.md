@@ -27,7 +27,8 @@ O AIOX Studio usa Ollama local para gerar `Scene Plan JSON` antes do pipeline pe
 
 - `qwen2.5:14b-instruct-q4_K_M`
 - Motivo:
-  - usado apenas quando o plano padrao falha, vem com confidence baixa ou retorna schema invalido
+  - reservado para execucao explicita de `quality_plan` ou fallback automatico opcional
+  - nao deve ficar residente no Mac por muito tempo
 
 ### Visao
 
@@ -63,6 +64,14 @@ Variaveis principais:
 - `OLLAMA_VISION_MODEL`
 - `OLLAMA_TIMEOUT_SECONDS`
 - `OLLAMA_RETRY_TIMEOUT_SECONDS`
+- `OLLAMA_TIMEOUT_FAST_SECONDS`
+- `OLLAMA_RETRY_TIMEOUT_FAST_SECONDS`
+- `OLLAMA_TIMEOUT_PLAN_SECONDS`
+- `OLLAMA_RETRY_TIMEOUT_PLAN_SECONDS`
+- `OLLAMA_TIMEOUT_QUALITY_SECONDS`
+- `OLLAMA_RETRY_TIMEOUT_QUALITY_SECONDS`
+- `OLLAMA_TIMEOUT_VISION_SECONDS`
+- `OLLAMA_RETRY_TIMEOUT_VISION_SECONDS`
 - `OLLAMA_KEEP_ALIVE_TEXT`
 - `OLLAMA_KEEP_ALIVE_FAST`
 - `OLLAMA_KEEP_ALIVE_QUALITY`
@@ -73,7 +82,21 @@ Variaveis principais:
 - `AIOX_LLM_DEBUG`
 - `AIOX_LLM_ROUTING_MODE`
 - `AIOX_LLM_FORCE_MODEL`
+- `AIOX_LLM_QUALITY_FALLBACK_MODE`
 - `AIOX_LLM_DISABLE_QUALITY_FALLBACK`
+
+Valores recomendados para o MacBook Air M4 de 16 GB:
+
+```env
+OLLAMA_TIMEOUT_FAST_SECONDS=14
+OLLAMA_RETRY_TIMEOUT_FAST_SECONDS=22
+OLLAMA_TIMEOUT_PLAN_SECONDS=18
+OLLAMA_RETRY_TIMEOUT_PLAN_SECONDS=30
+OLLAMA_TIMEOUT_QUALITY_SECONDS=45
+OLLAMA_RETRY_TIMEOUT_QUALITY_SECONDS=70
+OLLAMA_KEEP_ALIVE_QUALITY=0
+AIOX_LLM_QUALITY_FALLBACK_MODE=explicit
+```
 
 ## Roteamento Implementado
 
@@ -90,8 +113,10 @@ Comportamento:
 
 - fluxo principal do compilador/orchestrator usa `plan`
 - `lab` e `explore` usam `fast_plan`
-- fallback de qualidade usa `quality_plan`
+- `quality_plan` fica explicito por padrao
+- fallback automatico para 14B so acontece se `AIOX_LLM_QUALITY_FALLBACK_MODE=auto`
 - visao fica reservado para etapa futura
+- o 14B e descarregado ao final do uso para evitar residency desnecessaria
 
 ## Como Testar o Health Check
 
@@ -112,6 +137,12 @@ Modo rapido:
 
 ```bash
 python3 scripts/smoke_ollama_pipeline.py --task-type fast_plan
+```
+
+Modo qualidade explicito:
+
+```bash
+python3 scripts/benchmark_llm_routes.py --iterations 1 --task-types quality_plan --disable-cache
 ```
 
 Esse script verifica:
@@ -162,4 +193,5 @@ Nada disso e dependencia obrigatoria desta entrega.
 
 - se o daemon Ollama estiver desligado, o sistema cai para heuristica
 - se um modelo nao estiver instalado, o fallback tenta outra rota ou degrada com log curto
+- no Air M4, `quality_plan` costuma precisar timeout maior do que o fluxo normal
 - `vision_plan` esta preparado, mas ainda nao ha pipeline de keyframes/ref visual completa nesta entrega
