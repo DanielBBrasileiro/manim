@@ -25,17 +25,15 @@ def run_remotion(comp="CinematicNarrative-v4"):
     os.makedirs(ROOT / "output" / "renders", exist_ok=True)
     output_path = ROOT / "output" / "renders" / f"{comp}.mp4"
     previous_mtime = output_path.stat().st_mtime if output_path.exists() else 0
+    runner = str(ROOT / "scripts" / "run_remotion_node.sh")
     cli_cmd = [
-        "npx",
-        "remotion",
-        "render",
-        "src/index.tsx",
-        comp,
-        f"../../output/renders/{comp}.mp4",
-        "--force",
+        "/bin/zsh",
+        "-lc",
+        f"cd {ROOT / 'engines' / 'remotion'} && npm exec remotion render src/index.tsx {comp} ../../output/renders/{comp}.mp4 --force",
     ]
     direct_cmd = [
-        "node",
+        "bash",
+        runner,
         str(ROOT / "scripts" / "remotion_direct.js"),
         "render",
         comp,
@@ -47,18 +45,22 @@ def run_remotion(comp="CinematicNarrative-v4"):
     if render_mode == "direct":
         subprocess.run(direct_cmd, check=True, cwd=str(ROOT))
     elif render_mode == "cli":
-        subprocess.run(cli_cmd, check=True, cwd=str(ROOT / "engines" / "remotion"))
+        subprocess.run(cli_cmd, check=True, cwd=str(ROOT))
     else:
         try:
             subprocess.run(
-                cli_cmd,
+                direct_cmd,
                 check=True,
-                cwd=str(ROOT / "engines" / "remotion"),
-                timeout=cli_timeout,
+                cwd=str(ROOT),
             )
         except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
-            print("⚠️ [Remotion Tool] CLI indisponivel ou travado. Tentando renderer direto...")
-            subprocess.run(direct_cmd, check=True, cwd=str(ROOT))
+            print("⚠️ [Remotion Tool] Renderer direto falhou. Tentando CLI...")
+            subprocess.run(
+                cli_cmd,
+                check=True,
+                cwd=str(ROOT),
+                timeout=cli_timeout,
+            )
 
     if not output_path.exists():
         raise RuntimeError(f"Render final nao gerou arquivo: {output_path}")
@@ -96,5 +98,6 @@ def render_pipeline(plan: dict):
         bridge_engines(scene_name, script_path)
         run_remotion()
         return True
-    except subprocess.CalledProcessError:
+    except (subprocess.CalledProcessError, RuntimeError) as error:
+        print(f"❌ [Render Tool] Falha no pipeline final: {error}")
         return False

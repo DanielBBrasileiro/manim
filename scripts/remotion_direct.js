@@ -52,6 +52,8 @@ const resolveBrowserExecutable = () => {
 };
 
 const browserExecutable = resolveBrowserExecutable();
+let bundlerApi = null;
+let rendererApi = null;
 
 const statMtime = (filePath) => {
   if (!fs.existsSync(filePath)) {
@@ -59,6 +61,23 @@ const statMtime = (filePath) => {
   }
 
   return fs.statSync(filePath).mtimeMs;
+};
+
+const latestMtimeInTree = (rootPath) => {
+  if (!fs.existsSync(rootPath)) {
+    return 0;
+  }
+
+  const stat = fs.statSync(rootPath);
+  if (!stat.isDirectory()) {
+    return stat.mtimeMs;
+  }
+
+  let latest = stat.mtimeMs;
+  for (const entry of fs.readdirSync(rootPath, {withFileTypes: true})) {
+    latest = Math.max(latest, latestMtimeInTree(path.join(rootPath, entry.name)));
+  }
+  return latest;
 };
 
 const syncPublicAssets = (bundlePath) => {
@@ -75,7 +94,10 @@ const findReusableBundle = () => {
   }
 
   const tmpDir = os.tmpdir();
-  const entryMtime = statMtime(ENTRY_POINT);
+  const sourceMtime = Math.max(
+    latestMtimeInTree(path.join(REMOTION_ROOT, "src")),
+    statMtime(path.join(REMOTION_ROOT, "package.json")),
+  );
 
   try {
     const candidates = fs
@@ -87,7 +109,7 @@ const findReusableBundle = () => {
 
     for (const candidate of candidates) {
       const bundleMtime = statMtime(candidate);
-      if (bundleMtime >= entryMtime) {
+      if (bundleMtime >= sourceMtime) {
         return candidate;
       }
     }
@@ -99,20 +121,29 @@ const findReusableBundle = () => {
 };
 
 const loadBundler = () => {
+  if (bundlerApi) {
+    return bundlerApi;
+  }
+
   console.log("Carregando @remotion/bundler...");
   const startedAt = Date.now();
-  const {bundle} = requireFromRemotion("@remotion/bundler");
+  bundlerApi = requireFromRemotion("@remotion/bundler");
   console.log(`@remotion/bundler pronto em ${Date.now() - startedAt}ms`);
-  return {bundle};
+  return bundlerApi;
 };
 
 const loadRenderer = () => {
+  if (rendererApi) {
+    return rendererApi;
+  }
+
   console.log("Carregando renderer Remotion...");
   const startedAt = Date.now();
   const {getCompositions} = require(path.join(RENDERER_DIST, "get-compositions.js"));
   const {renderMedia} = require(path.join(RENDERER_DIST, "render-media.js"));
+  rendererApi = {getCompositions, renderMedia};
   console.log(`Renderer Remotion pronto em ${Date.now() - startedAt}ms`);
-  return {getCompositions, renderMedia};
+  return rendererApi;
 };
 
 const makeRendererOptions = () => ({
@@ -161,6 +192,7 @@ const makeBundle = async () => {
   });
 
   console.log(`Bundle pronto em ${Date.now() - startedAt}ms`);
+  syncPublicAssets(serveUrl);
   return serveUrl;
 };
 
