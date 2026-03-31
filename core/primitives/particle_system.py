@@ -162,6 +162,8 @@ class ParticlePool(VGroup):
         self._alive = np.zeros(max_particles, dtype=bool)
         self._emit_accumulator = 0.0
         self._time = 0.0
+        self._timeline_duration = 8.0
+        self._active_signature = None
 
         # Conecta a Inteligência Semântica da Zona Zara
         from core.primitives.theme_loader import intelligence
@@ -169,6 +171,8 @@ class ParticlePool(VGroup):
         
         signature = self._intelligence.get("interpretation", {}).get("motion_signature", "breathing_field")
         timeline = self._intelligence.get("timeline")
+        self._base_signature = signature
+        self._timeline = timeline
         
         # Ajustes orgânicos baseados na "Personality" do movimento inicial
         if signature == "elastic_snap":
@@ -176,14 +180,7 @@ class ParticlePool(VGroup):
         elif signature == "breathing_field":
             self.damping *= 1.5  # Mais arrasto, lento
             
-        # Noise field para variância orgânica (Assinatura Semântica Temporal ou Baseline)
-        from core.primitives.fields import AIOXNoiseField, TemporalNoiseField
-        
-        if timeline:
-            print("⏳ [TemporalEngine] Inicializando motor contínuo 0s~10s na piscina de partículas.")
-            self._noise = TemporalNoiseField(timeline=timeline, duration=8.0)
-        else:
-            self._noise = AIOXNoiseField(signature=signature)
+        self._set_noise_source(signature, use_timeline=bool(timeline))
 
         # Dots Manim pré-alocados (pool estático para performance)
         self._dots = [
@@ -194,6 +191,105 @@ class ParticlePool(VGroup):
             self.add(dot)
 
         self.add_updater(self._update)
+
+    def _set_noise_source(self, signature: str, use_timeline: bool = False):
+        """Atualiza a fonte de ruído sem reinicializar o pool."""
+        from core.primitives.fields import AIOXNoiseField, TemporalNoiseField
+
+        if use_timeline and self._timeline:
+            print("⏳ [TemporalEngine] Inicializando motor contínuo 0s~10s na piscina de partículas.")
+            self._noise = TemporalNoiseField(timeline=self._timeline, duration=self._timeline_duration)
+            self._active_signature = "timeline"
+        else:
+            self._noise = AIOXNoiseField(signature=signature)
+            self._active_signature = signature
+
+    def set_particle_color(self, color) -> "ParticlePool":
+        self.particle_color = color
+        for dot in self._dots:
+            dot.set_color(color)
+        return self
+
+    def set_motion_signature(self, signature: str, use_timeline: bool = False) -> "ParticlePool":
+        self._set_noise_source(signature, use_timeline=use_timeline)
+        return self
+
+    def set_act_profile(
+        self,
+        act_name: str,
+        *,
+        signature: Optional[str] = None,
+        emit_rate: Optional[float] = None,
+        emitter_spread: Optional[float] = None,
+        damping: Optional[float] = None,
+        gravity=None,
+        lifetime_range: Optional[tuple] = None,
+        bounds=None,
+        color=None,
+    ) -> "ParticlePool":
+        """
+        Reconfigura o pool para um ato narrativo sem recriar as partículas.
+
+        Perfis default:
+          - genesis: nascente, coeso, baixa densidade
+          - turbulence: expansão, ruptura, alta energia
+          - resolution: convergência, disciplina e limpeza
+        """
+        presets = {
+            "genesis": {
+                "signature": "breathing_field",
+                "emit_rate": 24,
+                "emitter_spread": 0.14,
+                "damping": 0.22,
+                "gravity": [0.0, 0.02, 0.0],
+                "lifetime_range": (2.4, 4.8),
+            },
+            "turbulence": {
+                "signature": "chaotic_burst",
+                "emit_rate": 110,
+                "emitter_spread": 1.8,
+                "damping": 0.05,
+                "gravity": [0.0, -0.08, 0.0],
+                "lifetime_range": (1.1, 3.2),
+            },
+            "resolution": {
+                "signature": "convergence_field",
+                "emit_rate": 36,
+                "emitter_spread": 0.28,
+                "damping": 0.28,
+                "gravity": [0.0, 0.0, 0.0],
+                "lifetime_range": (1.6, 3.8),
+            },
+        }
+        config = dict(presets.get(act_name, {}))
+        overrides = {
+            "signature": signature,
+            "emit_rate": emit_rate,
+            "emitter_spread": emitter_spread,
+            "damping": damping,
+            "gravity": gravity,
+            "lifetime_range": lifetime_range,
+            "bounds": bounds,
+            "color": color,
+        }
+        for key, value in overrides.items():
+            if value is not None:
+                config[key] = value
+
+        next_signature = config.get("signature", self._base_signature)
+        self.set_motion_signature(next_signature)
+        self.emit_rate = config.get("emit_rate", self.emit_rate)
+        self.emitter_spread = config.get("emitter_spread", self.emitter_spread)
+        self.damping = config.get("damping", self.damping)
+        if "gravity" in config:
+            self.gravity_vec = np.array(config["gravity"], dtype=float)
+        if "lifetime_range" in config:
+            self.lifetime_range = tuple(config["lifetime_range"])
+        if "bounds" in config:
+            self.bounds = np.array(config["bounds"], dtype=float)
+        if "color" in config:
+            self.set_particle_color(config["color"])
+        return self
 
     def _emit_particle(self, index: int):
         spread = self.emitter_spread
