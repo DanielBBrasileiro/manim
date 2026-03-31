@@ -103,33 +103,36 @@ class GraphRuntime:
             print("❌ [Runtime] Render final falhou.")
         
     def step_log(self):
-        from core.tools.memory_tool import save_entry
-        from core.memory.feedback_store import save_training_pair
+        try:
+            from core.tools.memory_tool import save_entry
+            from core.memory.feedback_store import save_training_pair
 
-        entry = {
-            "timestamp": time.time(),
-            "intent": self.state["intent"],
-            "creative_plan": self.state["plan"],
-            "output_signature": self.state["signature"]
-        }
-        save_entry(entry)
+            entry = {
+                "timestamp": time.time(),
+                "intent": self.state["intent"],
+                "creative_plan": self.state["plan"],
+                "output_signature": self.state["signature"]
+            }
+            save_entry(entry)
 
-        raw_input = self.state.get("input")
-        if isinstance(raw_input, dict):
-            prompt = " ".join(str(value) for value in raw_input.values() if isinstance(value, str))
-        else:
-            prompt = str(raw_input or "")
+            raw_input = self.state.get("input")
+            if isinstance(raw_input, dict):
+                prompt = " ".join(str(value) for value in raw_input.values() if isinstance(value, str))
+            else:
+                prompt = str(raw_input or "")
 
-        llm_scene_plan = (self.state.get("plan") or {}).get("llm_scene_plan")
-        llm_metadata = (self.state.get("plan") or {}).get("llm_metadata")
-        if llm_scene_plan:
-            save_training_pair(
-                prompt=prompt,
-                completion=llm_scene_plan,
-                approved=self.state["approved"],
-                metadata=llm_metadata,
-            )
-        print("🧠 [Runtime] Decisão gravada na Memória Criativa.")
+            llm_scene_plan = (self.state.get("plan") or {}).get("llm_scene_plan")
+            llm_metadata = (self.state.get("plan") or {}).get("llm_metadata")
+            if llm_scene_plan:
+                save_training_pair(
+                    prompt=prompt,
+                    completion=llm_scene_plan,
+                    approved=self.state["approved"],
+                    metadata=llm_metadata,
+                )
+            print("🧠 [Runtime] Decisão gravada na Memória Criativa.")
+        except Exception as exc:
+            print(f"⚠️ [Runtime] Falha ao gravar memória: {exc}")
 
     def run_full(self, seed: dict):
         """Fluxo contínuo (usado para Testes ou Modo 3)."""

@@ -86,7 +86,8 @@ class AgenticOrchestrator:
     def sync_brand(self):
         print("🧬 AIOX: Sincronizando contratos de marca...")
         identity = self.brief.get("meta", {}).get("active_identity", "aiox_default")
-        subprocess.run(["python3", "core/cli/brand.py", identity], check=True)
+        brand_script = ROOT / "core" / "cli" / "brand.py"
+        subprocess.run(["python3", str(brand_script), identity], check=True, cwd=str(ROOT))
 
     def extract_intelligence(self):
         print("🧠 AIOX: Extraindo parâmetros do briefing...")
@@ -262,22 +263,42 @@ class AgenticOrchestrator:
     def run_pipeline(self):
         try:
             self.run_creative_decision()
+        except Exception as exc:
+            print(f"\n⚠️ DECISÃO CRIATIVA FALHOU: {exc}")
+            print("Continuando com defaults do briefing...")
+
+        try:
             self.sync_brand()
+        except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+            print(f"\n⚠️ SYNC BRAND FALHOU: {exc}")
+            print("Continuando com tema existente...")
+
+        try:
             tech_plan = self.extract_intelligence()
-            
+        except (ValueError, KeyError) as exc:
+            print(f"\n❌ ERRO NA EXTRAÇÃO DE INTELIGÊNCIA: {exc}")
+            return False
+
+        try:
             if self.run_manim(tech_plan):
                 self.bridge_engines()
-                self.run_remotion()
-                self.run_post_processing()
-                print("\n🏆 AIOX PIPELINE COMPLETE: Seu conteúdo está pronto em output/")
-                return True
-        except subprocess.CalledProcessError as e:
-            print(f"\n❌ ERRO DE RENDERIZAÇÃO: O comando falhou.")
-            print("Antigravity: Por favor, analise o código Manim ou React gerado e corrija-o.")
-            sys.exit(1)
-        except Exception as e:
-            print(f"\n❌ ERRO FATAL: {str(e)}")
-            sys.exit(1)
+        except subprocess.CalledProcessError as exc:
+            print(f"\n⚠️ MANIM RENDER FALHOU: {exc}")
+            print("Continuando sem camada geométrica...")
+
+        try:
+            self.run_remotion()
+        except subprocess.CalledProcessError as exc:
+            print(f"\n❌ REMOTION RENDER FALHOU: {exc}")
+            return False
+
+        try:
+            self.run_post_processing()
+        except Exception as exc:
+            print(f"\n⚠️ PÓS-PROCESSAMENTO FALHOU: {exc}")
+
+        print("\n🏆 AIOX PIPELINE COMPLETE: Seu conteúdo está pronto em output/")
+        return True
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
