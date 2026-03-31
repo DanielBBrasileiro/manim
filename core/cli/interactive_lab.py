@@ -1,6 +1,5 @@
 import os
 import json
-import time
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt, Confirm
@@ -8,6 +7,9 @@ from core.compiler.creative_compiler import compile_seed
 from core.intelligence.model_router import TASK_FAST_PLAN, confidence_threshold
 from core.runtime.graph_runtime import GraphRuntime
 from core.tools.preview_tool import generate_ascii_preview
+from core.memory.session_store import load_session as load_saved_session
+from core.memory.session_store import save_session as persist_session
+from core.runtime.execution_graph import build_execution_graph
 
 console = Console()
 SESSIONS_DIR = ".sessions"
@@ -28,16 +30,19 @@ def load_asset_registry():
 
 def save_session(intent_text, plan):
     setup_sessions_dir()
-    session_id = f"sess_{int(time.time())}"
-    filepath = os.path.join(SESSIONS_DIR, f"{session_id}.json")
-    
-    with open(filepath, 'w') as f:
-        json.dump({
-            "input": intent_text,
-            "creative_plan": plan
-        }, f, indent=2)
-        
-    return session_id
+    graph = build_execution_graph(plan, artifact_plan=plan.get("artifact_plan") if isinstance(plan, dict) else None)
+    record = persist_session(
+        intent_text,
+        plan,
+        execution_graph=graph,
+        metadata={
+            "source": "interactive_lab",
+            "archetype": plan.get("archetype") if isinstance(plan, dict) else None,
+        },
+        status="saved",
+        source="interactive_lab",
+    )
+    return record["session_id"]
 
 def render_human_logs(intent_text, result):
     """Fase 1: Feedback Humano das decisões de Inteligência."""
@@ -193,16 +198,13 @@ def explore_mode(idea_seed):
 
 def run_session(session_id):
     """Fase 4: Reprodução instantânea de DNA passado"""
-    filepath = os.path.join(SESSIONS_DIR, session_id if session_id.endswith('.json') else f"{session_id}.json")
-    if not os.path.exists(filepath):
+    session = load_saved_session(session_id)
+    if not session:
         console.print(f"[bold red]❌ Sessão {session_id} não encontrada em {SESSIONS_DIR}.[/bold red]")
         return
-        
-    with open(filepath, 'r') as f:
-        data = json.load(f)
-        
-    plan = data.get("creative_plan")
+
+    plan = session.get("creative_plan")
     if plan:
-        console.print(f"[bold green]✔ Sessão recuperada: {data.get('input')}[/bold green]")
+        console.print(f"[bold green]✔ Sessão recuperada: {session.get('input')}[/bold green]")
         render_ascii_timeline(plan)
-        render_video(plan, prompt_text=data.get("input", ""))
+        render_video(plan, prompt_text=session.get("input", ""))

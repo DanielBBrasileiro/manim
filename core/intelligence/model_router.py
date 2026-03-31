@@ -4,14 +4,25 @@ import os
 from dataclasses import dataclass
 
 from core.env_loader import load_repo_env
+from core.intelligence.model_profiles import (
+    ROLE_COPY_REFINER,
+    ROLE_FAST_PLAN,
+    ROLE_PLAN,
+    ROLE_QUALITY_PLAN,
+    ROLE_VARIANT_RANKER,
+    ROLE_VISION_PLAN,
+    get_active_profile,
+)
 
 load_repo_env()
 
 
-TASK_PLAN = "plan"
-TASK_FAST_PLAN = "fast_plan"
-TASK_QUALITY_PLAN = "quality_plan"
-TASK_VISION_PLAN = "vision_plan"
+TASK_PLAN = ROLE_PLAN
+TASK_FAST_PLAN = ROLE_FAST_PLAN
+TASK_QUALITY_PLAN = ROLE_QUALITY_PLAN
+TASK_VISION_PLAN = ROLE_VISION_PLAN
+TASK_COPY_REFINER = ROLE_COPY_REFINER
+TASK_VARIANT_RANKER = ROLE_VARIANT_RANKER
 
 
 @dataclass(frozen=True)
@@ -27,8 +38,9 @@ class ModelRoute:
 def get_route(task_type: str = TASK_PLAN, prefer_quality: bool = False) -> ModelRoute:
     forced = os.environ.get("AIOX_LLM_FORCE_MODEL", "").strip()
     routing_mode = os.environ.get("AIOX_LLM_ROUTING_MODE", "auto").strip().lower()
-    timeout = _timeout_for_task(task_type, retry=False, default=14.0)
-    retry_timeout = _timeout_for_task(task_type, retry=True, default=22.0)
+    profile = get_active_profile()
+    timeout = _timeout_for_task(task_type, retry=False, default=14.0, profile_timeouts=profile.timeouts)
+    retry_timeout = _timeout_for_task(task_type, retry=True, default=22.0, profile_timeouts=profile.retry_timeouts)
 
     if forced:
         keep_alive = _keep_alive_for_task(task_type)
@@ -50,7 +62,7 @@ def get_route(task_type: str = TASK_PLAN, prefer_quality: bool = False) -> Model
     if task_type == TASK_FAST_PLAN:
         return ModelRoute(
             task_type=task_type,
-            model=os.environ.get("OLLAMA_TEXT_FAST_MODEL", "qwen3:4b-instruct-2507-q4_K_M"),
+            model=profile.model_roles.get(TASK_FAST_PLAN, os.environ.get("OLLAMA_TEXT_FAST_MODEL", "qwen3:4b-instruct-2507-q4_K_M")),
             keep_alive=os.environ.get("OLLAMA_KEEP_ALIVE_FAST", "4m"),
             timeout_seconds=timeout,
             retry_timeout_seconds=retry_timeout,
@@ -60,7 +72,7 @@ def get_route(task_type: str = TASK_PLAN, prefer_quality: bool = False) -> Model
     if task_type == TASK_QUALITY_PLAN:
         return ModelRoute(
             task_type=task_type,
-            model=_quality_model(),
+            model=profile.model_roles.get(TASK_QUALITY_PLAN, _quality_model()),
             keep_alive=os.environ.get("OLLAMA_KEEP_ALIVE_QUALITY", "0"),
             timeout_seconds=retry_timeout,
             retry_timeout_seconds=retry_timeout,
@@ -70,11 +82,31 @@ def get_route(task_type: str = TASK_PLAN, prefer_quality: bool = False) -> Model
     if task_type == TASK_VISION_PLAN:
         return ModelRoute(
             task_type=task_type,
-            model=os.environ.get("OLLAMA_VISION_MODEL", "qwen3-vl:4b-instruct-q4_K_M"),
+            model=profile.model_roles.get(TASK_VISION_PLAN, os.environ.get("OLLAMA_VISION_MODEL", "qwen3-vl:4b-instruct-q4_K_M")),
             keep_alive=os.environ.get("OLLAMA_KEEP_ALIVE_VISION", "0"),
             timeout_seconds=retry_timeout,
             retry_timeout_seconds=retry_timeout,
             quality_fallback_model=None,
+        )
+
+    if task_type == TASK_COPY_REFINER:
+        return ModelRoute(
+            task_type=task_type,
+            model=profile.model_roles.get(TASK_COPY_REFINER, os.environ.get("OLLAMA_TEXT_MODEL", "qwen2.5:7b-instruct-q4_K_M")),
+            keep_alive=os.environ.get("OLLAMA_KEEP_ALIVE_TEXT", "8m"),
+            timeout_seconds=timeout,
+            retry_timeout_seconds=retry_timeout,
+            quality_fallback_model=profile.model_roles.get(TASK_QUALITY_PLAN, _quality_model()),
+        )
+
+    if task_type == TASK_VARIANT_RANKER:
+        return ModelRoute(
+            task_type=task_type,
+            model=profile.model_roles.get(TASK_VARIANT_RANKER, os.environ.get("OLLAMA_TEXT_FAST_MODEL", "qwen3:4b-instruct-2507-q4_K_M")),
+            keep_alive=os.environ.get("OLLAMA_KEEP_ALIVE_FAST", "4m"),
+            timeout_seconds=timeout,
+            retry_timeout_seconds=retry_timeout,
+            quality_fallback_model=profile.model_roles.get(TASK_QUALITY_PLAN, _quality_model()),
         )
 
     if prefer_quality:
@@ -82,7 +114,7 @@ def get_route(task_type: str = TASK_PLAN, prefer_quality: bool = False) -> Model
 
     return ModelRoute(
         task_type=task_type,
-        model=os.environ.get("OLLAMA_TEXT_MODEL", "qwen2.5:7b-instruct-q4_K_M"),
+        model=profile.model_roles.get(TASK_PLAN, os.environ.get("OLLAMA_TEXT_MODEL", "qwen2.5:7b-instruct-q4_K_M")),
         keep_alive=os.environ.get("OLLAMA_KEEP_ALIVE_TEXT", "8m"),
         timeout_seconds=timeout,
         retry_timeout_seconds=retry_timeout,
@@ -127,7 +159,7 @@ def _keep_alive_for_task(task_type: str) -> str:
     return os.environ.get("OLLAMA_KEEP_ALIVE_TEXT", "8m")
 
 
-def _timeout_for_task(task_type: str, retry: bool, default: float) -> float:
+def _timeout_for_task(task_type: str, retry: bool, default: float, profile_timeouts: dict[str, float] | None = None) -> float:
     prefix = "OLLAMA_RETRY_TIMEOUT_" if retry else "OLLAMA_TIMEOUT_"
     generic_name = "OLLAMA_RETRY_TIMEOUT_SECONDS" if retry else "OLLAMA_TIMEOUT_SECONDS"
 
@@ -140,6 +172,8 @@ def _timeout_for_task(task_type: str, retry: bool, default: float) -> float:
     else:
         task_name = f"{prefix}PLAN_SECONDS"
 
+    if profile_timeouts and task_type in profile_timeouts:
+        default = float(profile_timeouts[task_type])
     return _get_float(task_name, _get_float(generic_name, default))
 
 

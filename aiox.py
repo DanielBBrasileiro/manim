@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 import argparse
-import sys
 import os
 import subprocess
+import sys
 
 # Garante que o Python carregue os módulos internos
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from core.orchestrator import AgenticOrchestrator
 
 def main():
     parser = argparse.ArgumentParser(description="AIOX Studio - Limitless Engine")
@@ -35,11 +34,23 @@ def main():
         default="contracts/references",
         help="Diretorio de saida para os packs YAML/JSON",
     )
+
+    doctor_parser = subparsers.add_parser("doctor", help="Diagnostica runtime local, modelos, renderers e style packs")
+    doctor_parser.add_argument("--json", action="store_true")
+    benchmark_parser = subparsers.add_parser("benchmark", help="Benchmark leve do runtime local por profile")
+    benchmark_parser.add_argument("--prompt", default="quero algo com silencio, tensao e resolucao elegante")
+    benchmark_parser.add_argument("--iterations", type=int, default=1)
+    benchmark_parser.add_argument("--profiles", nargs="+")
+    benchmark_parser.add_argument("--task-roles", nargs="+")
+    benchmark_parser.add_argument("--disable-cache", action="store_true")
+    benchmark_parser.add_argument("--json", action="store_true")
+    audit_parser = subparsers.add_parser("audit", help="Audita paridade entre artifact_plan e outputs")
+    audit_parser.add_argument("--json", action="store_true")
     
     # Comando SYNC: Apenas sincroniza o DNA visual (útil para testes)
     sync_parser = subparsers.add_parser("sync", help="Atualiza o theme.json com a identidade solicitada")
     sync_parser.add_argument("identity", help="Ex: aiox_default", nargs="?", default="aiox_default")
-    
+
     args = parser.parse_args()
     
     if args.command == "create":
@@ -71,6 +82,34 @@ def main():
         from core.cli.reference import cli as reference_cli
         reference_args = [*args.urls, "--output-dir", args.output_dir]
         reference_cli(reference_args)
+        return
+
+    elif args.command == "doctor":
+        from core.cli.doctor import cli as doctor_cli
+        doctor_cli(["--json"] if args.json else [])
+        return
+
+    elif args.command == "benchmark":
+        from core.cli.benchmark import cli as benchmark_cli
+        benchmark_args = []
+        if args.prompt:
+            benchmark_args.extend(["--prompt", args.prompt])
+        benchmark_args.extend(["--iterations", str(args.iterations)])
+        if args.profiles:
+            benchmark_args.extend(["--profiles", *args.profiles])
+        if args.task_roles:
+            benchmark_args.extend(["--task-roles", *args.task_roles])
+        if args.disable_cache:
+            benchmark_args.append("--disable-cache")
+        if args.json:
+            benchmark_args.append("--json")
+        benchmark_cli(benchmark_args)
+        return
+
+    elif args.command == "audit":
+        from core.cli.audit import cli as audit_cli
+        audit_args = ["--json"] if args.json else []
+        audit_cli(audit_args)
         return
         
     elif args.command == "sync":
