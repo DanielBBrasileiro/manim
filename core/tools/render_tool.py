@@ -18,8 +18,8 @@ DEFAULT_RENDER_TIMEOUT = int(os.getenv("AIOX_REMOTION_CLI_TIMEOUT_SECONDS", "45"
 DEFAULT_DIRECT_TIMEOUT = int(os.getenv("AIOX_REMOTION_DIRECT_TIMEOUT_SECONDS", "180"))
 DEFAULT_STILL_DIRECT_TIMEOUT = int(os.getenv("AIOX_REMOTION_STILL_TIMEOUT_SECONDS", "180"))
 DEFAULT_STILL_CLI_TIMEOUT = int(os.getenv("AIOX_REMOTION_STILL_CLI_TIMEOUT_SECONDS", "180"))
-DEFAULT_VIDEO_DIRECT_TIMEOUT = int(os.getenv("AIOX_REMOTION_VIDEO_TIMEOUT_SECONDS", str(max(DEFAULT_DIRECT_TIMEOUT, 240))))
-DEFAULT_VIDEO_CLI_TIMEOUT = int(os.getenv("AIOX_REMOTION_VIDEO_CLI_TIMEOUT_SECONDS", str(max(DEFAULT_RENDER_TIMEOUT, 240))))
+DEFAULT_VIDEO_DIRECT_TIMEOUT = int(os.getenv("AIOX_REMOTION_VIDEO_TIMEOUT_SECONDS", str(max(DEFAULT_DIRECT_TIMEOUT, 360))))
+DEFAULT_VIDEO_CLI_TIMEOUT = int(os.getenv("AIOX_REMOTION_VIDEO_CLI_TIMEOUT_SECONDS", str(max(DEFAULT_RENDER_TIMEOUT, 360))))
 DEFAULT_BUNDLE_WARM_TIMEOUT = int(
     os.getenv(
         "AIOX_REMOTION_BUNDLE_TIMEOUT_SECONDS",
@@ -70,6 +70,7 @@ def _load_remotion_env(
     remotion_props: dict[str, Any] | None = None,
     *,
     timeout_seconds: int | None = None,
+    concurrency: int | None = None,
 ) -> dict[str, str]:
     env = dict(os.environ)
     env.setdefault("AIOX_REMOTION_REUSE_BUNDLE", "1")
@@ -77,6 +78,8 @@ def _load_remotion_env(
         env["REMOTION_INPUT_PROPS_JSON"] = json.dumps(remotion_props)
     if timeout_seconds is not None:
         env["REMOTION_RENDER_TIMEOUT_MS"] = str(max(timeout_seconds, 1) * 1000)
+    if concurrency is not None:
+        env.setdefault("REMOTION_CONCURRENCY", str(concurrency))
     return env
 
 
@@ -104,6 +107,7 @@ def _run_remotion_command(
     *,
     direct_timeout_seconds: int | None = None,
     cli_timeout_seconds: int | None = None,
+    concurrency: int | None = None,
 ) -> None:
     runner = _load_remotion_runner()
     render_mode = os.getenv("AIOX_REMOTION_RENDER_MODE", "auto").strip().lower()
@@ -114,7 +118,7 @@ def _run_remotion_command(
         os.getenv("AIOX_REMOTION_DIRECT_TIMEOUT_SECONDS", str(DEFAULT_DIRECT_TIMEOUT))
     )
     effective_timeout = max(cli_timeout, direct_timeout)
-    env = _load_remotion_env(remotion_props, timeout_seconds=effective_timeout)
+    env = _load_remotion_env(remotion_props, timeout_seconds=effective_timeout, concurrency=concurrency)
 
     cli_cmd = [
         "/bin/zsh",
@@ -175,6 +179,7 @@ def run_remotion_video(
         remotion_props,
         direct_timeout_seconds=DEFAULT_VIDEO_DIRECT_TIMEOUT,
         cli_timeout_seconds=DEFAULT_VIDEO_CLI_TIMEOUT,
+        concurrency=2,
     )
     _validate_output(output_path)
 
