@@ -5,6 +5,7 @@ Extracted from creative_compiler.py to keep modules under 500 lines.
 """
 import copy
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -39,14 +40,17 @@ DEFAULT_RESOLVE_BY_ARCHETYPE = {
     "loop_stability": "Stillness",
     "gravitational_collapse": "Gravity",
 }
+DEFAULT_OUTPUT_TARGET = "short_cinematic_vertical"
 
 
 def build_render_manifest(plan: dict, seed: dict | str) -> dict:
     brief = _coerce_brief(seed)
     narrative_contract = _load_contract("contracts/narrative.yaml")
     layout_contract = _load_contract("contracts/layout.yaml")
+    artifact_plan = plan.get("artifact_plan") or build_artifact_plan(plan, seed)
+    primary_target = artifact_plan.get("primary_target", {})
     duration = float(plan.get("duration", 12) or 12.0)
-    fps = int(layout_contract.get("formats", {}).get("vertical_9_16", {}).get("fps", 60) or 60)
+    fps = int(primary_target.get("fps") or 60)
 
     acts = _build_act_windows(duration, plan, narrative_contract)
     text_beats = _collect_text_beats(brief, acts, duration, plan)
@@ -63,11 +67,28 @@ def build_render_manifest(plan: dict, seed: dict | str) -> dict:
         or DEFAULT_RESOLVE_BY_ARCHETYPE.get(plan.get("archetype"), "AIOX"),
         limit=2,
     )
+    render_inputs = _build_render_inputs(
+        artifact_plan=artifact_plan,
+        acts=acts,
+        text_beats=text_beats,
+        duration=duration,
+        fps=fps,
+        layout_contract=layout_contract,
+        plan=plan,
+        brief=brief,
+    )
 
     return {
         "duration": duration,
         "duration_in_frames": int(round(duration * fps)),
         "fps": fps,
+        "primary_target": primary_target,
+        "targets": artifact_plan.get("targets", []),
+        "artifact_plan": artifact_plan,
+        "story_atoms": artifact_plan.get("story_atoms", {}),
+        "style_pack_ids": artifact_plan.get("style_pack_ids", []),
+        "quality_constraints": artifact_plan.get("quality_constraints", {}),
+        "render_inputs": render_inputs,
         "title": brief.get("title") or "AIOX v4.0",
         "tagline": brief.get("tagline") or "Invisible Architecture",
         "emotional_target": brief.get("emotional_target") or _infer_emotional_target(plan),
@@ -80,7 +101,90 @@ def build_render_manifest(plan: dict, seed: dict | str) -> dict:
             "bed": "audio/aiox_signal_bed.m4a",
             "gain": 0.3,
         },
-        "layout": layout_contract.get("formats", {}).get("vertical_9_16", {}),
+        "layout": primary_target.get("layout", layout_contract.get("formats", {}).get("vertical_9_16", {})),
+    }
+
+
+def build_artifact_plan(plan: dict, seed: dict | str) -> dict:
+    brief = _coerce_brief(seed)
+    narrative_contract = _load_contract("contracts/narrative.yaml")
+    layout_contract = _load_contract("contracts/layout.yaml")
+    global_laws = _load_contract("contracts/global_laws.yaml")
+    formats = layout_contract.get("formats", {}) if isinstance(layout_contract.get("formats", {}), dict) else {}
+    target_catalog = _build_target_catalog(layout_contract, formats)
+    requested_output_tokens = _extract_requested_output_tokens(seed, brief)
+    requested_ids = _resolve_requested_target_ids(
+        brief,
+        plan,
+        target_catalog,
+        formats,
+        requested_output_tokens=requested_output_tokens,
+    )
+    duration = float(plan.get("duration", 12) or 12.0)
+    acts = _build_act_windows(duration, plan, narrative_contract)
+    text_beats = _collect_text_beats(brief, acts, duration, plan)
+    story_atoms = _build_story_atoms(plan, brief)
+    quality_constraints = _build_quality_constraints(narrative_contract, global_laws)
+    style_pack_ids = _resolve_style_pack_ids(seed)
+
+    selected_targets: list[dict[str, Any]] = []
+    for target_id in requested_ids:
+        target_spec = target_catalog.get(target_id)
+        if target_spec and target_spec not in selected_targets:
+            selected_targets.append(
+                _expand_target(
+                    target_spec=target_spec,
+                    plan=plan,
+                    story_atoms=story_atoms,
+                    acts=acts,
+                    text_beats=text_beats,
+                    duration=duration,
+                )
+            )
+
+    if not selected_targets:
+        default_target_id = _default_output_target(layout_contract, target_catalog)
+        default_target = target_catalog.get(default_target_id)
+        if default_target:
+            selected_targets = [
+                _expand_target(
+                    target_spec=default_target,
+                    plan=plan,
+                    story_atoms=story_atoms,
+                    acts=acts,
+                    text_beats=text_beats,
+                    duration=duration,
+                )
+            ]
+
+    primary_target = selected_targets[0] if selected_targets else {}
+    return {
+        "primary_target_id": primary_target.get("id", DEFAULT_OUTPUT_TARGET),
+        "primary_target": primary_target,
+        "targets": selected_targets,
+        "requested_targets": requested_ids,
+        "format": primary_target.get("format_id", "vertical_9_16"),
+        "story_atoms": story_atoms,
+        "style_pack_ids": style_pack_ids,
+        "quality_constraints": quality_constraints,
+        "beat_map": {
+            target.get("id", f"target_{index}"): [
+                beat.get("label", beat.get("text", ""))
+                for beat in target.get("beats", [])
+                if isinstance(beat, dict)
+            ]
+            for index, target in enumerate(selected_targets)
+        },
+        "distribution_mode": "multi_target" if len(selected_targets) > 1 else "single_target",
+        "brief": {
+            "title": brief.get("title"),
+            "tagline": brief.get("tagline"),
+            "format": brief.get("format") or brief.get("platform"),
+            "platform": brief.get("platform"),
+            "audience": brief.get("audience"),
+            "thesis": brief.get("thesis"),
+            "output_targets": requested_output_tokens,
+        },
     }
 
 
@@ -106,6 +210,375 @@ def _load_contract(relative_path: str) -> dict:
         return {}
     with open(path, "r", encoding="utf-8") as handle:
         return yaml.safe_load(handle) or {}
+
+
+def _string_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item).strip() for item in value if str(item).strip()]
+
+
+def _extract_requested_output_tokens(seed: dict | str, brief: dict) -> list[str]:
+    tokens: list[str] = []
+    if isinstance(seed, dict):
+        output = seed.get("output", {})
+        if isinstance(output, dict):
+            tokens.extend(_string_list(output.get("targets")))
+        tokens.extend(_string_list(seed.get("output_targets")))
+    tokens.extend(_string_list(brief.get("output_targets")))
+    tokens.extend(_string_list(brief.get("distribution_targets")))
+
+    deduped: list[str] = []
+    for token in tokens:
+        if token not in deduped:
+            deduped.append(token)
+    return deduped
+
+
+def _build_target_catalog(layout_contract: dict, formats: dict[str, dict]) -> dict[str, dict]:
+    catalog: dict[str, dict] = {}
+    raw_targets = layout_contract.get("output_targets", {})
+    if not isinstance(raw_targets, dict):
+        return catalog
+
+    for target_id, target in raw_targets.items():
+        if not isinstance(target, dict):
+            continue
+        format_id = str(target.get("format", target.get("format_id", ""))).strip() or target_id
+        format_layout = copy.deepcopy(formats.get(format_id, {})) if isinstance(formats.get(format_id, {}), dict) else {}
+        width = int(target.get("width", format_layout.get("width", 0)) or 0)
+        height = int(target.get("height", format_layout.get("height", 0)) or 0)
+        fps = int(target.get("fps", format_layout.get("fps", 0)) or 0)
+        safe_zone = float(target.get("safe_zone", format_layout.get("safe_zone", 0.0)) or 0.0)
+        catalog[target_id] = {
+            "id": target_id,
+            "format_id": format_id,
+            "channel": str(target.get("channel", "")).strip(),
+            "purpose": str(target.get("purpose", "")).strip(),
+            "priority": int(target.get("priority", 0) or 0),
+            "default": bool(target.get("default", False)),
+            "preferred_channels": _string_list(target.get("preferred_channels")),
+            "legacy_aliases": _string_list(target.get("legacy_aliases")),
+            "width": width,
+            "height": height,
+            "fps": fps,
+            "safe_zone": safe_zone,
+            "layout": format_layout,
+            "alias": str(target.get("alias", "")).strip(),
+            "render_mode": str(target.get("render_mode", "video")).strip() or "video",
+            "composition": str(target.get("composition", "")).strip(),
+            "legacy_composition": str(target.get("legacy_composition", "")).strip(),
+            "label": str(target.get("label", target_id)).strip() or target_id,
+            "min_slides": int(target.get("min_slides", 5) or 5),
+            "max_slides": int(target.get("max_slides", 9) or 9),
+        }
+
+    return catalog
+
+
+def _resolve_requested_target_ids(
+    brief: dict,
+    plan: dict,
+    target_catalog: dict[str, dict],
+    formats: dict[str, dict],
+    requested_output_tokens: list[str] | None = None,
+) -> list[str]:
+    requested: list[str] = []
+    sources = [
+        requested_output_tokens or [],
+        plan.get("targets"),
+        plan.get("llm_scene_plan", {}).get("targets", []),
+        brief.get("target"),
+        brief.get("platform"),
+        brief.get("format"),
+    ]
+
+    for source in sources:
+        if isinstance(source, list):
+            for item in source:
+                requested.extend(_map_target_token(str(item), target_catalog, formats))
+        elif isinstance(source, str):
+            requested.extend(_map_target_token(source, target_catalog, formats))
+
+    deduped: list[str] = []
+    for target_id in requested:
+        if target_id not in deduped:
+            deduped.append(target_id)
+    return deduped
+
+
+def _map_target_token(token: str, target_catalog: dict[str, dict], formats: dict[str, dict]) -> list[str]:
+    value = str(token).strip()
+    if not value:
+        return []
+    if value in target_catalog:
+        return [value]
+
+    matches = [target_id for target_id, spec in target_catalog.items() if spec.get("format_id") == value]
+    if matches:
+        return [matches[0]]
+
+    channel_matches = [
+        target_id
+        for target_id, spec in target_catalog.items()
+        if value == spec.get("channel")
+        or value in spec.get("preferred_channels", [])
+        or value in spec.get("legacy_aliases", [])
+    ]
+    if channel_matches:
+        return [channel_matches[0]]
+
+    format_matches = [format_id for format_id in formats.keys() if format_id == value]
+    if format_matches:
+        for target_id, spec in target_catalog.items():
+            if spec.get("format_id") == format_matches[0]:
+                return [target_id]
+        return [_default_output_target({}, target_catalog)]
+
+    return []
+
+
+def _default_output_target(layout_contract: dict, target_catalog: dict[str, dict]) -> str:
+    default_target = str(layout_contract.get("default_output_target", "")).strip()
+    if default_target and default_target in target_catalog:
+        return default_target
+
+    for target_id, spec in target_catalog.items():
+        if spec.get("default"):
+            return target_id
+
+    if DEFAULT_OUTPUT_TARGET in target_catalog:
+        return DEFAULT_OUTPUT_TARGET
+
+    return next(iter(target_catalog.keys()), DEFAULT_OUTPUT_TARGET)
+
+
+def _resolve_style_pack_ids(seed: dict | str) -> list[str]:
+    if not isinstance(seed, dict):
+        return []
+
+    references = seed.get("references", {})
+    if isinstance(references, dict):
+        style_packs = references.get("style_packs", [])
+        if isinstance(style_packs, list):
+            return [str(item).strip() for item in style_packs if str(item).strip()]
+    return []
+
+
+def _build_story_atoms(plan: dict, brief: dict) -> dict[str, Any]:
+    return {
+        "title": brief.get("title") or "AIOX",
+        "tagline": brief.get("tagline") or "Invisible Architecture",
+        "thesis": brief.get("thesis") or _infer_visual_metaphor(plan),
+        "audience": brief.get("audience") or "B2B brand and tech audience",
+        "emotional_target": brief.get("emotional_target") or _infer_emotional_target(plan),
+        "visual_metaphor": brief.get("visual_metaphor") or _infer_visual_metaphor(plan),
+        "resolve_word": _word_cap(
+            brief.get("resolve_word")
+            or brief.get("final_signature_word")
+            or DEFAULT_RESOLVE_BY_ARCHETYPE.get(plan.get("archetype"), "AIOX"),
+            limit=2,
+        ),
+    }
+
+
+def _build_quality_constraints(narrative_contract: dict, global_laws: dict) -> dict[str, Any]:
+    pacing = narrative_contract.get("pacing", {}) if isinstance(narrative_contract.get("pacing", {}), dict) else {}
+    constraints = global_laws.get("constraints", {}) if isinstance(global_laws.get("constraints", {}), dict) else {}
+    return {
+        "text_minimum_gap": pacing.get("text_minimum_gap", "1.5s"),
+        "max_words_per_screen": int(pacing.get("max_text_words_per_screen", TEXT_WORD_LIMIT) or TEXT_WORD_LIMIT),
+        "silence_ratio": float(pacing.get("silence_ratio", 0.3) or 0.3),
+        "negative_space_target": float(constraints.get("min_negative_space", 0.4) or 0.4),
+        "max_colors": int(constraints.get("max_colors", 2) or 2),
+    }
+
+
+def _expand_target(
+    target_spec: dict[str, Any],
+    plan: dict,
+    story_atoms: dict[str, Any],
+    acts: list[dict],
+    text_beats: list[dict],
+    duration: float,
+) -> dict[str, Any]:
+    target = copy.deepcopy(target_spec)
+    target["summary"] = _target_summary(target, story_atoms)
+    target["duration_sec"] = _target_duration(target, duration)
+    target["beats"] = _build_target_beats(target, story_atoms, acts, text_beats)
+    target["slides"] = _build_target_slides(target, story_atoms, text_beats)
+    target["chapters"] = _build_target_chapters(target, story_atoms, acts, text_beats)
+    target["story_atoms"] = story_atoms
+    target["still_frame"] = _target_still_frame(target, duration)
+    target["plan_archetype"] = plan.get("archetype")
+    return target
+
+
+def _target_duration(target: dict[str, Any], base_duration: float) -> float:
+    target_id = str(target.get("id", ""))
+    if target_id == "youtube_essay_16_9":
+        return max(60.0, base_duration * 6)
+    if target.get("render_mode") == "still":
+        return 0.0
+    return base_duration
+
+
+def _target_summary(target: dict[str, Any], story_atoms: dict[str, Any]) -> str:
+    target_id = str(target.get("id", ""))
+    if target_id == "linkedin_feed_4_5":
+        return f"Poster-first still built around the thesis: {story_atoms.get('thesis')}"
+    if target_id == "linkedin_carousel_square":
+        return f"Narrative carousel translating '{story_atoms.get('visual_metaphor')}' into cover, proof and CTA."
+    if target_id == "youtube_essay_16_9":
+        return f"Wide visual essay expanding the thesis for {story_atoms.get('audience')}."
+    if target_id == "youtube_thumbnail_16_9":
+        return f"Thumbnail resolve built around the word '{story_atoms.get('resolve_word')}'."
+    return f"Short cinematic built around '{story_atoms.get('visual_metaphor')}'."
+
+
+def _build_target_beats(
+    target: dict[str, Any],
+    story_atoms: dict[str, Any],
+    acts: list[dict],
+    text_beats: list[dict],
+) -> list[dict[str, Any]]:
+    target_id = str(target.get("id", ""))
+    if target_id == "linkedin_carousel_square":
+        return []
+    if target_id == "youtube_thumbnail_16_9":
+        return [
+            {"label": story_atoms.get("thesis"), "text": story_atoms.get("thesis"), "role": "statement"},
+            {"label": story_atoms.get("resolve_word"), "text": story_atoms.get("resolve_word"), "role": "resolve"},
+        ]
+
+    if target_id == "linkedin_feed_4_5":
+        return [
+            {"label": "thesis", "text": story_atoms.get("thesis"), "role": "statement"},
+            {"label": "resolve", "text": story_atoms.get("resolve_word"), "role": "resolve"},
+        ]
+
+    beats: list[dict[str, Any]] = []
+    for act in acts:
+        beats.append(
+            {
+                "label": act.get("id"),
+                "act": act.get("id"),
+                "start_sec": act.get("start_sec"),
+                "end_sec": act.get("end_sec"),
+                "text": _first_text_for_act(text_beats, act.get("id")) or story_atoms.get("thesis"),
+            }
+        )
+    return beats
+
+
+def _build_target_slides(
+    target: dict[str, Any],
+    story_atoms: dict[str, Any],
+    text_beats: list[dict],
+) -> list[dict[str, Any]]:
+    if str(target.get("id", "")) != "linkedin_carousel_square":
+        return []
+
+    return [
+        {"archetype": "cover", "title": story_atoms.get("title"), "text_blocks": [story_atoms.get("thesis")]},
+        {"archetype": "thesis", "title": "Thesis", "text_blocks": [story_atoms.get("thesis")]},
+        {"archetype": "proof", "title": "Proof", "text_blocks": [_first_text_for_act(text_beats, "turbulence") or story_atoms.get("visual_metaphor")]},
+        {"archetype": "breakdown", "title": "Breakdown", "text_blocks": [story_atoms.get("visual_metaphor")]},
+        {"archetype": "turn", "title": "Turn", "text_blocks": [story_atoms.get("emotional_target")]},
+        {"archetype": "cta", "title": story_atoms.get("resolve_word"), "text_blocks": [story_atoms.get("tagline")]},
+    ]
+
+
+def _build_target_chapters(
+    target: dict[str, Any],
+    story_atoms: dict[str, Any],
+    acts: list[dict],
+    text_beats: list[dict],
+) -> list[dict[str, Any]]:
+    if str(target.get("id", "")) != "youtube_essay_16_9":
+        return []
+
+    return [
+        {"archetype": "cold_open", "label": story_atoms.get("title"), "seconds": 8},
+        {"archetype": "thesis", "label": story_atoms.get("thesis"), "seconds": 10},
+        {"archetype": "escalation", "label": _first_text_for_act(text_beats, "turbulence") or "Escalation", "seconds": 12},
+        {"archetype": "architecture_reveal", "label": story_atoms.get("visual_metaphor"), "seconds": 14},
+        {"archetype": "proof", "label": story_atoms.get("emotional_target"), "seconds": 10},
+        {"archetype": "resolve", "label": story_atoms.get("resolve_word"), "seconds": 8},
+    ]
+
+
+def _target_still_frame(target: dict[str, Any], duration: float) -> int:
+    fps = int(target.get("fps", 30) or 30)
+    if str(target.get("id", "")) == "youtube_thumbnail_16_9":
+        return int(round(duration * fps * 0.82))
+    return int(round(duration * fps * 0.72))
+
+
+def _first_text_for_act(text_beats: list[dict], act_id: str) -> str:
+    for beat in text_beats:
+        if str(beat.get("act", "")).strip().lower() == str(act_id).strip().lower():
+            return str(beat.get("text", "")).strip()
+    return ""
+
+
+def _build_render_inputs(
+    artifact_plan: dict,
+    acts: list[dict],
+    text_beats: list[dict],
+    duration: float,
+    fps: int,
+    layout_contract: dict,
+    plan: dict,
+    brief: dict,
+) -> dict[str, dict]:
+    render_inputs: dict[str, dict] = {}
+    for target in artifact_plan.get("targets", []):
+        if not isinstance(target, dict):
+            continue
+        format_layout = target.get("layout", {})
+        render_inputs[target["id"]] = {
+            "target_id": target["id"],
+            "format_id": target.get("format_id", "vertical_9_16"),
+            "channel": target.get("channel", ""),
+            "purpose": target.get("purpose", ""),
+            "priority": target.get("priority", 0),
+            "label": target.get("label", target["id"]),
+            "render_mode": target.get("render_mode", "video"),
+            "composition": target.get("composition", ""),
+            "width": target.get("width", 0),
+            "height": target.get("height", 0),
+            "fps": target.get("fps", fps),
+            "safe_zone": target.get("safe_zone", 0.0),
+            "layout": format_layout,
+            "duration": target.get("duration_sec", duration),
+            "duration_in_frames": int(
+                round(float(target.get("duration_sec", duration) or duration) * int(target.get("fps", fps) or fps))
+            ),
+            "acts": acts,
+            "text_cues": text_beats,
+            "beats": target.get("beats", []),
+            "slides": target.get("slides", []),
+            "chapters": target.get("chapters", []),
+            "story_atoms": artifact_plan.get("story_atoms", {}),
+            "style_pack_ids": artifact_plan.get("style_pack_ids", []),
+            "quality_constraints": artifact_plan.get("quality_constraints", {}),
+            "brief": {
+                "title": brief.get("title"),
+                "tagline": brief.get("tagline"),
+                "platform": brief.get("platform"),
+                "format": brief.get("format"),
+                "output_targets": list(brief.get("output_targets", []))
+                if isinstance(brief.get("output_targets"), list)
+                else [],
+            },
+            "plan": {
+                "archetype": plan.get("archetype"),
+                "pacing": plan.get("pacing"),
+                "emotion": _infer_emotional_target(plan),
+            },
+        }
+    return render_inputs
 
 
 def _build_act_windows(duration: float, plan: dict, narrative_contract: dict) -> list[dict]:

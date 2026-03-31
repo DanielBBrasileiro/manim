@@ -1,5 +1,5 @@
 from .intent_parser import parse_intent
-from .render_manifest import build_render_manifest
+from .render_manifest import build_artifact_plan, build_render_manifest
 from .rule_engine import apply_rules
 from .mutation_engine import mutate_entropy, mutate_motion
 from .scoring_engine import novelty_score, coherence_score
@@ -33,6 +33,7 @@ def apply_scene_plan_guidance(plan: dict, scene_plan: dict) -> dict:
     guided["duration"] = scene_plan.get("duration", guided.get("duration", 12))
     guided["assets"] = scene_plan.get("assets", {})
     guided["effects"] = scene_plan.get("effects", [])
+    guided["targets"] = scene_plan.get("targets", guided.get("targets", []))
 
     scenes = scene_plan.get("scenes", [])
     if not isinstance(scenes, list) or not scenes:
@@ -201,6 +202,8 @@ def compile_seed(
     
     # 4. Negociação Darwiniana (Crítica Multi-Agente)
     plan = negotiate(plan)
+    artifact_plan = build_artifact_plan(plan, seed)
+    plan["artifact_plan"] = artifact_plan
     render_manifest = build_render_manifest(plan, seed)
     plan["render_manifest"] = render_manifest
     
@@ -210,6 +213,7 @@ def compile_seed(
     return {
         "intent": str(intent),
         "creative_plan": plan,
+        "artifact_plan": artifact_plan,
         "output_signature": signature,
         "render_manifest": render_manifest
     }

@@ -90,14 +90,15 @@ Para gerar um vídeo completo a partir de um briefing:
 ```bash
 python3 aiox.py create briefings/seu_projeto.yaml
 ```
-Este comando executa: **Sync** de tokens → **Render** Manim → **Sync** para Remotion → **Render** Remotion → **FFmpeg** Transcode.
+Este comando executa um fluxo unificado: **creative_plan** → **artifact_plan** → **previs/quality gate** → **render por target**.
+Um briefing forte agora pode gerar, no mesmo pacote, short vertical, still para LinkedIn, carousel quadrado, essay 16:9 e thumbnail.
 
 ### 6.2 Extrair DNA de Design
 Para capturar as cores, fontes e espaçamento de qualquer site:
 ```bash
 python3 aiox.py reference https://stripe.com
 ```
-Isso gera um arquivo em `contracts/references/stripe_com.yaml` que pode ser usado em qualquer briefing futuro.
+Isso gera um style pack reutilizavel em `contracts/references/stripe_com.yaml` e `contracts/references/stripe_com.json`, que pode ser usado em qualquer briefing futuro.
 
 ### 6.3 Sincronizar Marca
 Para atualizar os tokens de design sem renderizar:

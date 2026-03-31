@@ -24,6 +24,17 @@ def main():
     
     run_parser = subparsers.add_parser("run", help="Recupera uma Sessão Antiga Salva")
     run_parser.add_argument("session_id", help="Nome do arquivo em .sessions/")
+
+    reference_parser = subparsers.add_parser(
+        "reference",
+        help="Captura um style pack reutilizavel a partir de uma ou mais URLs",
+    )
+    reference_parser.add_argument("urls", nargs="+", help="URLs de referencia")
+    reference_parser.add_argument(
+        "--output-dir",
+        default="contracts/references",
+        help="Diretorio de saida para os packs YAML/JSON",
+    )
     
     # Comando SYNC: Apenas sincroniza o DNA visual (útil para testes)
     sync_parser = subparsers.add_parser("sync", help="Atualiza o theme.json com a identidade solicitada")
@@ -55,6 +66,12 @@ def main():
     elif args.command == "run":
         from core.cli.interactive_lab import run_session
         run_session(args.session_id)
+
+    elif args.command == "reference":
+        from core.cli.reference import cli as reference_cli
+        reference_args = [*args.urls, "--output-dir", args.output_dir]
+        reference_cli(reference_args)
+        return
         
     elif args.command == "sync":
         subprocess.run(["python3", "core/cli/brand.py", args.identity], check=True)

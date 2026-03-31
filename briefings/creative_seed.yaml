@@ -3,6 +3,15 @@ director_mode: auto
 creative_seed:
   title: Invisible Architecture
   tagline: Pressure becomes signal
+  format: vertical_9_16
+  output_targets:
+    - short_cinematic_vertical
+    - linkedin_feed_4_5
+    - linkedin_carousel_square
+    - youtube_essay_16_9
+    - youtube_thumbnail_16_9
+  audience: B2B founders and technical leaders
+  thesis: systems become premium when pressure becomes readable
   emotional_target: make hidden order feel inevitable
   visual_metaphor: noise collapsing into architecture
   resolve_word: AIOX
@@ -35,3 +44,7 @@ creative_seed:
       position: center_climax
       role: resolve
       weight: 560
+
+references:
+  style_packs:
+    - stripe_com

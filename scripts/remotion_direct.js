@@ -10,19 +10,58 @@ const REMOTION_ROOT = path.join(ROOT, "engines", "remotion");
 const ENTRY_POINT = path.join(REMOTION_ROOT, "src", "index.tsx");
 const PUBLIC_DIR = path.join(REMOTION_ROOT, "public");
 const PUBLIC_VIDEO = path.join(PUBLIC_DIR, "manim_base.mp4");
-const DEFAULT_COMPOSITION = "CinematicNarrative-v4";
+const DEFAULT_COMPOSITION = "short_cinematic_vertical";
 const DEFAULT_TIMEOUT_MS = Number(process.env.REMOTION_RENDER_TIMEOUT_MS || "120000");
 const SYSTEM_CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const DEFAULT_STILL_EXTENSION = ".png";
+const TARGET_ALIASES = {
+  cinematicnarrative: "short_cinematic_vertical",
+  cinematic_narrative: "short_cinematic_vertical",
+  cinematicnarrative_v4: "short_cinematic_vertical",
+  cinematic_narrative_v4: "short_cinematic_vertical",
+  shortcinematic: "short_cinematic_vertical",
+  short_cinematic: "short_cinematic_vertical",
+  "short-cinematic": "short_cinematic_vertical",
+  short_cinematic_vertical: "short_cinematic_vertical",
+  linkedinstill: "linkedin_feed_4_5",
+  linkedin_still: "linkedin_feed_4_5",
+  "linkedin-still": "linkedin_feed_4_5",
+  linkedinstill_v4: "linkedin_feed_4_5",
+  linkedin_feed_4_5: "linkedin_feed_4_5",
+  carouselslide: "linkedin_carousel_square",
+  carousel_slide: "linkedin_carousel_square",
+  "carousel-slide": "linkedin_carousel_square",
+  carouselslide_v4: "linkedin_carousel_square",
+  linkedin_carousel_square: "linkedin_carousel_square",
+  youtubessay: "youtube_essay_16_9",
+  youtube_essay: "youtube_essay_16_9",
+  "youtube-essay": "youtube_essay_16_9",
+  youtubessay_v4: "youtube_essay_16_9",
+  youtube_essay_16_9: "youtube_essay_16_9",
+  thumbnail: "youtube_thumbnail_16_9",
+  youtube_thumbnail: "youtube_thumbnail_16_9",
+  thumbnail_v4: "youtube_thumbnail_16_9",
+  youtube_thumbnail_16_9: "youtube_thumbnail_16_9",
+};
 
 const requireFromRemotion = createRequire(path.join(REMOTION_ROOT, "package.json"));
 const BUNDLER_DIST = path.join(REMOTION_ROOT, "node_modules", "@remotion", "bundler", "dist");
 const RENDERER_DIST = path.join(REMOTION_ROOT, "node_modules", "@remotion", "renderer", "dist");
 
 const command = (process.argv[2] || "render").toLowerCase();
-const compositionId = process.argv[3] || DEFAULT_COMPOSITION;
+const requestedCompositionId = process.argv[3] || DEFAULT_COMPOSITION;
+const normalizeCompositionId = (value) => {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_")
+    .replace(/[^a-z0-9_]/g, "");
+  return TARGET_ALIASES[normalized] || normalized || DEFAULT_COMPOSITION;
+};
+const compositionId = normalizeCompositionId(requestedCompositionId);
 const outputLocation = process.argv[4]
   ? path.resolve(process.argv[4])
-  : path.join(ROOT, "output", "renders", `${compositionId}.mp4`);
+  : path.join(ROOT, "output", "renders", `${requestedCompositionId}.mp4`);
 
 const loadInputProps = () => {
   const raw = process.env.REMOTION_INPUT_PROPS_JSON;
@@ -150,7 +189,13 @@ const loadRenderer = () => {
   const startedAt = Date.now();
   const {getCompositions} = require(path.join(RENDERER_DIST, "get-compositions.js"));
   const {renderMedia} = require(path.join(RENDERER_DIST, "render-media.js"));
-  rendererApi = {getCompositions, renderMedia};
+  let renderStill = null;
+  try {
+    ({renderStill} = require(path.join(RENDERER_DIST, "render-still.js")));
+  } catch (_error) {
+    renderStill = null;
+  }
+  rendererApi = {getCompositions, renderMedia, renderStill};
   console.log(`Renderer Remotion pronto em ${Date.now() - startedAt}ms`);
   return rendererApi;
 };
@@ -316,6 +361,78 @@ const renderComposition = async () => {
   );
 };
 
+const renderStill = async () => {
+  const serveUrl = await makeBundle();
+  const compositions = await loadCompositions(serveUrl);
+  const composition = compositions.find((item) => item.id === compositionId);
+
+  if (!composition) {
+    throw new Error(
+      `Composition "${compositionId}" nao encontrada. Disponiveis: ${compositions
+        .map((item) => item.id)
+        .join(", ")}`,
+    );
+  }
+
+  const {renderStill: renderStillApi} = loadRenderer();
+  if (!renderStillApi) {
+    throw new Error("renderStill nao esta disponivel na versao local do Remotion.");
+  }
+
+  const stillFrame = Number(
+    inputProps?.frameOverride ??
+      inputProps?.renderManifest?.frameOverride ??
+      inputProps?.renderManifest?.stillFrame ??
+      0,
+  );
+  const stillInputProps = {
+    ...inputProps,
+    frameOverride: Number.isFinite(stillFrame) && stillFrame >= 0 ? stillFrame : 0,
+    renderManifest: {
+      ...(inputProps.renderManifest || {}),
+      frameOverride: Number.isFinite(stillFrame) && stillFrame >= 0 ? stillFrame : 0,
+      stillFrame: Number.isFinite(stillFrame) && stillFrame >= 0 ? stillFrame : 0,
+    },
+  };
+
+  const stillOutputLocation = outputLocation.endsWith(".png")
+    ? outputLocation
+    : `${outputLocation}${DEFAULT_STILL_EXTENSION}`;
+
+  fs.mkdirSync(path.dirname(stillOutputLocation), {recursive: true});
+
+  console.log(`Renderizando still ${compositionId} para ${stillOutputLocation}...`);
+  const startedAt = Date.now();
+  await renderStillApi({
+    ...makeRendererOptions(),
+    composition,
+    frame: Number.isFinite(stillFrame) && stillFrame >= 0 ? stillFrame : 0,
+    inputProps: stillInputProps,
+    outputLocation: stillOutputLocation,
+    overwrite: true,
+    serveUrl,
+    timeoutInMilliseconds: DEFAULT_TIMEOUT_MS,
+  });
+
+  if (!fs.existsSync(stillOutputLocation)) {
+    throw new Error(`Still finalizado sem criar arquivo: ${stillOutputLocation}`);
+  }
+
+  const stats = fs.statSync(stillOutputLocation);
+  if (stats.size === 0) {
+    throw new Error(`Still criou arquivo vazio: ${stillOutputLocation}`);
+  }
+
+  console.log(`Still concluido em ${Date.now() - startedAt}ms`);
+  console.log(
+    JSON.stringify({
+      outputLocation: stillOutputLocation,
+      sizeBytes: stats.size,
+      mtimeMs: stats.mtimeMs,
+    }),
+  );
+};
+
 const main = async () => {
   if (command === "list") {
     await listCompositions();
@@ -327,7 +444,12 @@ const main = async () => {
     return;
   }
 
-  throw new Error(`Comando desconhecido: ${command}. Use "list" ou "render".`);
+  if (command === "still") {
+    await renderStill();
+    return;
+  }
+
+  throw new Error(`Comando desconhecido: ${command}. Use "list", "render" ou "still".`);
 };
 
 main().catch((error) => {

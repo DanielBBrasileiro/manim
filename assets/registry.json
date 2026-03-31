@@ -15,6 +15,68 @@
     "diagonal_accent",
     "motion_blur"
   ],
+  "shot_types": [
+    "hero_curve_birth",
+    "container_fracture",
+    "grid_resolution",
+    "thesis_still",
+    "proof_slide",
+    "chapter_resolve"
+  ],
+  "camera_patterns": [
+    "static_breathe",
+    "track_subject",
+    "dramatic_zoom",
+    "observational"
+  ],
+  "transition_motifs": [
+    "fade_up_8px",
+    "fade_down_4px",
+    "color_inversion",
+    "split_rotate",
+    "settle_resolve"
+  ],
+  "typography_behaviors": [
+    "whisper",
+    "statement",
+    "climax",
+    "resolve",
+    "brand_mark"
+  ],
+  "targets": {
+    "canonical": [
+      {
+        "id": "short_cinematic_vertical",
+        "format": "vertical_9_16",
+        "channel": "instagram_reel",
+        "purpose": "short_form_social"
+      },
+      {
+        "id": "linkedin_feed_4_5",
+        "format": "linkedin_square",
+        "channel": "linkedin_feed",
+        "purpose": "premium_still"
+      },
+      {
+        "id": "linkedin_carousel_square",
+        "format": "square_1_1",
+        "channel": "linkedin_carousel",
+        "purpose": "narrative_carousel"
+      },
+      {
+        "id": "youtube_essay_16_9",
+        "format": "wide_16_9",
+        "channel": "youtube_video",
+        "purpose": "visual_essay"
+      },
+      {
+        "id": "youtube_thumbnail_16_9",
+        "format": "youtube_thumbnail",
+        "channel": "youtube_thumbnail",
+        "purpose": "thumbnail"
+      }
+    ]
+  },
   "brand": {
     "logos": [
       "assets/logos/tech/logo.png"
@@ -36,5 +98,12 @@
     "gravitational_collapse",
     "fragmented_reveal",
     "loop_stability"
+  ],
+  "platform_presets": [
+    "short_cinematic_vertical",
+    "linkedin_feed_4_5",
+    "linkedin_carousel_square",
+    "youtube_essay_16_9",
+    "youtube_thumbnail_16_9"
   ]
 }

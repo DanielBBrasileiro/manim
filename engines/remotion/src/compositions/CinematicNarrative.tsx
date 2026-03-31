@@ -41,19 +41,28 @@ type RawAct = {
 	text_cues?: RawCue[] | null;
 };
 
-type CinematicNarrativeProps = {
+export type CinematicNarrativeProps = {
 	videoSrc?: string;
 	resolveWord?: string;
 	textCues?: RawCue[];
+	frameOverride?: number;
+	target?: string;
+	targetId?: string;
+	targetKind?: string;
 	narrative?: {
 		acts?: RawAct[];
 		resolveWord?: string;
 	};
 	renderManifest?: {
+		target?: string;
+		targetId?: string;
+		targetKind?: string;
 		videoSrc?: string;
 		video_src?: string;
 		resolveWord?: string;
 		resolve_word?: string;
+		frameOverride?: number;
+		stillFrame?: number;
 		textCues?: RawCue[];
 		text_cues?: RawCue[];
 		acts?: RawAct[];
@@ -80,6 +89,55 @@ type ResolvedCue = {
 	size?: string | number;
 	color?: string;
 	align?: 'left' | 'center' | 'right';
+};
+
+const StaticBackdrop: React.FC<{frame: number; targetKind?: string; targetId?: string}> = ({
+	frame,
+	targetKind,
+	targetId,
+}) => {
+	const drift = Math.sin(frame / 24) * 18;
+	const glow = Math.cos(frame / 38) * 0.06 + 0.18;
+	const wide = targetId === 'youtube_thumbnail_16_9' || targetId === 'youtube_essay_16_9';
+	const accent = wide ? 'rgba(255,255,255,0.14)' : 'rgba(255,106,106,0.18)';
+
+	return (
+		<AbsoluteFill
+			style={{
+				background:
+					targetKind === 'still'
+						? 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.01) 24%, rgba(0,0,0,0) 52%), linear-gradient(180deg, #040404 0%, #0b0b0d 55%, #050505 100%)'
+						: 'linear-gradient(180deg, #020202 0%, #090909 55%, #040404 100%)',
+			}}
+		>
+			<AbsoluteFill
+				style={{
+					transform: `translate(${drift}px, ${drift * 0.35}px)`,
+					opacity: glow,
+				}}
+			>
+				<div
+					style={{
+						position: 'absolute',
+						inset: wide ? '14% 9% 20% 9%' : '10% 14% 22% 14%',
+						border: `1px solid ${accent}`,
+						borderRadius: wide ? 28 : 36,
+					}}
+				/>
+				<div
+					style={{
+						position: 'absolute',
+						left: wide ? '12%' : '18%',
+						right: wide ? '12%' : '18%',
+						top: wide ? '28%' : '22%',
+						height: 1,
+						background: accent,
+						opacity: 0.7,
+					}}
+				/>
+			</AbsoluteFill>
+		</AbsoluteFill>
+	);
 };
 
 const parseSeconds = (value?: string | number | null): number | null => {
@@ -299,10 +357,13 @@ const buildCues = (
 };
 
 export const CinematicNarrative: React.FC<CinematicNarrativeProps> = (props) => {
-	const frame = useCurrentFrame();
+	const currentFrame = useCurrentFrame();
+	const frame = props.frameOverride ?? currentFrame;
 	const {durationInFrames, fps} = useVideoConfig();
 	const cues = useMemo(() => buildCues(props, fps, durationInFrames), [props, fps, durationInFrames]);
-	const videoSrc = props.videoSrc ?? props.renderManifest?.videoSrc ?? props.renderManifest?.video_src ?? staticFile('manim_base.mp4');
+	const explicitVideoSrc = props.videoSrc ?? props.renderManifest?.videoSrc ?? props.renderManifest?.video_src;
+	const useBaseVideo = explicitVideoSrc !== null && explicitVideoSrc !== '';
+	const videoSrc = useBaseVideo ? explicitVideoSrc ?? staticFile('manim_base.mp4') : null;
 	const audioCfg = props.renderManifest?.audio;
 
 	const turbulenceStart = Math.round(durationInFrames * 0.25);
@@ -319,13 +380,21 @@ export const CinematicNarrative: React.FC<CinematicNarrativeProps> = (props) => 
 					transform: `translateY(${turbulenceDrift}px) scale(${(1 + breathe) * turbulenceScale * resolveSettle})`,
 				}}
 			>
-				<OffthreadVideo
-					src={videoSrc}
-					style={{width: '100%', height: '100%', objectFit: 'cover'}}
-				/>
+				{videoSrc ? (
+					<OffthreadVideo
+						src={videoSrc}
+						style={{width: '100%', height: '100%', objectFit: 'cover'}}
+					/>
+				) : (
+					<StaticBackdrop
+						frame={frame}
+						targetKind={props.targetKind ?? props.renderManifest?.targetKind}
+						targetId={props.target ?? props.targetId ?? props.renderManifest?.targetId}
+					/>
+				)}
 			</AbsoluteFill>
 
-			{audioCfg?.enabled && audioCfg.bed ? (
+			{videoSrc && audioCfg?.enabled && audioCfg.bed ? (
 				<Audio src={staticFile(audioCfg.bed)} volume={audioCfg.gain ?? 0.18} />
 			) : null}
 
