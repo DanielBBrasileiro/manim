@@ -267,13 +267,14 @@ def _target_render_priority(target: dict[str, Any]) -> tuple[int, str]:
 def _build_target_text_cues(target: dict[str, Any], artifact_plan: dict[str, Any], render_manifest: dict[str, Any]) -> list[dict[str, Any]]:
     target_id = str(target.get("id", "")).strip()
     story_atoms = artifact_plan.get("story_atoms", {})
+    thesis_words = " ".join(str(story_atoms.get("thesis", "")).split()[:5]).strip()
 
     if target_id == "linkedin_feed_4_5":
         return [
             {
                 "act": "turbulence",
                 "at_sec": 0.8,
-                "text": str(story_atoms.get("thesis", "")),
+                "text": thesis_words,
                 "position": "center_climax",
                 "role": "statement",
                 "weight": 460,
@@ -295,7 +296,7 @@ def _build_target_text_cues(target: dict[str, Any], artifact_plan: dict[str, Any
             {
                 "act": "turbulence",
                 "at_sec": 0.8,
-                "text": str(story_atoms.get("thesis", "")),
+                "text": thesis_words,
                 "position": "top_zone",
                 "role": "whisper",
                 "weight": 320,
@@ -380,6 +381,12 @@ def _build_target_props(target: dict[str, Any], artifact_plan: dict[str, Any], r
     render_mode = str(target.get("render_mode", "video")).strip().lower()
     target_kind = _target_kind(render_mode)
     story_atoms = artifact_plan.get("story_atoms", {})
+    chosen_variant_id = str(artifact_plan.get("chosen_variant", "")).strip()
+    variants = artifact_plan.get("variants", []) if isinstance(artifact_plan.get("variants"), list) else []
+    active_variant = next(
+        (variant for variant in variants if isinstance(variant, dict) and str(variant.get("id", "")).strip() == chosen_variant_id),
+        variants[0] if variants else None,
+    )
     render_inputs = (render_manifest.get("render_inputs") or {}).get(target_id, {})
     target_duration = float(target.get("duration_sec", render_inputs.get("duration", render_manifest.get("duration", 12))) or 12.0)
     fps = int(target.get("fps", render_inputs.get("fps", render_manifest.get("fps", 30))) or 30)
@@ -402,6 +409,9 @@ def _build_target_props(target: dict[str, Any], artifact_plan: dict[str, Any], r
         "style_pack_ids": artifact_plan.get("style_pack_ids", []),
         "style_packs": style_packs,
         "story_atoms": story_atoms,
+        "variants": variants,
+        "chosen_variant": chosen_variant_id,
+        "active_variant": active_variant,
         "quality_constraints": artifact_plan.get("quality_constraints", {}),
         "summary": target.get("summary"),
         "beats": target.get("beats", []),
