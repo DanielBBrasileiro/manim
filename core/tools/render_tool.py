@@ -15,11 +15,17 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 MANIM_SCENE_NAME = "EntropyDemo"
 MANIM_SCRIPT_PATH = "scenes/cde_entropy_demo.py"
 DEFAULT_RENDER_TIMEOUT = int(os.getenv("AIOX_REMOTION_CLI_TIMEOUT_SECONDS", "45"))
-DEFAULT_DIRECT_TIMEOUT = int(os.getenv("AIOX_REMOTION_DIRECT_TIMEOUT_SECONDS", "30"))
-DEFAULT_STILL_DIRECT_TIMEOUT = int(os.getenv("AIOX_REMOTION_STILL_TIMEOUT_SECONDS", "45"))
-DEFAULT_STILL_CLI_TIMEOUT = int(os.getenv("AIOX_REMOTION_STILL_CLI_TIMEOUT_SECONDS", "60"))
-DEFAULT_VIDEO_DIRECT_TIMEOUT = int(os.getenv("AIOX_REMOTION_VIDEO_TIMEOUT_SECONDS", str(DEFAULT_DIRECT_TIMEOUT)))
-DEFAULT_VIDEO_CLI_TIMEOUT = int(os.getenv("AIOX_REMOTION_VIDEO_CLI_TIMEOUT_SECONDS", str(DEFAULT_RENDER_TIMEOUT)))
+DEFAULT_DIRECT_TIMEOUT = int(os.getenv("AIOX_REMOTION_DIRECT_TIMEOUT_SECONDS", "180"))
+DEFAULT_STILL_DIRECT_TIMEOUT = int(os.getenv("AIOX_REMOTION_STILL_TIMEOUT_SECONDS", "180"))
+DEFAULT_STILL_CLI_TIMEOUT = int(os.getenv("AIOX_REMOTION_STILL_CLI_TIMEOUT_SECONDS", "180"))
+DEFAULT_VIDEO_DIRECT_TIMEOUT = int(os.getenv("AIOX_REMOTION_VIDEO_TIMEOUT_SECONDS", str(max(DEFAULT_DIRECT_TIMEOUT, 240))))
+DEFAULT_VIDEO_CLI_TIMEOUT = int(os.getenv("AIOX_REMOTION_VIDEO_CLI_TIMEOUT_SECONDS", str(max(DEFAULT_RENDER_TIMEOUT, 240))))
+DEFAULT_BUNDLE_WARM_TIMEOUT = int(
+    os.getenv(
+        "AIOX_REMOTION_BUNDLE_TIMEOUT_SECONDS",
+        str(max(DEFAULT_STILL_DIRECT_TIMEOUT, DEFAULT_VIDEO_DIRECT_TIMEOUT)),
+    )
+)
 
 LEGACY_OUTPUT_ALIASES = {
     "short_cinematic_vertical": "CinematicNarrative-v4",
@@ -60,11 +66,34 @@ def _load_remotion_runner() -> str:
     return str(ROOT / "scripts" / "run_remotion_node.sh")
 
 
-def _load_remotion_env(remotion_props: dict[str, Any] | None = None) -> dict[str, str]:
+def _load_remotion_env(
+    remotion_props: dict[str, Any] | None = None,
+    *,
+    timeout_seconds: int | None = None,
+) -> dict[str, str]:
     env = dict(os.environ)
+    env.setdefault("AIOX_REMOTION_REUSE_BUNDLE", "1")
     if remotion_props is not None:
         env["REMOTION_INPUT_PROPS_JSON"] = json.dumps(remotion_props)
+    if timeout_seconds is not None:
+        env["REMOTION_RENDER_TIMEOUT_MS"] = str(max(timeout_seconds, 1) * 1000)
     return env
+
+
+def _prewarm_remotion_bundle(timeout_seconds: int = DEFAULT_BUNDLE_WARM_TIMEOUT) -> None:
+    render_mode = os.getenv("AIOX_REMOTION_RENDER_MODE", "auto").strip().lower()
+    if render_mode == "cli":
+        return
+
+    env = _load_remotion_env(timeout_seconds=timeout_seconds)
+    warm_cmd = [
+        "/bin/bash",
+        _load_remotion_runner(),
+        str(ROOT / "scripts" / "remotion_direct.js"),
+        "warm",
+    ]
+    print("🔥 [Remotion Tool] Preaquecendo bundle nativo...")
+    subprocess.run(warm_cmd, check=True, cwd=str(ROOT), env=env, timeout=timeout_seconds)
 
 
 def _run_remotion_command(
@@ -77,7 +106,6 @@ def _run_remotion_command(
     cli_timeout_seconds: int | None = None,
 ) -> None:
     runner = _load_remotion_runner()
-    env = _load_remotion_env(remotion_props)
     render_mode = os.getenv("AIOX_REMOTION_RENDER_MODE", "auto").strip().lower()
     cli_timeout = cli_timeout_seconds if cli_timeout_seconds is not None else int(
         os.getenv("AIOX_REMOTION_CLI_TIMEOUT_SECONDS", str(DEFAULT_RENDER_TIMEOUT))
@@ -85,6 +113,8 @@ def _run_remotion_command(
     direct_timeout = direct_timeout_seconds if direct_timeout_seconds is not None else int(
         os.getenv("AIOX_REMOTION_DIRECT_TIMEOUT_SECONDS", str(DEFAULT_DIRECT_TIMEOUT))
     )
+    effective_timeout = max(cli_timeout, direct_timeout)
+    env = _load_remotion_env(remotion_props, timeout_seconds=effective_timeout)
 
     cli_cmd = [
         "/bin/zsh",
@@ -632,6 +662,12 @@ def render_pipeline(
 
     outputs: list[dict[str, Any]] = []
     remotion_unavailable_reason: str | None = None
+
+    try:
+        _prewarm_remotion_bundle()
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, RuntimeError) as error:
+        print(f"⚠️ [Render Tool] Prewarm do Remotion falhou: {error}")
+        remotion_unavailable_reason = str(error)
 
     for target in targets:
         if not isinstance(target, dict):

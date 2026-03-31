@@ -18,7 +18,7 @@ from core.runtime.capability_pool import build_capability_pool
 from core.runtime.capability_registry import build_capability_registry
 
 
-def _run_command(cmd: list[str], cwd: Path | None = None, timeout: float = 6.0) -> dict[str, Any]:
+def _run_command(cmd: list[str], cwd: Path | None = None, timeout: float = 15.0) -> dict[str, Any]:
     try:
         result = subprocess.run(
             cmd,
@@ -40,8 +40,13 @@ def collect_doctor_report() -> dict[str, Any]:
     manim = _run_command(["python3", "-m", "manim", "--version"], cwd=ROOT)
     playwright = _run_command(["python3", "-m", "playwright", "--version"], cwd=ROOT)
     npm = _run_command(
-        ["/bin/bash", str(ROOT / "scripts" / "run_remotion_node.sh"), str(ROOT / "engines" / "remotion" / "node_modules" / ".bin" / "remotion"), "--version"],
-        cwd=ROOT / "engines" / "remotion",
+        [
+            "/bin/bash",
+            str(ROOT / "scripts" / "run_remotion_node.sh"),
+            "-e",
+            "console.log(require('./engines/remotion/node_modules/remotion/package.json').version)",
+        ],
+        cwd=ROOT,
     )
     models = refresh_model_capabilities()
     return {

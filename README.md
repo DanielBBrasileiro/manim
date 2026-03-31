@@ -102,6 +102,9 @@ Se o Remotion local estiver indisponivel ou lento demais para responder dentro d
 Para priorizar o still hero em Remotion nativo, voce pode ajustar timeouts separados:
 - `AIOX_REMOTION_STILL_TIMEOUT_SECONDS`
 - `AIOX_REMOTION_VIDEO_TIMEOUT_SECONDS`
+- `AIOX_REMOTION_BUNDLE_TIMEOUT_SECONDS`
+
+O renderer direto agora tenta reaproveitar bundles por padrao (`AIOX_REMOTION_REUSE_BUNDLE=1`) e faz um prewarm antes do primeiro target nativo. Isso evita que cada artefato pague novamente o cold start pesado do Remotion local.
 
 ### 6.2 Extrair DNA de Design
 Para capturar as cores, fontes e espaçamento de qualquer site:

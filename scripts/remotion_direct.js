@@ -143,7 +143,7 @@ const syncPublicAssets = (bundlePath) => {
 };
 
 const findReusableBundle = () => {
-  if (process.env.AIOX_REMOTION_REUSE_BUNDLE !== "1") {
+  if (process.env.AIOX_REMOTION_REUSE_BUNDLE === "0") {
     return null;
   }
 
@@ -301,6 +301,16 @@ const listCompositions = async () => {
   );
 };
 
+const warmBundle = async () => {
+  const serveUrl = await makeBundle();
+  console.log(
+    JSON.stringify({
+      warmed: true,
+      serveUrl,
+    }),
+  );
+};
+
 const renderComposition = async () => {
   const serveUrl = await makeBundle();
   const compositions = await loadCompositions(serveUrl);
@@ -414,7 +424,7 @@ const renderStill = async () => {
     composition,
     frame: Number.isFinite(stillFrame) && stillFrame >= 0 ? stillFrame : 0,
     inputProps: stillInputProps,
-    outputLocation: stillOutputLocation,
+    output: stillOutputLocation,
     overwrite: true,
     serveUrl,
     timeoutInMilliseconds: DEFAULT_TIMEOUT_MS,
@@ -455,7 +465,12 @@ const main = async () => {
     return;
   }
 
-  throw new Error(`Comando desconhecido: ${command}. Use "list", "render" ou "still".`);
+  if (command === "warm") {
+    await warmBundle();
+    return;
+  }
+
+  throw new Error(`Comando desconhecido: ${command}. Use "list", "render", "still" ou "warm".`);
 };
 
 main().catch((error) => {
