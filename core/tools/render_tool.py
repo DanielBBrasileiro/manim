@@ -23,8 +23,51 @@ def bridge_engines(scene_name: str, script_path: str):
 def run_remotion(comp="CinematicNarrative-v4"):
     print(f"🎬 [Remotion Tool] Compondo narrativa final...")
     os.makedirs(ROOT / "output" / "renders", exist_ok=True)
-    cmd = ["npx", "remotion", "render", "src/index.tsx", comp, f"../../output/renders/{comp}.mp4", "--force"]
-    subprocess.run(cmd, check=True, cwd=str(ROOT / "engines" / "remotion"))
+    output_path = ROOT / "output" / "renders" / f"{comp}.mp4"
+    previous_mtime = output_path.stat().st_mtime if output_path.exists() else 0
+    cli_cmd = [
+        "npx",
+        "remotion",
+        "render",
+        "src/index.tsx",
+        comp,
+        f"../../output/renders/{comp}.mp4",
+        "--force",
+    ]
+    direct_cmd = [
+        "node",
+        str(ROOT / "scripts" / "remotion_direct.js"),
+        "render",
+        comp,
+        str(output_path),
+    ]
+    render_mode = os.getenv("AIOX_REMOTION_RENDER_MODE", "auto").strip().lower()
+    cli_timeout = int(os.getenv("AIOX_REMOTION_CLI_TIMEOUT_SECONDS", "45"))
+
+    if render_mode == "direct":
+        subprocess.run(direct_cmd, check=True, cwd=str(ROOT))
+    elif render_mode == "cli":
+        subprocess.run(cli_cmd, check=True, cwd=str(ROOT / "engines" / "remotion"))
+    else:
+        try:
+            subprocess.run(
+                cli_cmd,
+                check=True,
+                cwd=str(ROOT / "engines" / "remotion"),
+                timeout=cli_timeout,
+            )
+        except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
+            print("⚠️ [Remotion Tool] CLI indisponivel ou travado. Tentando renderer direto...")
+            subprocess.run(direct_cmd, check=True, cwd=str(ROOT))
+
+    if not output_path.exists():
+        raise RuntimeError(f"Render final nao gerou arquivo: {output_path}")
+
+    current_mtime = output_path.stat().st_mtime
+    if current_mtime <= previous_mtime:
+        raise RuntimeError(
+            f"Render final nao atualizou o arquivo esperado: {output_path}"
+        )
 
 def render_pipeline(plan: dict):
     """Encapsula a mecânica dura do antigo Orchestrator."""
