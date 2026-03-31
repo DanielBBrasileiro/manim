@@ -1,7 +1,12 @@
 import json
 import os
 import time
+from pathlib import Path
+
 from core.intelligence.model_router import TASK_PLAN, confidence_threshold, get_route
+
+ROOT = Path(__file__).resolve().parent.parent.parent
+
 
 class GraphRuntime:
     """
@@ -31,7 +36,7 @@ class GraphRuntime:
         from core.compiler.creative_compiler import compile_seed
         asset_registry = {}
         try:
-            with open("assets/registry.json", "r") as f:
+            with open(ROOT / "assets" / "registry.json", "r") as f:
                 asset_registry = json.load(f)
         except Exception:
             asset_registry = {}

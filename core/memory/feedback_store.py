@@ -4,18 +4,20 @@ import json
 from pathlib import Path
 from typing import Any
 
+ROOT = Path(__file__).resolve().parent.parent.parent
+
 
 def save_training_pair(
     prompt: str,
     completion: dict[str, Any],
     approved: bool,
     metadata: dict[str, Any] | None = None,
-    path: str = "core/memory/training_pairs.jsonl",
+    path: str | None = None,
 ) -> bool:
     if not approved or not prompt or not completion:
         return False
 
-    target = Path(path)
+    target = Path(path) if path else ROOT / "core" / "memory" / "training_pairs.jsonl"
     target.parent.mkdir(parents=True, exist_ok=True)
     row = {
         "prompt": prompt,

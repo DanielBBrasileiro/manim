@@ -20,7 +20,7 @@ class AgenticOrchestrator:
             self.brief = yaml.safe_load(f)
 
         self.creative_result = None
-        os.makedirs("assets/brand", exist_ok=True)
+        os.makedirs(ROOT / "assets" / "brand", exist_ok=True)
 
     def _load_asset_registry(self):
         registry_path = ROOT / "assets" / "registry.json"
@@ -111,7 +111,7 @@ class AgenticOrchestrator:
         tech_plan = self.brief["tech_plan"]
         design = self.brief["design_overlay"]
         
-        with open("assets/brand/dynamic_data.json", "w") as f:
+        with open(ROOT / "assets" / "brand" / "dynamic_data.json", "w") as f:
             json.dump({
                 "strategy": strategy,
                 "tech_plan": tech_plan,
@@ -135,9 +135,9 @@ class AgenticOrchestrator:
             print(f"💎 MANIM: Renderizando geometria de {scene_name}...")
             
             # Passa o PYTHONPATH silenciosamente para a IA não sofrer com ModuleNotFoundError
-            env = dict(os.environ, PYTHONPATH=os.getcwd())
+            env = dict(os.environ, PYTHONPATH=str(ROOT))
             cmd = ["manim", "-f", "-qh", script, scene_name]
-            subprocess.run(cmd, check=True, cwd="engines/manim", env=env)
+            subprocess.run(cmd, check=True, cwd=str(ROOT / "engines" / "manim"), env=env)
         return True
 
     def bridge_engines(self):
@@ -149,8 +149,8 @@ class AgenticOrchestrator:
                 script_path = scene_data.get("script")
                 script_name = Path(script_path).stem
                 
-                manim_output = Path(f"engines/manim/media/videos/{script_name}/1080p60/{scene_name}.mp4")
-                remotion_public = Path("engines/remotion/public/manim_base.mp4")
+                manim_output = ROOT / "engines" / "manim" / "media" / "videos" / script_name / "1080p60" / f"{scene_name}.mp4"
+                remotion_public = ROOT / "engines" / "remotion" / "public" / "manim_base.mp4"
                 
                 if manim_output.exists():
                     print(f"🌉 AIOX PONTE: Injetando vídeo {scene_name} na camada React...")
@@ -163,10 +163,11 @@ class AgenticOrchestrator:
     def run_remotion(self):
         print(f"🎬 REMOTION: Compondo narrativa final...")
         comp = self.brief.get("composition", "Main")
-        os.makedirs("output/renders", exist_ok=True)
+        os.makedirs(ROOT / "output" / "renders", exist_ok=True)
 
-        cmd = ["npx", "remotion", "render", "src/index.tsx", comp, f"../../output/renders/{comp}.mp4", "--force"]
-        subprocess.run(cmd, check=True, cwd="engines/remotion")
+        output_rel = os.path.relpath(ROOT / "output" / "renders" / f"{comp}.mp4", ROOT / "engines" / "remotion")
+        cmd = ["npx", "remotion", "render", "src/index.tsx", comp, output_rel, "--force"]
+        subprocess.run(cmd, check=True, cwd=str(ROOT / "engines" / "remotion"))
         return True
 
     def run_post_processing(self):
@@ -246,13 +247,14 @@ class AgenticOrchestrator:
             print(f"\n📱 Gerando variante social: {variant}...")
             variant_out = str(out_base / "renders" / f"{comp}_{variant}.mp4")
             try:
+                variant_rel = os.path.relpath(ROOT / "output" / "renders" / f"{comp}_{variant}.mp4", ROOT / "engines" / "remotion")
                 cmd = [
                     "npx", "remotion", "render", "src/index.tsx", comp,
-                    f"../../output/renders/{comp}_{variant}.mp4",
+                    variant_rel,
                     "--force",
                     f"--props={{\"social_variant\":\"{variant}\"}}"
                 ]
-                subprocess.run(cmd, check=True, cwd="engines/remotion")
+                subprocess.run(cmd, check=True, cwd=str(ROOT / "engines" / "remotion"))
                 print(f"  ✅ {variant} → {variant_out}")
             except subprocess.CalledProcessError:
                 print(f"  ⚠️  {variant}: render falhou (composição pode não suportar este variant ainda)")
