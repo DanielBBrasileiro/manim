@@ -1,6 +1,7 @@
 import json
+import os
 import time
-from core.intelligence.model_router import confidence_threshold
+from core.intelligence.model_router import TASK_PLAN, confidence_threshold, get_route
 
 class GraphRuntime:
     """
@@ -35,8 +36,13 @@ class GraphRuntime:
         except Exception:
             asset_registry = {}
 
+        route = get_route(TASK_PLAN)
         # Na Fase 5 o Compilador processa tudo de uma vez. O Runtime reage à matriz.
-        self.compilation_result = compile_seed(self.state["input"], asset_registry=asset_registry)
+        self.compilation_result = compile_seed(
+            self.state["input"],
+            asset_registry=asset_registry,
+            task_type=route.task_type,
+        )
         self.state["intent"] = str(self.compilation_result["intent"])
         
     def step_plan(self):
@@ -50,6 +56,9 @@ class GraphRuntime:
     def pause_for_approval(self):
         """No Modo 2, expõe o plano para o usuário antes de instanciar render."""
         if self.mode == "assisted":
+            if os.environ.get("AIOX_AUTO_APPROVE", "0").strip().lower() in {"1", "true", "yes"}:
+                self.continue_execution()
+                return
             self.state["status"] = "paused_for_approval"
             print("\n" + "="*50)
             print("👁  [DIRETOR ASSISTIDO] Plano Criativo Pronto para Revisão")

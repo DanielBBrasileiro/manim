@@ -75,27 +75,27 @@ const roleLetterSpacing: Record<NarrativeRole, string> = {
 };
 
 const roleScaleIn: Record<NarrativeRole, [number, number]> = {
-	whisper: [0.985, 1],
-	statement: [0.975, 1],
-	climax: [0.96, 1],
-	resolve: [0.92, 1],
-	brand: [0.97, 1],
+	whisper: [0.992, 1],
+	statement: [0.986, 1],
+	climax: [0.972, 1],
+	resolve: [0.945, 1],
+	brand: [0.982, 1],
 };
 
 const roleOffsetY: Record<NarrativeRole, [number, number]> = {
-	whisper: [18, 0],
-	statement: [24, 0],
-	climax: [34, 0],
-	resolve: [46, 0],
-	brand: [12, 0],
+	whisper: [10, 0],
+	statement: [16, 0],
+	climax: [22, 0],
+	resolve: [28, 0],
+	brand: [8, 0],
 };
 
 const roleBlur: Record<NarrativeRole, [number, number]> = {
-	whisper: [10, 0],
-	statement: [8, 0],
-	climax: [6, 0],
-	resolve: [12, 0],
-	brand: [4, 0],
+	whisper: [4, 0],
+	statement: [3, 0],
+	climax: [2, 0],
+	resolve: [4, 0],
+	brand: [1, 0],
 };
 
 const containerAlign = (align: 'left' | 'center' | 'right'): React.CSSProperties => {
@@ -135,7 +135,7 @@ export const NarrativeText: React.FC<NarrativeTextProps> = ({
 					: {damping: 20, mass: 1.0, stiffness: 70},
 	});
 
-	const opacity = interpolate(motionFrame, [0, 8, 22], [0, 0.65, 1], {
+	const opacity = interpolate(motionFrame, [0, 4, 12], [0, 0.82, 1], {
 		extrapolateLeft: 'clamp',
 		extrapolateRight: 'clamp',
 	});

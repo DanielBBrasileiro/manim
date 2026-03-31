@@ -38,7 +38,10 @@ def main():
             brief = yaml.safe_load(f)
             
         from core.runtime.graph_runtime import GraphRuntime
-        runtime = GraphRuntime(mode="assisted")
+        director_mode = str((brief or {}).get("director_mode", "assisted")).strip().lower()
+        auto_approve = os.environ.get("AIOX_AUTO_APPROVE", "0").strip().lower() in {"1", "true", "yes"}
+        runtime_mode = "autonomous" if auto_approve or director_mode in {"auto", "autonomous"} else "assisted"
+        runtime = GraphRuntime(mode=runtime_mode)
         runtime.run_full(brief)
         
     elif args.command == "lab":

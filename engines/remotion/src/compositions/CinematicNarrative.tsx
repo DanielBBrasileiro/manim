@@ -14,6 +14,7 @@ import {Theme} from '../utils/theme';
 
 type RawCue = {
 	at?: string | number;
+	at_sec?: number;
 	content?: string;
 	text?: string;
 	position?: string;
@@ -22,15 +23,22 @@ type RawCue = {
 	weight?: number;
 	size?: string | number;
 	color?: string;
+	color_state?: string;
 	align?: 'left' | 'center' | 'right';
 	durationInFrames?: number;
+	duration_in_frames?: number;
 	startFrame?: number;
+	start_frame?: number;
 };
 
 type RawAct = {
 	name?: string;
+	id?: string;
 	time?: string;
+	start_sec?: number;
+	end_sec?: number;
 	text?: RawCue[] | null;
+	text_cues?: RawCue[] | null;
 };
 
 type CinematicNarrativeProps = {
@@ -43,8 +51,12 @@ type CinematicNarrativeProps = {
 	};
 	renderManifest?: {
 		videoSrc?: string;
+		video_src?: string;
 		resolveWord?: string;
+		resolve_word?: string;
 		textCues?: RawCue[];
+		text_cues?: RawCue[];
+		acts?: RawAct[];
 		audio?: {
 			enabled?: boolean;
 			bed?: string;
@@ -174,18 +186,33 @@ const flattenActs = (acts: RawAct[] | undefined, fps: number, totalFrames: numbe
 		const actStartFrame = actWindow.start !== null ? Math.round(actWindow.start * fps) : 0;
 		const actEndFrame =
 			actWindow.end !== null ? Math.round(actWindow.end * fps) : totalFrames;
-		const rawCues = act.text ?? [];
+		const fallbackStartFrame = act.start_sec !== undefined ? Math.round(act.start_sec * fps) : actStartFrame;
+		const fallbackEndFrame = act.end_sec !== undefined ? Math.round(act.end_sec * fps) : actEndFrame;
+		const rawCues = act.text ?? act.text_cues ?? [];
 
 		rawCues.forEach((cue, cueIndex) => {
 			const cueStart =
 				cue.startFrame ??
-				(parseSeconds(cue.at) !== null ? Math.round((parseSeconds(cue.at) ?? 0) * fps) : actStartFrame);
+				cue.start_frame ??
+				(cue.at_sec !== undefined
+					? Math.round(cue.at_sec * fps)
+					: parseSeconds(cue.at) !== null
+						? Math.round((parseSeconds(cue.at) ?? 0) * fps)
+						: fallbackStartFrame);
 			const nextCue = rawCues[cueIndex + 1];
 			const nextStart =
 				nextCue?.startFrame ??
-				(parseSeconds(nextCue?.at) !== null ? Math.round((parseSeconds(nextCue?.at) ?? 0) * fps) : null);
-			const defaultEnd = nextStart ?? actEndFrame;
-			const duration = cue.durationInFrames ?? Math.max(Math.round(1.5 * fps), defaultEnd - cueStart - Math.round(0.2 * fps));
+				nextCue?.start_frame ??
+				(nextCue?.at_sec !== undefined
+					? Math.round(nextCue.at_sec * fps)
+					: parseSeconds(nextCue?.at) !== null
+						? Math.round((parseSeconds(nextCue?.at) ?? 0) * fps)
+						: null);
+			const defaultEnd = nextStart ?? fallbackEndFrame;
+			const duration =
+				cue.durationInFrames ??
+				cue.duration_in_frames ??
+				Math.max(Math.round(1.5 * fps), defaultEnd - cueStart - Math.round(0.2 * fps));
 			const text = cue.content ?? cue.text;
 
 			if (!text) {
@@ -198,11 +225,11 @@ const flattenActs = (acts: RawAct[] | undefined, fps: number, totalFrames: numbe
 				from: cueStart,
 				durationInFrames: Math.max(Math.round(0.8 * fps), duration),
 				zone: normalizeZone(cue.position ?? cue.zone),
-				role: inferRole(cue, act.name),
+				role: inferRole(cue, act.name ?? act.id),
 				weight: cue.weight,
 				size: cue.size,
 				color:
-					cue.color === 'inverted'
+					cue.color === 'inverted' || cue.color_state === 'inverted'
 						? Theme.colors.textPrimary
 						: cue.color,
 				align: cue.align,
@@ -243,22 +270,27 @@ const buildCues = (
 	durationInFrames: number,
 ): ResolvedCue[] => {
 	const manifest = props.renderManifest ?? {};
-	const directCues = props.textCues ?? manifest.textCues;
+	const directCues = props.textCues ?? manifest.textCues ?? manifest.text_cues;
+	const resolveWord = props.resolveWord ?? manifest.resolveWord ?? manifest.resolve_word;
 
 	if (directCues?.length) {
 		return addResolveCueIfNeeded(
 			flattenActs([{name: 'custom', text: directCues}], fps, durationInFrames),
-			props.resolveWord ?? manifest.resolveWord,
+			resolveWord,
 			fps,
 			durationInFrames,
 		);
 	}
 
-	const acts = props.narrative?.acts ?? manifest.narrative?.acts ?? tokens.narrative.acts;
+	const acts =
+		props.narrative?.acts ??
+		manifest.acts ??
+		manifest.narrative?.acts ??
+		tokens.narrative.acts;
 	const built = flattenActs(acts, fps, durationInFrames);
 	const withResolve = addResolveCueIfNeeded(
 		built,
-		props.resolveWord ?? props.narrative?.resolveWord ?? manifest.resolveWord ?? manifest.narrative?.resolveWord,
+		resolveWord ?? props.narrative?.resolveWord ?? manifest.narrative?.resolveWord,
 		fps,
 		durationInFrames,
 	);
@@ -270,7 +302,7 @@ export const CinematicNarrative: React.FC<CinematicNarrativeProps> = (props) => 
 	const frame = useCurrentFrame();
 	const {durationInFrames, fps} = useVideoConfig();
 	const cues = useMemo(() => buildCues(props, fps, durationInFrames), [props, fps, durationInFrames]);
-	const videoSrc = props.videoSrc ?? props.renderManifest?.videoSrc ?? staticFile('manim_base.mp4');
+	const videoSrc = props.videoSrc ?? props.renderManifest?.videoSrc ?? props.renderManifest?.video_src ?? staticFile('manim_base.mp4');
 	const audioCfg = props.renderManifest?.audio;
 
 	const turbulenceStart = Math.round(durationInFrames * 0.25);

@@ -1,6 +1,8 @@
+director_mode: auto
+
 creative_seed:
   title: Invisible Architecture
-  tagline: Signal learns to align
+  tagline: Pressure becomes signal
   emotional_target: make hidden order feel inevitable
   visual_metaphor: noise collapsing into architecture
   resolve_word: AIOX
@@ -10,19 +12,25 @@ creative_seed:
   pacing: cinematic
   text_beats:
     - act: turbulence
-      at_sec: 5.1
-      text: when systems break
+      at_sec: 4.8
+      text: pressure becomes signal
       position: top_zone
       role: whisper
       weight: 300
     - act: turbulence
-      at_sec: 7.2
-      text: structure starts breathing
+      at_sec: 7.0
+      text: structure learns restraint
       position: bottom_zone
       role: statement
       weight: 420
     - act: resolution
-      at_sec: 11.8
+      at_sec: 9.8
+      text: Invisible Architecture
+      position: center
+      role: climax
+      weight: 500
+    - act: resolution
+      at_sec: 11.35
       text: AIOX
       position: center_climax
       role: resolve

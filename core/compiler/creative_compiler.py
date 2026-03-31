@@ -138,7 +138,7 @@ def build_render_manifest(plan: dict, seed: dict | str) -> dict:
         "audio": {
             "enabled": True,
             "bed": "audio/aiox_signal_bed.m4a",
-            "gain": 0.22,
+            "gain": 0.3,
         },
         "layout": layout_contract.get("formats", {}).get("vertical_9_16", {}),
     }
@@ -294,6 +294,10 @@ def compile_seed(
 def _coerce_brief(seed: dict | str) -> dict:
     if not isinstance(seed, dict):
         return {"prompt": str(seed)}
+
+    creative_seed = seed.get("creative_seed")
+    if isinstance(creative_seed, dict):
+        return copy.deepcopy(creative_seed)
 
     if len(seed) == 1:
         only_value = next(iter(seed.values()))
