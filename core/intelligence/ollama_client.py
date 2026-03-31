@@ -20,7 +20,7 @@ from core.intelligence.model_router import (
     TASK_PLAN,
     TASK_QUALITY_PLAN,
     TASK_VISION_PLAN,
-    allow_quality_fallback,
+    auto_quality_fallback_enabled,
     confidence_threshold,
     debug_enabled,
     get_route,
@@ -107,16 +107,25 @@ def generate_scene_plan(
 
 def unload_vision_model() -> bool:
     route = get_route(TASK_VISION_PLAN)
+    return unload_model(route.model, timeout=route.timeout_seconds)
+
+
+def unload_quality_model() -> bool:
+    route = get_route(TASK_QUALITY_PLAN)
+    return unload_model(route.model, timeout=route.timeout_seconds)
+
+
+def unload_model(model: str, timeout: float | None = None) -> bool:
     try:
         _post_json(
             _base_url(OLLAMA_URL) + "/api/generate",
             {
-                "model": route.model,
+                "model": model,
                 "prompt": "unload",
                 "stream": False,
                 "keep_alive": "0",
             },
-            timeout=route.timeout_seconds,
+            timeout=timeout or OLLAMA_TIMEOUT,
         )
         return True
     except Exception:
@@ -134,12 +143,11 @@ def _generate_with_fallback(prompt: str, asset_registry: dict[str, Any], route) 
         timeout_seconds=route.timeout_seconds,
     )
     if _is_good_plan(first_attempt["plan"], first_attempt["metadata"]):
-        if route.task_type == TASK_VISION_PLAN:
-            unload_vision_model()
+        _finalize_route(route)
         return first_attempt["plan"], first_attempt["metadata"]
 
     if route.task_type == TASK_VISION_PLAN:
-        unload_vision_model()
+        _finalize_route(route)
         return first_attempt["plan"], first_attempt["metadata"]
 
     retry_route = route
@@ -170,8 +178,7 @@ def _generate_with_fallback(prompt: str, asset_registry: dict[str, Any], route) 
         retry_reason=retry_reason,
         timeout_seconds=retry_timeout,
     )
-    if retry_route.task_type == TASK_VISION_PLAN:
-        unload_vision_model()
+    _finalize_route(retry_route)
     if second_attempt["plan"] is not None:
         return second_attempt["plan"], second_attempt["metadata"]
     return None, second_attempt["metadata"] if second_attempt["metadata"].get("error") else first_attempt["metadata"]
@@ -314,6 +321,12 @@ Constraints:
 - Keep duration between 6 and 20 seconds.
 - confidence must be a float between 0 and 1.
 - Prefer concise, executable scene plans.
+- Structure the plan in 3 acts: genesis, turbulence, resolution.
+- Genesis should normally have no text cues in the first 2 seconds.
+- Resolution should feel more ordered than genesis.
+- If you include text_cues, each cue must have at most 5 words.
+- Prefer top_zone and bottom_zone for narrative text. Reserve center or center_climax for the emotional peak.
+- Camera cues, when useful, should be one of: static_breathe, track_subject, dramatic_zoom, observational.
 {strict_block}
 
 Registry:
@@ -328,8 +341,12 @@ Required JSON shape:
     {{
       "id": "intro",
       "duration": 3,
+      "act": "genesis",
       "primitives": ["living_curve"],
-      "params": {{"density": "low"}}
+      "params": {{"density": "low"}},
+      "camera": "static_breathe",
+      "layout_zone": "none",
+      "text_cues": []
     }}
   ],
   "assets": {{
@@ -351,7 +368,7 @@ def _is_good_plan(plan: ScenePlan | None, metadata: dict[str, Any]) -> bool:
 
 
 def _should_use_quality_fallback(first_attempt: dict[str, Any], route) -> bool:
-    if not allow_quality_fallback():
+    if not auto_quality_fallback_enabled():
         return False
     if not route.quality_fallback_model or route.task_type == TASK_QUALITY_PLAN:
         return False
@@ -365,6 +382,13 @@ def _should_use_quality_fallback(first_attempt: dict[str, Any], route) -> bool:
         return False
 
     return error.startswith("Invalid JSON:") or error.startswith("Invalid ScenePlan schema:") or error == "Empty response"
+
+
+def _finalize_route(route) -> None:
+    if route.task_type == TASK_VISION_PLAN:
+        unload_model(route.model, timeout=route.timeout_seconds)
+    elif route.task_type == TASK_QUALITY_PLAN:
+        unload_model(route.model, timeout=route.timeout_seconds)
 
 
 def _latency_ms(start: float) -> int:

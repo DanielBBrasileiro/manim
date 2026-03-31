@@ -69,3 +69,15 @@ webm/
 .agents/
 .claudecode/
 .planning/
+
+# Local agent/session state
+.claude/
+.claude-flow/
+.sessions/
+.swarm/
+CLAUDE.md
+
+# Local smoke/debug artifacts
+core/memory/*.smoke.jsonl
+core/memory/decision_records.jsonl
+_contexto_*.txt
