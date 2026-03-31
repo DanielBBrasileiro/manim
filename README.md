@@ -93,6 +93,13 @@ python3 aiox.py create briefings/seu_projeto.yaml
 Este comando executa um fluxo unificado: **creative_plan** → **artifact_plan** → **previs/quality gate** → **render por target**.
 Um briefing forte agora pode gerar, no mesmo pacote, short vertical, still para LinkedIn, carousel quadrado, essay 16:9 e thumbnail.
 
+Se o Remotion local estiver indisponivel ou lento demais para responder dentro do timeout configurado, o pipeline abre um fallback automatico por target sem abortar o run inteiro. Os outputs canônicos ficam em:
+- `output/renders/short_cinematic_vertical.mp4`
+- `output/stills/linkedin_feed_4_5.png`
+- `output/carousel/linkedin_carousel_square/`
+- `output/renders/youtube_essay_16_9.mp4`
+- `output/stills/youtube_thumbnail_16_9.png`
+
 ### 6.2 Extrair DNA de Design
 Para capturar as cores, fontes e espaçamento de qualquer site:
 ```bash

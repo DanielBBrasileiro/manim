@@ -5,10 +5,17 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from core.tools.fallback_artifact_renderer import (
+    render_carousel_artifact,
+    render_still_artifact,
+    render_video_artifact,
+)
+
 ROOT = Path(__file__).resolve().parent.parent.parent
 MANIM_SCENE_NAME = "EntropyDemo"
 MANIM_SCRIPT_PATH = "scenes/cde_entropy_demo.py"
 DEFAULT_RENDER_TIMEOUT = int(os.getenv("AIOX_REMOTION_CLI_TIMEOUT_SECONDS", "45"))
+DEFAULT_DIRECT_TIMEOUT = int(os.getenv("AIOX_REMOTION_DIRECT_TIMEOUT_SECONDS", "30"))
 
 LEGACY_OUTPUT_ALIASES = {
     "short_cinematic_vertical": "CinematicNarrative-v4",
@@ -61,6 +68,7 @@ def _run_remotion_command(command: str, composition: str, output_path: Path, rem
     env = _load_remotion_env(remotion_props)
     render_mode = os.getenv("AIOX_REMOTION_RENDER_MODE", "auto").strip().lower()
     cli_timeout = int(os.getenv("AIOX_REMOTION_CLI_TIMEOUT_SECONDS", str(DEFAULT_RENDER_TIMEOUT)))
+    direct_timeout = int(os.getenv("AIOX_REMOTION_DIRECT_TIMEOUT_SECONDS", str(DEFAULT_DIRECT_TIMEOUT)))
 
     cli_cmd = [
         "/bin/zsh",
@@ -77,12 +85,12 @@ def _run_remotion_command(command: str, composition: str, output_path: Path, rem
     ]
 
     if render_mode == "direct":
-        subprocess.run(direct_cmd, check=True, cwd=str(ROOT), env=env)
+        subprocess.run(direct_cmd, check=True, cwd=str(ROOT), env=env, timeout=direct_timeout)
     elif render_mode == "cli":
-        subprocess.run(cli_cmd, check=True, cwd=str(ROOT), env=env)
+        subprocess.run(cli_cmd, check=True, cwd=str(ROOT), env=env, timeout=cli_timeout)
     else:
         try:
-            subprocess.run(direct_cmd, check=True, cwd=str(ROOT), env=env)
+            subprocess.run(direct_cmd, check=True, cwd=str(ROOT), env=env, timeout=direct_timeout)
         except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
             print("⚠️ [Remotion Tool] Renderer direto falhou. Tentando CLI...")
             subprocess.run(
@@ -499,6 +507,38 @@ def _slide_to_props(
     }
 
 
+def _fallback_target_render(
+    target: dict[str, Any],
+    artifact_plan: dict[str, Any],
+    canonical_output: Path,
+) -> dict[str, Any]:
+    target_id = str(target.get("id", "target")).strip() or "target"
+    render_mode = str(target.get("render_mode", "video")).strip().lower()
+    manim_base = ROOT / "engines" / "remotion" / "public" / "manim_base.mp4"
+
+    if render_mode == "still":
+        output = render_still_artifact(target, artifact_plan, canonical_output)
+        return {"target": target_id, "mode": render_mode, "output": str(output), "fallback": True}
+
+    if render_mode == "carousel":
+        slides = render_carousel_artifact(target, artifact_plan, canonical_output)
+        return {
+            "target": target_id,
+            "mode": render_mode,
+            "output": str(canonical_output),
+            "slides": [str(path) for path in slides],
+            "fallback": True,
+        }
+
+    output = render_video_artifact(
+        target,
+        artifact_plan,
+        canonical_output,
+        source_video=manim_base if target_id == "short_cinematic_vertical" and manim_base.exists() else None,
+    )
+    return {"target": target_id, "mode": render_mode, "output": str(output), "fallback": True}
+
+
 def render_pipeline(
     plan: dict,
     artifact_plan: dict | None = None,
@@ -536,6 +576,7 @@ def render_pipeline(
         print("🪶 [Render Tool] Nenhum target exige base de video. Pulando Manim.")
 
     outputs: list[dict[str, Any]] = []
+    remotion_unavailable_reason: str | None = None
 
     for target in targets:
         if not isinstance(target, dict):
@@ -548,6 +589,22 @@ def render_pipeline(
 
         canonical_output = _target_output_path(target)
         alias_output = _alias_output_path(target, canonical_output)
+
+        if remotion_unavailable_reason is not None:
+            print(
+                f"🛟 [Render Tool] Usando fallback direto para '{target_id}' "
+                f"após indisponibilidade do Remotion: {remotion_unavailable_reason}"
+            )
+            try:
+                fallback_output = _fallback_target_render(target, artifact_plan, canonical_output)
+                _copy_alias_output(canonical_output, alias_output)
+                fallback_output["alias_output"] = str(alias_output) if alias_output else None
+                fallback_output["remotion_skipped"] = True
+                outputs.append(fallback_output)
+                continue
+            except Exception as fallback_error:
+                print(f"❌ [Render Tool] Falha ao renderizar target '{target_id}': {fallback_error}")
+                return {"ok": False, "errors": [str(fallback_error)], "outputs": outputs}
 
         try:
             if render_mode == "still":
@@ -596,8 +653,16 @@ def render_pipeline(
                     "alias_output": str(alias_output) if alias_output else None,
                 }
             )
-        except (subprocess.CalledProcessError, RuntimeError) as error:
-            print(f"❌ [Render Tool] Falha ao renderizar target '{target_id}': {error}")
-            return {"ok": False, "errors": [str(error)], "outputs": outputs}
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, RuntimeError) as error:
+            print(f"⚠️ [Render Tool] Remotion indisponivel para '{target_id}': {error}")
+            remotion_unavailable_reason = str(error)
+            try:
+                fallback_output = _fallback_target_render(target, artifact_plan, canonical_output)
+                _copy_alias_output(canonical_output, alias_output)
+                fallback_output["alias_output"] = str(alias_output) if alias_output else None
+                outputs.append(fallback_output)
+            except Exception as fallback_error:
+                print(f"❌ [Render Tool] Falha ao renderizar target '{target_id}': {fallback_error}")
+                return {"ok": False, "errors": [str(fallback_error)], "outputs": outputs}
 
     return {"ok": True, "outputs": outputs}
