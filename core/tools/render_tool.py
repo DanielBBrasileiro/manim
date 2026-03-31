@@ -29,10 +29,10 @@ def run_remotion(comp="CinematicNarrative-v4"):
     cli_cmd = [
         "/bin/zsh",
         "-lc",
-        f"cd {ROOT / 'engines' / 'remotion'} && npm exec remotion render src/index.tsx {comp} ../../output/renders/{comp}.mp4 --force",
+        f"cd {ROOT / 'engines' / 'remotion'} && {runner} ./node_modules/.bin/remotion render src/index.tsx {comp} ../../output/renders/{comp}.mp4 --force",
     ]
     direct_cmd = [
-        "bash",
+        "/bin/bash",
         runner,
         str(ROOT / "scripts" / "remotion_direct.js"),
         "render",

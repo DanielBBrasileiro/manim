@@ -81,8 +81,12 @@ class GraphRuntime:
         print("⚙️ [Runtime] Engatilhando Render Tool")
         from core.tools.render_tool import render_pipeline
         self.state["output"] = render_pipeline(self.state["plan"])
-        self.state["status"] = "done"
-        print("🏆 [Runtime] Cinema de Dados entregue.")
+        if self.state["output"]:
+            self.state["status"] = "done"
+            print("🏆 [Runtime] Cinema de Dados entregue.")
+        else:
+            self.state["status"] = "failed"
+            print("❌ [Runtime] Render final falhou.")
         
     def step_log(self):
         from core.tools.memory_tool import save_entry

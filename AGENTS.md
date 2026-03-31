@@ -109,6 +109,7 @@
 
 - Preserve o papel do Remotion como camada de tipografia, overlay e composicao.
 - Evite mudar a estrutura de `engines/remotion/src/` sem atualizar o fluxo que renderiza via `core/orchestrator.py` e `core/tools/render_tool.py`.
+- Para este repo, prefira Node 20.x no runtime do Remotion. O renderer local apresentou travamentos com Node 22 em 2026-03-30.
 
 ## Backend / Runtime Python
 

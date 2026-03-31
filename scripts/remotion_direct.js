@@ -15,6 +15,7 @@ const DEFAULT_TIMEOUT_MS = Number(process.env.REMOTION_RENDER_TIMEOUT_MS || "120
 const SYSTEM_CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
 const requireFromRemotion = createRequire(path.join(REMOTION_ROOT, "package.json"));
+const BUNDLER_DIST = path.join(REMOTION_ROOT, "node_modules", "@remotion", "bundler", "dist");
 const RENDERER_DIST = path.join(REMOTION_ROOT, "node_modules", "@remotion", "renderer", "dist");
 
 const command = (process.argv[2] || "render").toLowerCase();
@@ -52,8 +53,16 @@ const resolveBrowserExecutable = () => {
 };
 
 const browserExecutable = resolveBrowserExecutable();
+const nodeMajor = Number(process.versions.node.split(".")[0] || "0");
 let bundlerApi = null;
 let rendererApi = null;
+
+if (nodeMajor >= 22) {
+  throw new Error(
+    `Remotion direto exige Node 20.x neste repo. Node atual: ${process.version}. ` +
+    `Use 'source ~/.nvm/nvm.sh && nvm use 20.19.5' ou rode via scripts/run_remotion_node.sh.`,
+  );
+}
 
 const statMtime = (filePath) => {
   if (!fs.existsSync(filePath)) {
@@ -89,7 +98,7 @@ const syncPublicAssets = (bundlePath) => {
 };
 
 const findReusableBundle = () => {
-  if (process.env.AIOX_REMOTION_REUSE_BUNDLE === "0") {
+  if (process.env.AIOX_REMOTION_REUSE_BUNDLE !== "1") {
     return null;
   }
 
@@ -127,7 +136,7 @@ const loadBundler = () => {
 
   console.log("Carregando @remotion/bundler...");
   const startedAt = Date.now();
-  bundlerApi = requireFromRemotion("@remotion/bundler");
+  bundlerApi = require(path.join(BUNDLER_DIST, "bundle.js"));
   console.log(`@remotion/bundler pronto em ${Date.now() - startedAt}ms`);
   return bundlerApi;
 };
@@ -178,10 +187,25 @@ const makeBundle = async () => {
   const {bundle} = loadBundler();
 
   const serveUrl = await bundle({
+    askAIEnabled: false,
     entryPoint: ENTRY_POINT,
-    enableCaching: true,
+    enableCaching: false,
+    experimentalClientSideRenderingEnabled: false,
+    experimentalVisualModeEnabled: false,
     ignoreRegisterRootWarning: true,
+    keyboardShortcutsEnabled: false,
     publicDir: PUBLIC_DIR,
+    rootDir: REMOTION_ROOT,
+    rspack: true,
+    webpackOverride: (config) => {
+      config.resolve = config.resolve || {};
+      config.resolve.fallback = {
+        ...(config.resolve.fallback || {}),
+        fs: false,
+        path: false,
+      };
+      return config;
+    },
     onProgress: (progress) => {
       const pct = Math.round(progress * 100);
       if (pct >= lastLoggedProgress + 10 || pct === 100) {
