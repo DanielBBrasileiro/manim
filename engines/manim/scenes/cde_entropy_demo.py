@@ -19,6 +19,7 @@ from core.primitives.particle_system import ParticlePool
 from core.primitives.containers import NarrativeContainer
 from core.primitives.curves import LivingCurve
 from core.primitives.geometry import NeuralGrid
+from core.primitives.geometry import parse_css_color
 from core.primitives.theme_loader import theme, intelligence
 
 class EntropyDemo(Scene):
@@ -39,7 +40,7 @@ class EntropyDemo(Scene):
         pt_radius = 0.036 if stability == "high" else 0.026
         emit_rate = 24 if stability == "high" else 40
         foreground = theme.colors.get("foreground", theme.accent_color)
-        stroke = theme.colors.get("stroke", foreground)
+        stroke, stroke_alpha = parse_css_color(theme.colors.get("stroke", foreground))
         
         # A própria ParticlePool puxa a inteligência base, mas a cena troca perfis por ato.
         pool = ParticlePool(
@@ -54,7 +55,7 @@ class EntropyDemo(Scene):
         pool.set_act_profile("genesis", signature=signature if signature != "chaotic_burst" else "breathing_field")
 
         frame = NarrativeContainer(width=4.6, height=5.8)
-        frame.rect.set_stroke(color=stroke, width=1.1, opacity=0.45)
+        frame.rect.set_stroke(color=stroke, width=1.1, opacity=min(stroke_alpha, 0.45))
         frame.rect.scale(0.92)
 
         curve = LivingCurve(
