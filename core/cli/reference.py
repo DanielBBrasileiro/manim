@@ -422,6 +422,17 @@ def _build_profile(
     confidence: float,
     mood: str,
 ) -> dict:
+    composition_rules = {
+        "negative_space_target": 0.45 if spacing.get("rhythm") in {"airy", "calm"} else 0.38,
+        "metaphor_policy": "single_primary_object",
+        "mid_event": "decisive_transition",
+        "resolve_style": "short_confident_lockup",
+    }
+    typography_behaviors = [
+        "quiet_hierarchy",
+        "poster_thesis",
+        "resolve_lockup",
+    ]
     return {
         "style_classification": style_classification,
         "classification_tags": tags,
@@ -430,8 +441,12 @@ def _build_profile(
         "spacing": spacing,
         "component_motifs": component_motifs,
         "motion_motifs": motion_motifs,
+        "composition_rules": composition_rules,
+        "typography_behaviors": typography_behaviors,
         "do_rules": do_rules,
         "dont_rules": dont_rules,
+        "do": do_rules,
+        "dont": dont_rules,
         "confidence": confidence,
         "mood": mood,
     }
@@ -462,8 +477,12 @@ def build_style_pack(url: str) -> dict:
         "spacing": profile["spacing"],
         "component_motifs": profile["component_motifs"],
         "motion_motifs": profile["motion_motifs"],
+        "composition_rules": profile["composition_rules"],
+        "typography_behaviors": profile["typography_behaviors"],
         "do_rules": profile["do_rules"],
         "dont_rules": profile["dont_rules"],
+        "do": profile["do"],
+        "dont": profile["dont"],
         "mood": profile["mood"],
         "reference": {
             "type": "web_url",

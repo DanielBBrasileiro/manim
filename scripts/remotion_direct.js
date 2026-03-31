@@ -10,38 +10,46 @@ const REMOTION_ROOT = path.join(ROOT, "engines", "remotion");
 const ENTRY_POINT = path.join(REMOTION_ROOT, "src", "index.tsx");
 const PUBLIC_DIR = path.join(REMOTION_ROOT, "public");
 const PUBLIC_VIDEO = path.join(PUBLIC_DIR, "manim_base.mp4");
-const DEFAULT_COMPOSITION = "short_cinematic_vertical";
+const BUNDLE_CACHE_DIR = path.join(REMOTION_ROOT, ".bundle-cache");
+const BUNDLE_CACHE_MANIFEST = path.join(BUNDLE_CACHE_DIR, "bundle-manifest.json");
+const DEFAULT_COMPOSITION = "short-cinematic-vertical";
 const DEFAULT_TIMEOUT_MS = Number(process.env.REMOTION_RENDER_TIMEOUT_MS || "120000");
 const SYSTEM_CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const DEFAULT_STILL_EXTENSION = ".png";
 const TARGET_ALIASES = {
-  cinematicnarrative: "short_cinematic_vertical",
-  cinematic_narrative: "short_cinematic_vertical",
-  cinematicnarrative_v4: "short_cinematic_vertical",
-  cinematic_narrative_v4: "short_cinematic_vertical",
-  shortcinematic: "short_cinematic_vertical",
-  short_cinematic: "short_cinematic_vertical",
-  "short-cinematic": "short_cinematic_vertical",
-  short_cinematic_vertical: "short_cinematic_vertical",
-  linkedinstill: "linkedin_feed_4_5",
-  linkedin_still: "linkedin_feed_4_5",
-  "linkedin-still": "linkedin_feed_4_5",
-  linkedinstill_v4: "linkedin_feed_4_5",
-  linkedin_feed_4_5: "linkedin_feed_4_5",
-  carouselslide: "linkedin_carousel_square",
-  carousel_slide: "linkedin_carousel_square",
-  "carousel-slide": "linkedin_carousel_square",
-  carouselslide_v4: "linkedin_carousel_square",
-  linkedin_carousel_square: "linkedin_carousel_square",
-  youtubessay: "youtube_essay_16_9",
-  youtube_essay: "youtube_essay_16_9",
-  "youtube-essay": "youtube_essay_16_9",
-  youtubessay_v4: "youtube_essay_16_9",
-  youtube_essay_16_9: "youtube_essay_16_9",
-  thumbnail: "youtube_thumbnail_16_9",
-  youtube_thumbnail: "youtube_thumbnail_16_9",
-  thumbnail_v4: "youtube_thumbnail_16_9",
-  youtube_thumbnail_16_9: "youtube_thumbnail_16_9",
+  cinematicnarrative: "short-cinematic-vertical",
+  cinematic_narrative: "short-cinematic-vertical",
+  cinematicnarrative_v4: "short-cinematic-vertical",
+  cinematic_narrative_v4: "short-cinematic-vertical",
+  shortcinematic: "short-cinematic-vertical",
+  short_cinematic: "short-cinematic-vertical",
+  short_cinematic_vertical: "short-cinematic-vertical",
+  short_cinematic_vertical_v4: "short-cinematic-vertical",
+  "short-cinematic": "short-cinematic-vertical",
+  "short-cinematic-vertical": "short-cinematic-vertical",
+  linkedinstill: "linkedin-feed-4-5",
+  linkedin_still: "linkedin-feed-4-5",
+  linkedinstill_v4: "linkedin-feed-4-5",
+  linkedin_feed_4_5: "linkedin-feed-4-5",
+  "linkedin-still": "linkedin-feed-4-5",
+  "linkedin-feed-4-5": "linkedin-feed-4-5",
+  carouselslide: "linkedin-carousel-square",
+  carousel_slide: "linkedin-carousel-square",
+  carouselslide_v4: "linkedin-carousel-square",
+  linkedin_carousel_square: "linkedin-carousel-square",
+  "carousel-slide": "linkedin-carousel-square",
+  "linkedin-carousel-square": "linkedin-carousel-square",
+  youtubessay: "youtube-essay-16-9",
+  youtube_essay: "youtube-essay-16-9",
+  youtubessay_v4: "youtube-essay-16-9",
+  youtube_essay_16_9: "youtube-essay-16-9",
+  "youtube-essay": "youtube-essay-16-9",
+  "youtube-essay-16-9": "youtube-essay-16-9",
+  thumbnail: "youtube-thumbnail-16-9",
+  youtube_thumbnail: "youtube-thumbnail-16-9",
+  thumbnail_v4: "youtube-thumbnail-16-9",
+  youtube_thumbnail_16_9: "youtube-thumbnail-16-9",
+  "youtube-thumbnail-16-9": "youtube-thumbnail-16-9",
 };
 
 const requireFromRemotion = createRequire(path.join(REMOTION_ROOT, "package.json"));
@@ -136,17 +144,51 @@ const syncPublicAssets = (bundlePath) => {
   console.log("Assets publicos sincronizados.");
 };
 
-const findReusableBundle = () => {
-  if (process.env.AIOX_REMOTION_REUSE_BUNDLE !== "1") {
-    return null;
-  }
-
-  const tmpDir = os.tmpdir();
-  const sourceMtime = Math.max(
+const getSourceMtime = () =>
+  Math.max(
     latestMtimeInTree(path.join(REMOTION_ROOT, "src")),
     statMtime(path.join(REMOTION_ROOT, "package.json")),
   );
 
+const readBundleManifest = () => {
+  try {
+    if (!fs.existsSync(BUNDLE_CACHE_MANIFEST)) return null;
+    return JSON.parse(fs.readFileSync(BUNDLE_CACHE_MANIFEST, "utf-8"));
+  } catch (_) {
+    return null;
+  }
+};
+
+const writeBundleManifest = (bundlePath) => {
+  try {
+    fs.mkdirSync(BUNDLE_CACHE_DIR, {recursive: true});
+    fs.writeFileSync(
+      BUNDLE_CACHE_MANIFEST,
+      JSON.stringify({bundlePath, sourceMtime: getSourceMtime(), createdAt: Date.now()}, null, 2),
+    );
+  } catch (_) {}
+};
+
+const findReusableBundle = () => {
+  if (process.env.AIOX_REMOTION_REUSE_BUNDLE === "0") {
+    return null;
+  }
+
+  const sourceMtime = getSourceMtime();
+
+  // 1. Check persistent project-local manifest first (survives reboots)
+  const manifest = readBundleManifest();
+  if (
+    manifest &&
+    manifest.sourceMtime >= sourceMtime &&
+    manifest.bundlePath &&
+    fs.existsSync(path.join(manifest.bundlePath, "bundle.js"))
+  ) {
+    return manifest.bundlePath;
+  }
+
+  // 2. Fallback: scan /tmp/ for bundles left by previous runs this session
+  const tmpDir = os.tmpdir();
   try {
     const candidates = fs
       .readdirSync(tmpDir)
@@ -156,14 +198,13 @@ const findReusableBundle = () => {
       .sort((a, b) => statMtime(b) - statMtime(a));
 
     for (const candidate of candidates) {
-      const bundleMtime = statMtime(candidate);
-      if (bundleMtime >= sourceMtime) {
+      if (statMtime(candidate) >= sourceMtime) {
+        // Promote to manifest so subsequent calls skip the /tmp/ scan
+        writeBundleManifest(candidate);
         return candidate;
       }
     }
-  } catch (_error) {
-    return null;
-  }
+  } catch (_) {}
 
   return null;
 };
@@ -213,7 +254,7 @@ const makeRendererOptions = () => ({
 const makeBundle = async () => {
   const reusableBundle = findReusableBundle();
   if (reusableBundle) {
-    console.log(`Reutilizando bundle existente: ${reusableBundle}`);
+    console.log(`Reutilizando bundle: ${reusableBundle}`);
     syncPublicAssets(reusableBundle);
     return reusableBundle;
   }
@@ -234,7 +275,7 @@ const makeBundle = async () => {
   const serveUrl = await bundle({
     askAIEnabled: false,
     entryPoint: ENTRY_POINT,
-    enableCaching: false,
+    enableCaching: true,
     experimentalClientSideRenderingEnabled: false,
     experimentalVisualModeEnabled: false,
     ignoreRegisterRootWarning: true,
@@ -261,6 +302,7 @@ const makeBundle = async () => {
   });
 
   console.log(`Bundle pronto em ${Date.now() - startedAt}ms`);
+  writeBundleManifest(serveUrl);
   syncPublicAssets(serveUrl);
   return serveUrl;
 };
@@ -295,6 +337,16 @@ const listCompositions = async () => {
   );
 };
 
+const warmBundle = async () => {
+  const serveUrl = await makeBundle();
+  console.log(
+    JSON.stringify({
+      warmed: true,
+      serveUrl,
+    }),
+  );
+};
+
 const renderComposition = async () => {
   const serveUrl = await makeBundle();
   const compositions = await loadCompositions(serveUrl);
@@ -315,11 +367,12 @@ const renderComposition = async () => {
   let lastLoggedProgress = -1;
   const {renderMedia} = loadRenderer();
 
+  const concurrency = Number(process.env.REMOTION_CONCURRENCY || "1") || 1;
   await renderMedia({
     ...makeRendererOptions(),
     codec: "h264",
     composition,
-    concurrency: 1,
+    concurrency,
     inputProps,
     logLevel: "info",
     outputLocation,
@@ -408,7 +461,7 @@ const renderStill = async () => {
     composition,
     frame: Number.isFinite(stillFrame) && stillFrame >= 0 ? stillFrame : 0,
     inputProps: stillInputProps,
-    outputLocation: stillOutputLocation,
+    output: stillOutputLocation,
     overwrite: true,
     serveUrl,
     timeoutInMilliseconds: DEFAULT_TIMEOUT_MS,
@@ -449,7 +502,12 @@ const main = async () => {
     return;
   }
 
-  throw new Error(`Comando desconhecido: ${command}. Use "list", "render" ou "still".`);
+  if (command === "warm") {
+    await warmBundle();
+    return;
+  }
+
+  throw new Error(`Comando desconhecido: ${command}. Use "list", "render", "still" ou "warm".`);
 };
 
 main().catch((error) => {

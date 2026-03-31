@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from core.intelligence.model_profiles import get_active_profile
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 
@@ -126,6 +127,7 @@ def build_artifact_plan(plan: dict, seed: dict | str) -> dict:
     story_atoms = _build_story_atoms(plan, brief)
     quality_constraints = _build_quality_constraints(narrative_contract, global_laws)
     style_pack_ids = _resolve_style_pack_ids(seed)
+    variants = _build_variants(plan, story_atoms, style_pack_ids)
 
     selected_targets: list[dict[str, Any]] = []
     for target_id in requested_ids:
@@ -158,7 +160,9 @@ def build_artifact_plan(plan: dict, seed: dict | str) -> dict:
             ]
 
     primary_target = selected_targets[0] if selected_targets else {}
+    chosen_variant = variants[0]["id"] if variants else "variant_01"
     return {
+        "schema_version": 2,
         "primary_target_id": primary_target.get("id", DEFAULT_OUTPUT_TARGET),
         "primary_target": primary_target,
         "targets": selected_targets,
@@ -167,6 +171,18 @@ def build_artifact_plan(plan: dict, seed: dict | str) -> dict:
         "story_atoms": story_atoms,
         "style_pack_ids": style_pack_ids,
         "quality_constraints": quality_constraints,
+        "variants": variants,
+        "chosen_variant": chosen_variant,
+        "review_session_id": None,
+        "renderer_contracts": _build_renderer_contracts(selected_targets),
+        "fallback_policy": _build_fallback_policy(selected_targets),
+        "metrics_hooks": [
+            "llm_latency_ms",
+            "native_render_success",
+            "fallback_rate",
+            "artifact_updated",
+            "negative_space_target",
+        ],
         "beat_map": {
             target.get("id", f"target_{index}"): [
                 beat.get("label", beat.get("text", ""))
@@ -391,6 +407,67 @@ def _build_quality_constraints(narrative_contract: dict, global_laws: dict) -> d
         "silence_ratio": float(pacing.get("silence_ratio", 0.3) or 0.3),
         "negative_space_target": float(constraints.get("min_negative_space", 0.4) or 0.4),
         "max_colors": int(constraints.get("max_colors", 2) or 2),
+        "contrast_floor": 4.5,
+        "typography_conformance": "strict",
+    }
+
+
+def _build_variants(plan: dict, story_atoms: dict[str, Any], style_pack_ids: list[str]) -> list[dict[str, Any]]:
+    profile = get_active_profile()
+    requested_count = max(3, min(int(profile.render_preferences.get("variant_count", 3) or 3), 5))
+    primary_style = style_pack_ids[0] if style_pack_ids else "brand_core"
+    style_candidates = [primary_style, "masterize_mid_path", "editorial_precision", "signal_frame", "architectural_resolve"]
+    composition_modes = ["poster_focus", "single_metaphor", "editorial_spine", "architecture_reveal", "resolve_lockup"]
+    typography_behaviors = ["quiet_hierarchy", "thesis_poster", "whisper_to_resolve", "editorial_grid", "hero_lockup"]
+    shot_grammars = ["single_curve", "contained_break", "mid_event_flip", "grid_reveal", "calm_resolve"]
+
+    variants: list[dict[str, Any]] = []
+    for index in range(requested_count):
+        variant_id = f"variant_{index + 1:02d}"
+        variants.append(
+            {
+                "id": variant_id,
+                "label": f"Variant {index + 1}",
+                "style_pack_id": style_candidates[index % len(style_candidates)],
+                "composition_mode": composition_modes[index % len(composition_modes)],
+                "typography_behavior": typography_behaviors[index % len(typography_behaviors)],
+                "shot_grammar": shot_grammars[index % len(shot_grammars)],
+                "resolve_word": story_atoms.get("resolve_word"),
+                "thesis": story_atoms.get("thesis"),
+                "archetype": plan.get("archetype"),
+                "hero_target": profile.render_preferences.get("hero_target", "linkedin_feed_4_5"),
+            }
+        )
+    return variants
+
+
+def _build_renderer_contracts(selected_targets: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    contracts: dict[str, dict[str, Any]] = {}
+    for target in selected_targets:
+        target_id = str(target.get("id", "")).strip()
+        if not target_id:
+            continue
+        render_mode = str(target.get("render_mode", "video")).strip().lower()
+        contracts[target_id] = {
+            "target_id": target_id,
+            "composition": target.get("composition"),
+            "render_mode": render_mode,
+            "native_engine": "remotion",
+            "fallback_engine": "fallback_artifact_renderer",
+            "requires_base_video": render_mode == "video" and target_id == "short_cinematic_vertical",
+            "native_support": True,
+        }
+    return contracts
+
+
+def _build_fallback_policy(selected_targets: list[dict[str, Any]]) -> dict[str, Any]:
+    hero_target = next((str(target.get("id")) for target in selected_targets if str(target.get("id")) == "linkedin_feed_4_5"), None)
+    return {
+        "mode": "native_then_fallback",
+        "hero_target": hero_target or "linkedin_feed_4_5",
+        "max_native_attempts": 1,
+        "fallback_on_timeout": True,
+        "fallback_on_render_error": True,
     }
 
 
@@ -447,13 +524,13 @@ def _build_target_beats(
         return []
     if target_id == "youtube_thumbnail_16_9":
         return [
-            {"label": story_atoms.get("thesis"), "text": story_atoms.get("thesis"), "role": "statement"},
+            {"label": _word_cap(story_atoms.get("thesis")), "text": _word_cap(story_atoms.get("thesis")), "role": "statement"},
             {"label": story_atoms.get("resolve_word"), "text": story_atoms.get("resolve_word"), "role": "resolve"},
         ]
 
     if target_id == "linkedin_feed_4_5":
         return [
-            {"label": "thesis", "text": story_atoms.get("thesis"), "role": "statement"},
+            {"label": "thesis", "text": _word_cap(story_atoms.get("thesis")), "role": "statement"},
             {"label": "resolve", "text": story_atoms.get("resolve_word"), "role": "resolve"},
         ]
 

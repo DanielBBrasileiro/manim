@@ -41,6 +41,14 @@ type RawAct = {
 	text_cues?: RawCue[] | null;
 };
 
+type StoryAtoms = {
+	title?: string;
+	tagline?: string;
+	thesis?: string;
+	resolve_word?: string;
+	resolveWord?: string;
+};
+
 export type CinematicNarrativeProps = {
 	videoSrc?: string;
 	resolveWord?: string;
@@ -71,6 +79,13 @@ export type CinematicNarrativeProps = {
 			bed?: string;
 			gain?: number;
 		};
+		story_atoms?: StoryAtoms;
+		active_variant?: {
+			id?: string;
+			label?: string;
+			style_pack_id?: string;
+			composition_mode?: string;
+		};
 		narrative?: {
 			acts?: RawAct[];
 			resolveWord?: string;
@@ -91,15 +106,126 @@ type ResolvedCue = {
 	align?: 'left' | 'center' | 'right';
 };
 
-const StaticBackdrop: React.FC<{frame: number; targetKind?: string; targetId?: string}> = ({
+type TargetVisualProfile = {
+	panelInset: string;
+	panelRadius: number;
+	railTop: string;
+	accentColor: string;
+	curveStroke: string;
+	curveOpacity: number;
+	curveWidth: number;
+	driftStrength: number;
+	textMaxWidth: string;
+	resolveMaxWidth: string;
+	heroTitleSize: string;
+	heroSubtitleSize: string;
+	heroLockupOffset: string;
+};
+
+const getTargetVisualProfile = (targetId?: string): TargetVisualProfile => {
+	switch (targetId) {
+		case 'linkedin_feed_4_5':
+			return {
+				panelInset: '8% 7% 10% 7%',
+				panelRadius: 40,
+				railTop: '19%',
+				accentColor: 'rgba(255,255,255,0.18)',
+				curveStroke: 'rgba(255,255,255,0.72)',
+				curveOpacity: 0.9,
+				curveWidth: 2.4,
+				driftStrength: 0,
+				textMaxWidth: '74%',
+				resolveMaxWidth: '84%',
+				heroTitleSize: 'clamp(3rem, 7.8vw, 5.4rem)',
+				heroSubtitleSize: 'clamp(1rem, 2vw, 1.25rem)',
+				heroLockupOffset: '12%',
+			};
+		case 'linkedin_carousel_square':
+			return {
+				panelInset: '9% 8% 11% 8%',
+				panelRadius: 34,
+				railTop: '24%',
+				accentColor: 'rgba(255,255,255,0.16)',
+				curveStroke: 'rgba(245,245,245,0.5)',
+				curveOpacity: 0.74,
+				curveWidth: 1.9,
+				driftStrength: 7,
+				textMaxWidth: '74%',
+				resolveMaxWidth: '84%',
+				heroTitleSize: 'clamp(2.6rem, 6vw, 4rem)',
+				heroSubtitleSize: 'clamp(0.95rem, 1.8vw, 1.1rem)',
+				heroLockupOffset: '12%',
+			};
+		case 'youtube_essay_16_9':
+			return {
+				panelInset: '11% 8% 14% 8%',
+				panelRadius: 28,
+				railTop: '25%',
+				accentColor: 'rgba(255,255,255,0.14)',
+				curveStroke: 'rgba(255,255,255,0.42)',
+				curveOpacity: 0.62,
+				curveWidth: 1.8,
+				driftStrength: 6,
+				textMaxWidth: '62%',
+				resolveMaxWidth: '76%',
+				heroTitleSize: 'clamp(2.4rem, 4vw, 3.6rem)',
+				heroSubtitleSize: 'clamp(0.9rem, 1.6vw, 1rem)',
+				heroLockupOffset: '10%',
+			};
+		case 'youtube_thumbnail_16_9':
+			return {
+				panelInset: '8% 7% 12% 7%',
+				panelRadius: 24,
+				railTop: '21%',
+				accentColor: 'rgba(255,255,255,0.18)',
+				curveStroke: 'rgba(255,255,255,0.5)',
+				curveOpacity: 0.8,
+				curveWidth: 2.1,
+				driftStrength: 7,
+				textMaxWidth: '72%',
+				resolveMaxWidth: '80%',
+				heroTitleSize: 'clamp(2.4rem, 5vw, 3.6rem)',
+				heroSubtitleSize: 'clamp(0.95rem, 1.7vw, 1.1rem)',
+				heroLockupOffset: '10%',
+			};
+		default:
+			return {
+				panelInset: '9% 13% 21% 13%',
+				panelRadius: 36,
+				railTop: '22%',
+				accentColor: 'rgba(255,106,106,0.18)',
+				curveStroke: 'rgba(255,106,106,0.54)',
+				curveOpacity: 0.78,
+				curveWidth: 2.3,
+				driftStrength: 11,
+				textMaxWidth: '72%',
+				resolveMaxWidth: '88%',
+				heroTitleSize: 'clamp(3rem, 7.8vw, 5.4rem)',
+				heroSubtitleSize: 'clamp(1rem, 2vw, 1.25rem)',
+				heroLockupOffset: '12%',
+			};
+	}
+};
+
+const splitLockupTitle = (title?: string): string[] => {
+	const words = String(title || '').trim().split(/\s+/).filter(Boolean);
+	if (!words.length) {
+		return ['Invisible', 'Architecture'];
+	}
+	if (words.length === 1) {
+		return [words[0], ''];
+	}
+	const midpoint = Math.ceil(words.length / 2);
+	return [words.slice(0, midpoint).join(' '), words.slice(midpoint).join(' ')];
+};
+
+const StaticBackdrop: React.FC<{frame: number; targetKind?: string; profile: TargetVisualProfile}> = ({
 	frame,
 	targetKind,
-	targetId,
+	profile,
 }) => {
-	const drift = Math.sin(frame / 24) * 18;
+	const drift = Math.sin(frame / 24) * profile.driftStrength;
 	const glow = Math.cos(frame / 38) * 0.06 + 0.18;
-	const wide = targetId === 'youtube_thumbnail_16_9' || targetId === 'youtube_essay_16_9';
-	const accent = wide ? 'rgba(255,255,255,0.14)' : 'rgba(255,106,106,0.18)';
 
 	return (
 		<AbsoluteFill
@@ -110,31 +236,186 @@ const StaticBackdrop: React.FC<{frame: number; targetKind?: string; targetId?: s
 						: 'linear-gradient(180deg, #020202 0%, #090909 55%, #040404 100%)',
 			}}
 		>
+				<AbsoluteFill
+					style={{
+						transform: `translate(${drift}px, ${drift * 0.35}px)`,
+						opacity: glow,
+					}}
+				>
+					<div
+						style={{
+							position: 'absolute',
+							inset: profile.panelInset,
+							border: `1px solid ${profile.accentColor}`,
+							borderRadius: profile.panelRadius,
+						}}
+					/>
+					<div
+						style={{
+							position: 'absolute',
+							left: '12%',
+							right: '12%',
+							top: profile.railTop,
+							height: 1,
+							background: profile.accentColor,
+							opacity: 0.7,
+						}}
+					/>
+					<svg
+						viewBox="0 0 100 100"
+						preserveAspectRatio="none"
+						style={{
+							position: 'absolute',
+							inset: profile.panelInset,
+							overflow: 'visible',
+						}}
+					>
+						<path
+							d="M 6 70 C 20 48, 32 36, 46 42 C 62 49, 72 60, 94 22"
+							fill="none"
+							stroke={profile.curveStroke}
+							strokeWidth={profile.curveWidth}
+							strokeLinecap="round"
+							style={{opacity: profile.curveOpacity}}
+						/>
+					</svg>
+				</AbsoluteFill>
+			</AbsoluteFill>
+	);
+};
+
+const LinkedInFeedHeroBackdrop: React.FC<{
+	frame: number;
+	profile: TargetVisualProfile;
+	storyAtoms?: StoryAtoms;
+	activeVariant?: {label?: string; composition_mode?: string};
+}> = ({frame, profile, storyAtoms, activeVariant}) => {
+	const drift = Math.sin(frame / 42) * 2.2;
+	const pulse = Math.sin(frame / 28) * 0.02 + 0.08;
+	const lockupLines = splitLockupTitle(storyAtoms?.title ?? storyAtoms?.resolve_word ?? storyAtoms?.resolveWord);
+	const eyebrow = String(storyAtoms?.tagline || activeVariant?.composition_mode || 'Poster first').trim();
+	const resolveWord = String(storyAtoms?.resolve_word || storyAtoms?.resolveWord || 'AIOX').trim();
+
+	return (
+		<AbsoluteFill
+			style={{
+				background:
+					'radial-gradient(circle at 18% 18%, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 24%, rgba(0,0,0,0) 50%), linear-gradient(180deg, #030303 0%, #090909 56%, #050505 100%)',
+			}}
+		>
 			<AbsoluteFill
 				style={{
-					transform: `translate(${drift}px, ${drift * 0.35}px)`,
-					opacity: glow,
+					transform: `translate(${drift}px, ${drift * 0.25}px)`,
+					opacity: 0.9,
 				}}
 			>
 				<div
 					style={{
 						position: 'absolute',
-						inset: wide ? '14% 9% 20% 9%' : '10% 14% 22% 14%',
-						border: `1px solid ${accent}`,
-						borderRadius: wide ? 28 : 36,
+						inset: profile.panelInset,
+						border: `1px solid ${profile.accentColor}`,
+						borderRadius: profile.panelRadius,
+						background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)',
+						boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.02)',
 					}}
 				/>
 				<div
 					style={{
 						position: 'absolute',
-						left: wide ? '12%' : '18%',
-						right: wide ? '12%' : '18%',
-						top: wide ? '28%' : '22%',
+						left: '12%',
+						right: '12%',
+						top: profile.railTop,
 						height: 1,
-						background: accent,
-						opacity: 0.7,
+						background: profile.accentColor,
+						opacity: 0.76,
 					}}
 				/>
+				<div
+					style={{
+						position: 'absolute',
+						right: '8.5%',
+						top: '12.5%',
+						width: '28%',
+						height: '42%',
+						borderRadius: 999,
+						border: '1px solid rgba(255,255,255,0.08)',
+						transform: `scale(${1 + pulse})`,
+						opacity: 0.55,
+					}}
+				/>
+				<svg
+					viewBox="0 0 100 100"
+					preserveAspectRatio="none"
+					style={{
+						position: 'absolute',
+						inset: profile.panelInset,
+						overflow: 'visible',
+					}}
+				>
+					<path
+						d="M 8 72 C 20 60, 30 38, 45 44 C 61 49, 74 62, 92 24"
+						fill="none"
+						stroke={profile.curveStroke}
+						strokeWidth={profile.curveWidth}
+						strokeLinecap="round"
+						style={{opacity: profile.curveOpacity}}
+					/>
+					<path
+						d="M 14 78 C 31 67, 43 53, 54 54 C 69 56, 81 67, 92 41"
+						fill="none"
+						stroke="rgba(255,255,255,0.18)"
+						strokeWidth={1.1}
+						strokeLinecap="round"
+					/>
+				</svg>
+				<div
+					style={{
+						position: 'absolute',
+						left: profile.heroLockupOffset,
+						top: '14%',
+						maxWidth: '38%',
+						color: Theme.colors.textPrimary,
+						fontFamily: tokens.typography.fonts.narrative.family,
+						letterSpacing: '-0.04em',
+					}}
+				>
+					<div
+						style={{
+							fontSize: profile.heroSubtitleSize,
+							fontWeight: 300,
+							textTransform: 'uppercase',
+							letterSpacing: '0.32em',
+							opacity: 0.56,
+							marginBottom: '0.7rem',
+						}}
+					>
+						{eyebrow}
+					</div>
+					<div
+						style={{
+							fontSize: profile.heroTitleSize,
+							fontWeight: 500,
+							lineHeight: 0.95,
+							maxWidth: '8ch',
+						}}
+					>
+						{lockupLines[0]}
+						<br />
+						{lockupLines[1] || resolveWord}
+					</div>
+					<div
+						style={{
+							fontSize: '0.92rem',
+							fontWeight: 400,
+							letterSpacing: '0.28em',
+							textTransform: 'uppercase',
+							opacity: 0.42,
+							marginTop: '1.1rem',
+						}}
+					>
+						{resolveWord}
+					</div>
+				</div>
 			</AbsoluteFill>
 		</AbsoluteFill>
 	);
@@ -360,10 +641,19 @@ export const CinematicNarrative: React.FC<CinematicNarrativeProps> = (props) => 
 	const currentFrame = useCurrentFrame();
 	const frame = props.frameOverride ?? currentFrame;
 	const {durationInFrames, fps} = useVideoConfig();
+	const targetId = props.target ?? props.targetId ?? props.renderManifest?.targetId;
+	const targetKind = props.targetKind ?? props.renderManifest?.targetKind;
+	const profile = useMemo(() => getTargetVisualProfile(targetId), [targetId]);
+	const storyAtoms = props.renderManifest?.story_atoms;
+	const activeVariant = props.renderManifest?.active_variant;
 	const cues = useMemo(() => buildCues(props, fps, durationInFrames), [props, fps, durationInFrames]);
 	const explicitVideoSrc = props.videoSrc ?? props.renderManifest?.videoSrc ?? props.renderManifest?.video_src;
-	const useBaseVideo = explicitVideoSrc !== null && explicitVideoSrc !== '';
-	const videoSrc = useBaseVideo ? explicitVideoSrc ?? staticFile('manim_base.mp4') : null;
+	const shouldUseBaseVideo =
+		targetId !== 'linkedin_feed_4_5' &&
+		targetKind !== 'still' &&
+		explicitVideoSrc !== null &&
+		explicitVideoSrc !== '';
+	const videoSrc = shouldUseBaseVideo ? explicitVideoSrc ?? staticFile('manim_base.mp4') : null;
 	const audioCfg = props.renderManifest?.audio;
 
 	const turbulenceStart = Math.round(durationInFrames * 0.25);
@@ -385,11 +675,13 @@ export const CinematicNarrative: React.FC<CinematicNarrativeProps> = (props) => 
 						src={videoSrc}
 						style={{width: '100%', height: '100%', objectFit: 'cover'}}
 					/>
+				) : targetId === 'linkedin_feed_4_5' ? (
+					<LinkedInFeedHeroBackdrop frame={frame} profile={profile} storyAtoms={storyAtoms} activeVariant={activeVariant} />
 				) : (
 					<StaticBackdrop
 						frame={frame}
-						targetKind={props.targetKind ?? props.renderManifest?.targetKind}
-						targetId={props.target ?? props.targetId ?? props.renderManifest?.targetId}
+						targetKind={targetKind}
+						profile={profile}
 					/>
 				)}
 			</AbsoluteFill>
@@ -408,7 +700,7 @@ export const CinematicNarrative: React.FC<CinematicNarrativeProps> = (props) => 
 						size={cue.size}
 						color={cue.color}
 						align={cue.align}
-						maxWidth={cue.role === 'resolve' ? '88%' : '72%'}
+						maxWidth={cue.role === 'resolve' ? profile.resolveMaxWidth : profile.textMaxWidth}
 					/>
 				</Sequence>
 			))}

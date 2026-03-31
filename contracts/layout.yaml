@@ -119,7 +119,7 @@ output_targets:
     priority: 100
     default: true
     render_mode: video
-    composition: short_cinematic_vertical
+    composition: short-cinematic-vertical
     legacy_composition: CinematicNarrative-v4
     legacy_aliases: [vertical_social, short_cinematic]
     label: "Short Cinematic Vertical"
@@ -138,7 +138,7 @@ output_targets:
     purpose: premium_still
     priority: 80
     render_mode: still
-    composition: linkedin_feed_4_5
+    composition: linkedin-feed-4-5
     legacy_composition: LinkedInStill-v4
     legacy_aliases: [square_social, linkedin_still, linkedin_post]
     label: "LinkedIn Feed 4:5"
@@ -155,7 +155,7 @@ output_targets:
     purpose: narrative_carousel
     priority: 75
     render_mode: carousel
-    composition: linkedin_carousel_square
+    composition: linkedin-carousel-square
     legacy_composition: CarouselSlide-v4
     legacy_aliases: [instagram_carousel, carousel_slide]
     label: "LinkedIn Carousel Square"
@@ -174,7 +174,7 @@ output_targets:
     purpose: visual_essay
     priority: 70
     render_mode: video
-    composition: youtube_essay_16_9
+    composition: youtube-essay-16-9
     legacy_composition: YouTubeEssay-v4
     legacy_aliases: [wide_showcase, youtube_essay]
     label: "YouTube Essay 16:9"
@@ -192,7 +192,7 @@ output_targets:
     purpose: thumbnail
     priority: 65
     render_mode: still
-    composition: youtube_thumbnail_16_9
+    composition: youtube-thumbnail-16-9
     legacy_composition: Thumbnail-v4
     legacy_aliases: [thumbnail]
     label: "YouTube Thumbnail 16:9"

@@ -21,6 +21,11 @@ def evaluate_artifact_plan(artifact_plan: dict[str, Any]) -> dict[str, Any]:
     story_atoms = artifact_plan.get("story_atoms", {}) if isinstance(artifact_plan, dict) else {}
     targets = artifact_plan.get("targets", []) if isinstance(artifact_plan, dict) else []
     quality_constraints = artifact_plan.get("quality_constraints", {}) if isinstance(artifact_plan, dict) else {}
+    variants = artifact_plan.get("variants", []) if isinstance(artifact_plan, dict) else []
+    renderer_contracts = artifact_plan.get("renderer_contracts", {}) if isinstance(artifact_plan, dict) else {}
+
+    if int(artifact_plan.get("schema_version", 1) or 1) < 2:
+        report["warnings"].append("artifact_plan_schema_legacy")
 
     for key in REQUIRED_STORY_ATOMS:
         if not str(story_atoms.get(key, "")).strip():
@@ -34,6 +39,8 @@ def evaluate_artifact_plan(artifact_plan: dict[str, Any]) -> dict[str, Any]:
                 report["errors"].append(f"invalid_target:{index}")
                 continue
             _check_target(target, report)
+            if str(target.get("id", "")).strip() not in renderer_contracts:
+                report["warnings"].append(f"renderer_contract_missing:{target.get('id', index)}")
 
     max_words = int(quality_constraints.get("max_words_per_screen", 5) or 5)
     if max_words > 5:
@@ -43,8 +50,16 @@ def evaluate_artifact_plan(artifact_plan: dict[str, Any]) -> dict[str, Any]:
     if negative_space_target < 0.3:
         report["warnings"].append("negative_space_target_below_recommended")
 
+    if not isinstance(variants, list) or len(variants) < 3:
+        report["warnings"].append("variant_count_below_recommended")
+
+    chosen_variant = str(artifact_plan.get("chosen_variant", "")).strip()
+    if chosen_variant and not any(isinstance(variant, dict) and variant.get("id") == chosen_variant for variant in variants):
+        report["errors"].append("chosen_variant_missing")
+
     report["stats"] = {
         "target_count": len(targets) if isinstance(targets, list) else 0,
+        "variant_count": len(variants) if isinstance(variants, list) else 0,
         "max_words_per_screen": max_words,
         "negative_space_target": negative_space_target,
     }

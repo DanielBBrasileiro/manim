@@ -39,6 +39,9 @@ yarn-error.log*
 .npm
 .yarn/
 
+# Remotion bundle cache (persistent cross-session, rebuilt on src change)
+engines/remotion/.bundle-cache/
+
 # Manim
 media/
 __pycache__/

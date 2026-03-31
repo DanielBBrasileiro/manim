@@ -15,7 +15,17 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 MANIM_SCENE_NAME = "EntropyDemo"
 MANIM_SCRIPT_PATH = "scenes/cde_entropy_demo.py"
 DEFAULT_RENDER_TIMEOUT = int(os.getenv("AIOX_REMOTION_CLI_TIMEOUT_SECONDS", "45"))
-DEFAULT_DIRECT_TIMEOUT = int(os.getenv("AIOX_REMOTION_DIRECT_TIMEOUT_SECONDS", "30"))
+DEFAULT_DIRECT_TIMEOUT = int(os.getenv("AIOX_REMOTION_DIRECT_TIMEOUT_SECONDS", "180"))
+DEFAULT_STILL_DIRECT_TIMEOUT = int(os.getenv("AIOX_REMOTION_STILL_TIMEOUT_SECONDS", "180"))
+DEFAULT_STILL_CLI_TIMEOUT = int(os.getenv("AIOX_REMOTION_STILL_CLI_TIMEOUT_SECONDS", "180"))
+DEFAULT_VIDEO_DIRECT_TIMEOUT = int(os.getenv("AIOX_REMOTION_VIDEO_TIMEOUT_SECONDS", str(max(DEFAULT_DIRECT_TIMEOUT, 360))))
+DEFAULT_VIDEO_CLI_TIMEOUT = int(os.getenv("AIOX_REMOTION_VIDEO_CLI_TIMEOUT_SECONDS", str(max(DEFAULT_RENDER_TIMEOUT, 360))))
+DEFAULT_BUNDLE_WARM_TIMEOUT = int(
+    os.getenv(
+        "AIOX_REMOTION_BUNDLE_TIMEOUT_SECONDS",
+        str(max(DEFAULT_STILL_DIRECT_TIMEOUT, DEFAULT_VIDEO_DIRECT_TIMEOUT)),
+    )
+)
 
 LEGACY_OUTPUT_ALIASES = {
     "short_cinematic_vertical": "CinematicNarrative-v4",
@@ -56,19 +66,59 @@ def _load_remotion_runner() -> str:
     return str(ROOT / "scripts" / "run_remotion_node.sh")
 
 
-def _load_remotion_env(remotion_props: dict[str, Any] | None = None) -> dict[str, str]:
+def _load_remotion_env(
+    remotion_props: dict[str, Any] | None = None,
+    *,
+    timeout_seconds: int | None = None,
+    concurrency: int | None = None,
+) -> dict[str, str]:
     env = dict(os.environ)
+    env.setdefault("AIOX_REMOTION_REUSE_BUNDLE", "1")
     if remotion_props is not None:
         env["REMOTION_INPUT_PROPS_JSON"] = json.dumps(remotion_props)
+    if timeout_seconds is not None:
+        env["REMOTION_RENDER_TIMEOUT_MS"] = str(max(timeout_seconds, 1) * 1000)
+    if concurrency is not None:
+        env.setdefault("REMOTION_CONCURRENCY", str(concurrency))
     return env
 
 
-def _run_remotion_command(command: str, composition: str, output_path: Path, remotion_props: dict[str, Any] | None) -> None:
-    runner = _load_remotion_runner()
-    env = _load_remotion_env(remotion_props)
+def _prewarm_remotion_bundle(timeout_seconds: int = DEFAULT_BUNDLE_WARM_TIMEOUT) -> None:
     render_mode = os.getenv("AIOX_REMOTION_RENDER_MODE", "auto").strip().lower()
-    cli_timeout = int(os.getenv("AIOX_REMOTION_CLI_TIMEOUT_SECONDS", str(DEFAULT_RENDER_TIMEOUT)))
-    direct_timeout = int(os.getenv("AIOX_REMOTION_DIRECT_TIMEOUT_SECONDS", str(DEFAULT_DIRECT_TIMEOUT)))
+    if render_mode == "cli":
+        return
+
+    env = _load_remotion_env(timeout_seconds=timeout_seconds)
+    warm_cmd = [
+        "/bin/bash",
+        _load_remotion_runner(),
+        str(ROOT / "scripts" / "remotion_direct.js"),
+        "warm",
+    ]
+    print("🔥 [Remotion Tool] Preaquecendo bundle nativo...")
+    subprocess.run(warm_cmd, check=True, cwd=str(ROOT), env=env, timeout=timeout_seconds)
+
+
+def _run_remotion_command(
+    command: str,
+    composition: str,
+    output_path: Path,
+    remotion_props: dict[str, Any] | None,
+    *,
+    direct_timeout_seconds: int | None = None,
+    cli_timeout_seconds: int | None = None,
+    concurrency: int | None = None,
+) -> None:
+    runner = _load_remotion_runner()
+    render_mode = os.getenv("AIOX_REMOTION_RENDER_MODE", "auto").strip().lower()
+    cli_timeout = cli_timeout_seconds if cli_timeout_seconds is not None else int(
+        os.getenv("AIOX_REMOTION_CLI_TIMEOUT_SECONDS", str(DEFAULT_RENDER_TIMEOUT))
+    )
+    direct_timeout = direct_timeout_seconds if direct_timeout_seconds is not None else int(
+        os.getenv("AIOX_REMOTION_DIRECT_TIMEOUT_SECONDS", str(DEFAULT_DIRECT_TIMEOUT))
+    )
+    effective_timeout = max(cli_timeout, direct_timeout)
+    env = _load_remotion_env(remotion_props, timeout_seconds=effective_timeout, concurrency=concurrency)
 
     cli_cmd = [
         "/bin/zsh",
@@ -122,7 +172,15 @@ def run_remotion_video(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     previous_mtime = output_path.stat().st_mtime if output_path.exists() else 0
 
-    _run_remotion_command("render", composition, output_path, remotion_props)
+    _run_remotion_command(
+        "render",
+        composition,
+        output_path,
+        remotion_props,
+        direct_timeout_seconds=DEFAULT_VIDEO_DIRECT_TIMEOUT,
+        cli_timeout_seconds=DEFAULT_VIDEO_CLI_TIMEOUT,
+        concurrency=2,
+    )
     _validate_output(output_path)
 
     current_mtime = output_path.stat().st_mtime
@@ -142,7 +200,14 @@ def run_remotion_still(
     still_output.parent.mkdir(parents=True, exist_ok=True)
     previous_mtime = still_output.stat().st_mtime if still_output.exists() else 0
 
-    _run_remotion_command("still", composition, still_output, remotion_props)
+    _run_remotion_command(
+        "still",
+        composition,
+        still_output,
+        remotion_props,
+        direct_timeout_seconds=DEFAULT_STILL_DIRECT_TIMEOUT,
+        cli_timeout_seconds=DEFAULT_STILL_CLI_TIMEOUT,
+    )
     _validate_output(still_output)
 
     current_mtime = still_output.stat().st_mtime
@@ -220,16 +285,31 @@ def _requires_manim_pass(targets: list[dict[str, Any]]) -> bool:
     return any(isinstance(target, dict) and _target_uses_base_video(target) for target in targets)
 
 
+def _target_render_priority(target: dict[str, Any]) -> tuple[int, str]:
+    target_id = str(target.get("id", "")).strip()
+    render_mode = str(target.get("render_mode", "video")).strip().lower()
+    if target_id == "linkedin_feed_4_5":
+        return (0, target_id)
+    if render_mode == "still":
+        return (1, target_id)
+    if render_mode == "carousel":
+        return (2, target_id)
+    if target_id == "short_cinematic_vertical":
+        return (3, target_id)
+    return (4, target_id)
+
+
 def _build_target_text_cues(target: dict[str, Any], artifact_plan: dict[str, Any], render_manifest: dict[str, Any]) -> list[dict[str, Any]]:
     target_id = str(target.get("id", "")).strip()
     story_atoms = artifact_plan.get("story_atoms", {})
+    thesis_words = " ".join(str(story_atoms.get("thesis", "")).split()[:5]).strip()
 
     if target_id == "linkedin_feed_4_5":
         return [
             {
                 "act": "turbulence",
                 "at_sec": 0.8,
-                "text": str(story_atoms.get("thesis", "")),
+                "text": thesis_words,
                 "position": "center_climax",
                 "role": "statement",
                 "weight": 460,
@@ -251,7 +331,7 @@ def _build_target_text_cues(target: dict[str, Any], artifact_plan: dict[str, Any
             {
                 "act": "turbulence",
                 "at_sec": 0.8,
-                "text": str(story_atoms.get("thesis", "")),
+                "text": thesis_words,
                 "position": "top_zone",
                 "role": "whisper",
                 "weight": 320,
@@ -336,6 +416,12 @@ def _build_target_props(target: dict[str, Any], artifact_plan: dict[str, Any], r
     render_mode = str(target.get("render_mode", "video")).strip().lower()
     target_kind = _target_kind(render_mode)
     story_atoms = artifact_plan.get("story_atoms", {})
+    chosen_variant_id = str(artifact_plan.get("chosen_variant", "")).strip()
+    variants = artifact_plan.get("variants", []) if isinstance(artifact_plan.get("variants"), list) else []
+    active_variant = next(
+        (variant for variant in variants if isinstance(variant, dict) and str(variant.get("id", "")).strip() == chosen_variant_id),
+        variants[0] if variants else None,
+    )
     render_inputs = (render_manifest.get("render_inputs") or {}).get(target_id, {})
     target_duration = float(target.get("duration_sec", render_inputs.get("duration", render_manifest.get("duration", 12))) or 12.0)
     fps = int(target.get("fps", render_inputs.get("fps", render_manifest.get("fps", 30))) or 30)
@@ -358,6 +444,9 @@ def _build_target_props(target: dict[str, Any], artifact_plan: dict[str, Any], r
         "style_pack_ids": artifact_plan.get("style_pack_ids", []),
         "style_packs": style_packs,
         "story_atoms": story_atoms,
+        "variants": variants,
+        "chosen_variant": chosen_variant_id,
+        "active_variant": active_variant,
         "quality_constraints": artifact_plan.get("quality_constraints", {}),
         "summary": target.get("summary"),
         "beats": target.get("beats", []),
@@ -564,6 +653,7 @@ def render_pipeline(
             targets = [primary_target]
         elif isinstance(render_manifest, dict) and isinstance(render_manifest.get("primary_target"), dict):
             targets = [render_manifest["primary_target"]]
+    targets = sorted([target for target in targets if isinstance(target, dict)], key=_target_render_priority)
 
     if _requires_manim_pass(targets):
         try:
@@ -578,12 +668,18 @@ def render_pipeline(
     outputs: list[dict[str, Any]] = []
     remotion_unavailable_reason: str | None = None
 
+    try:
+        _prewarm_remotion_bundle()
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, RuntimeError) as error:
+        print(f"⚠️ [Render Tool] Prewarm do Remotion falhou: {error}")
+        remotion_unavailable_reason = str(error)
+
     for target in targets:
         if not isinstance(target, dict):
             continue
 
         target_id = str(target.get("id") or target.get("composition") or MANIM_SCENE_NAME).strip()
-        composition = target_id
+        composition = str(target.get("composition") or target_id).strip()
         render_mode = str(target.get("render_mode", "video")).strip().lower()
         remotion_props = _build_target_props(target, artifact_plan, render_manifest)
 

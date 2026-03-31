@@ -15,10 +15,13 @@ from core.intelligence.llm_cache import (
     load_cached_scene_plan,
     save_cached_scene_plan,
 )
+from core.intelligence.model_capabilities import record_model_observation
 from core.intelligence.model_router import (
     TASK_FAST_PLAN,
     TASK_PLAN,
+    TASK_COPY_REFINER,
     TASK_QUALITY_PLAN,
+    TASK_VARIANT_RANKER,
     TASK_VISION_PLAN,
     auto_quality_fallback_enabled,
     confidence_threshold,
@@ -226,6 +229,12 @@ def _attempt_scene_plan(
         metadata["latency_ms"] = _latency_ms(start)
         if plan is not None:
             metadata["confidence"] = plan.confidence
+            record_model_observation(
+                route.model,
+                success=True,
+                latency_ms=metadata["latency_ms"],
+                task_type=route.task_type,
+            )
         return {"plan": plan, "metadata": metadata}
     except (urllib.error.URLError, TimeoutError, socket.timeout, ConnectionError) as exc:
         metadata["error"] = f"{type(exc).__name__}: {exc}"
@@ -233,6 +242,12 @@ def _attempt_scene_plan(
         metadata["error"] = f"{type(exc).__name__}: {exc}"
 
     metadata["latency_ms"] = _latency_ms(start)
+    record_model_observation(
+        route.model,
+        success=False,
+        latency_ms=metadata["latency_ms"],
+        task_type=route.task_type,
+    )
     _debug(f"ollama request failed -> {metadata['error']}")
     return {"plan": None, "metadata": metadata}
 
