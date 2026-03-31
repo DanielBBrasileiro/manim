@@ -99,6 +99,9 @@ Se o Remotion local estiver indisponivel ou lento demais para responder dentro d
 - `output/carousel/linkedin_carousel_square/`
 - `output/renders/youtube_essay_16_9.mp4`
 - `output/stills/youtube_thumbnail_16_9.png`
+Para priorizar o still hero em Remotion nativo, voce pode ajustar timeouts separados:
+- `AIOX_REMOTION_STILL_TIMEOUT_SECONDS`
+- `AIOX_REMOTION_VIDEO_TIMEOUT_SECONDS`
 
 ### 6.2 Extrair DNA de Design
 Para capturar as cores, fontes e espaçamento de qualquer site:

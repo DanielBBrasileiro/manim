@@ -16,6 +16,10 @@ MANIM_SCENE_NAME = "EntropyDemo"
 MANIM_SCRIPT_PATH = "scenes/cde_entropy_demo.py"
 DEFAULT_RENDER_TIMEOUT = int(os.getenv("AIOX_REMOTION_CLI_TIMEOUT_SECONDS", "45"))
 DEFAULT_DIRECT_TIMEOUT = int(os.getenv("AIOX_REMOTION_DIRECT_TIMEOUT_SECONDS", "30"))
+DEFAULT_STILL_DIRECT_TIMEOUT = int(os.getenv("AIOX_REMOTION_STILL_TIMEOUT_SECONDS", "45"))
+DEFAULT_STILL_CLI_TIMEOUT = int(os.getenv("AIOX_REMOTION_STILL_CLI_TIMEOUT_SECONDS", "60"))
+DEFAULT_VIDEO_DIRECT_TIMEOUT = int(os.getenv("AIOX_REMOTION_VIDEO_TIMEOUT_SECONDS", str(DEFAULT_DIRECT_TIMEOUT)))
+DEFAULT_VIDEO_CLI_TIMEOUT = int(os.getenv("AIOX_REMOTION_VIDEO_CLI_TIMEOUT_SECONDS", str(DEFAULT_RENDER_TIMEOUT)))
 
 LEGACY_OUTPUT_ALIASES = {
     "short_cinematic_vertical": "CinematicNarrative-v4",
@@ -63,12 +67,24 @@ def _load_remotion_env(remotion_props: dict[str, Any] | None = None) -> dict[str
     return env
 
 
-def _run_remotion_command(command: str, composition: str, output_path: Path, remotion_props: dict[str, Any] | None) -> None:
+def _run_remotion_command(
+    command: str,
+    composition: str,
+    output_path: Path,
+    remotion_props: dict[str, Any] | None,
+    *,
+    direct_timeout_seconds: int | None = None,
+    cli_timeout_seconds: int | None = None,
+) -> None:
     runner = _load_remotion_runner()
     env = _load_remotion_env(remotion_props)
     render_mode = os.getenv("AIOX_REMOTION_RENDER_MODE", "auto").strip().lower()
-    cli_timeout = int(os.getenv("AIOX_REMOTION_CLI_TIMEOUT_SECONDS", str(DEFAULT_RENDER_TIMEOUT)))
-    direct_timeout = int(os.getenv("AIOX_REMOTION_DIRECT_TIMEOUT_SECONDS", str(DEFAULT_DIRECT_TIMEOUT)))
+    cli_timeout = cli_timeout_seconds if cli_timeout_seconds is not None else int(
+        os.getenv("AIOX_REMOTION_CLI_TIMEOUT_SECONDS", str(DEFAULT_RENDER_TIMEOUT))
+    )
+    direct_timeout = direct_timeout_seconds if direct_timeout_seconds is not None else int(
+        os.getenv("AIOX_REMOTION_DIRECT_TIMEOUT_SECONDS", str(DEFAULT_DIRECT_TIMEOUT))
+    )
 
     cli_cmd = [
         "/bin/zsh",
@@ -122,7 +138,14 @@ def run_remotion_video(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     previous_mtime = output_path.stat().st_mtime if output_path.exists() else 0
 
-    _run_remotion_command("render", composition, output_path, remotion_props)
+    _run_remotion_command(
+        "render",
+        composition,
+        output_path,
+        remotion_props,
+        direct_timeout_seconds=DEFAULT_VIDEO_DIRECT_TIMEOUT,
+        cli_timeout_seconds=DEFAULT_VIDEO_CLI_TIMEOUT,
+    )
     _validate_output(output_path)
 
     current_mtime = output_path.stat().st_mtime
@@ -142,7 +165,14 @@ def run_remotion_still(
     still_output.parent.mkdir(parents=True, exist_ok=True)
     previous_mtime = still_output.stat().st_mtime if still_output.exists() else 0
 
-    _run_remotion_command("still", composition, still_output, remotion_props)
+    _run_remotion_command(
+        "still",
+        composition,
+        still_output,
+        remotion_props,
+        direct_timeout_seconds=DEFAULT_STILL_DIRECT_TIMEOUT,
+        cli_timeout_seconds=DEFAULT_STILL_CLI_TIMEOUT,
+    )
     _validate_output(still_output)
 
     current_mtime = still_output.stat().st_mtime
@@ -218,6 +248,20 @@ def _target_uses_base_video(target: dict[str, Any]) -> bool:
 
 def _requires_manim_pass(targets: list[dict[str, Any]]) -> bool:
     return any(isinstance(target, dict) and _target_uses_base_video(target) for target in targets)
+
+
+def _target_render_priority(target: dict[str, Any]) -> tuple[int, str]:
+    target_id = str(target.get("id", "")).strip()
+    render_mode = str(target.get("render_mode", "video")).strip().lower()
+    if target_id == "linkedin_feed_4_5":
+        return (0, target_id)
+    if render_mode == "still":
+        return (1, target_id)
+    if render_mode == "carousel":
+        return (2, target_id)
+    if target_id == "short_cinematic_vertical":
+        return (3, target_id)
+    return (4, target_id)
 
 
 def _build_target_text_cues(target: dict[str, Any], artifact_plan: dict[str, Any], render_manifest: dict[str, Any]) -> list[dict[str, Any]]:
@@ -564,6 +608,7 @@ def render_pipeline(
             targets = [primary_target]
         elif isinstance(render_manifest, dict) and isinstance(render_manifest.get("primary_target"), dict):
             targets = [render_manifest["primary_target"]]
+    targets = sorted([target for target in targets if isinstance(target, dict)], key=_target_render_priority)
 
     if _requires_manim_pass(targets):
         try:
@@ -583,7 +628,7 @@ def render_pipeline(
             continue
 
         target_id = str(target.get("id") or target.get("composition") or MANIM_SCENE_NAME).strip()
-        composition = target_id
+        composition = str(target.get("composition") or target_id).strip()
         render_mode = str(target.get("render_mode", "video")).strip().lower()
         remotion_props = _build_target_props(target, artifact_plan, render_manifest)
 

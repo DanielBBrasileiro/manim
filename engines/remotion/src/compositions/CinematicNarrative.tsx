@@ -91,15 +91,96 @@ type ResolvedCue = {
 	align?: 'left' | 'center' | 'right';
 };
 
-const StaticBackdrop: React.FC<{frame: number; targetKind?: string; targetId?: string}> = ({
+type TargetVisualProfile = {
+	panelInset: string;
+	panelRadius: number;
+	railTop: string;
+	accentColor: string;
+	curveStroke: string;
+	curveOpacity: number;
+	curveWidth: number;
+	driftStrength: number;
+	textMaxWidth: string;
+	resolveMaxWidth: string;
+};
+
+const getTargetVisualProfile = (targetId?: string): TargetVisualProfile => {
+	switch (targetId) {
+		case 'linkedin_feed_4_5':
+			return {
+				panelInset: '10% 8% 13% 8%',
+				panelRadius: 42,
+				railTop: '22%',
+				accentColor: 'rgba(255,255,255,0.2)',
+				curveStroke: 'rgba(255,255,255,0.62)',
+				curveOpacity: 0.86,
+				curveWidth: 2.2,
+				driftStrength: 9,
+				textMaxWidth: '70%',
+				resolveMaxWidth: '82%',
+			};
+		case 'linkedin_carousel_square':
+			return {
+				panelInset: '9% 8% 11% 8%',
+				panelRadius: 34,
+				railTop: '24%',
+				accentColor: 'rgba(255,255,255,0.16)',
+				curveStroke: 'rgba(245,245,245,0.5)',
+				curveOpacity: 0.74,
+				curveWidth: 1.9,
+				driftStrength: 7,
+				textMaxWidth: '74%',
+				resolveMaxWidth: '84%',
+			};
+		case 'youtube_essay_16_9':
+			return {
+				panelInset: '11% 8% 14% 8%',
+				panelRadius: 28,
+				railTop: '25%',
+				accentColor: 'rgba(255,255,255,0.14)',
+				curveStroke: 'rgba(255,255,255,0.42)',
+				curveOpacity: 0.62,
+				curveWidth: 1.8,
+				driftStrength: 6,
+				textMaxWidth: '62%',
+				resolveMaxWidth: '76%',
+			};
+		case 'youtube_thumbnail_16_9':
+			return {
+				panelInset: '8% 7% 12% 7%',
+				panelRadius: 24,
+				railTop: '21%',
+				accentColor: 'rgba(255,255,255,0.18)',
+				curveStroke: 'rgba(255,255,255,0.5)',
+				curveOpacity: 0.8,
+				curveWidth: 2.1,
+				driftStrength: 7,
+				textMaxWidth: '72%',
+				resolveMaxWidth: '80%',
+			};
+		default:
+			return {
+				panelInset: '9% 13% 21% 13%',
+				panelRadius: 36,
+				railTop: '22%',
+				accentColor: 'rgba(255,106,106,0.18)',
+				curveStroke: 'rgba(255,106,106,0.54)',
+				curveOpacity: 0.78,
+				curveWidth: 2.3,
+				driftStrength: 11,
+				textMaxWidth: '72%',
+				resolveMaxWidth: '88%',
+			};
+	}
+};
+
+const StaticBackdrop: React.FC<{frame: number; targetKind?: string; profile: TargetVisualProfile}> = ({
 	frame,
 	targetKind,
-	targetId,
+	profile,
 }) => {
-	const drift = Math.sin(frame / 24) * 18;
+	const drift = Math.sin(frame / 24) * profile.driftStrength;
 	const glow = Math.cos(frame / 38) * 0.06 + 0.18;
-	const wide = targetId === 'youtube_thumbnail_16_9' || targetId === 'youtube_essay_16_9';
-	const accent = wide ? 'rgba(255,255,255,0.14)' : 'rgba(255,106,106,0.18)';
 
 	return (
 		<AbsoluteFill
@@ -110,33 +191,51 @@ const StaticBackdrop: React.FC<{frame: number; targetKind?: string; targetId?: s
 						: 'linear-gradient(180deg, #020202 0%, #090909 55%, #040404 100%)',
 			}}
 		>
-			<AbsoluteFill
-				style={{
-					transform: `translate(${drift}px, ${drift * 0.35}px)`,
-					opacity: glow,
-				}}
-			>
-				<div
+				<AbsoluteFill
 					style={{
-						position: 'absolute',
-						inset: wide ? '14% 9% 20% 9%' : '10% 14% 22% 14%',
-						border: `1px solid ${accent}`,
-						borderRadius: wide ? 28 : 36,
+						transform: `translate(${drift}px, ${drift * 0.35}px)`,
+						opacity: glow,
 					}}
-				/>
-				<div
-					style={{
-						position: 'absolute',
-						left: wide ? '12%' : '18%',
-						right: wide ? '12%' : '18%',
-						top: wide ? '28%' : '22%',
-						height: 1,
-						background: accent,
-						opacity: 0.7,
-					}}
-				/>
+				>
+					<div
+						style={{
+							position: 'absolute',
+							inset: profile.panelInset,
+							border: `1px solid ${profile.accentColor}`,
+							borderRadius: profile.panelRadius,
+						}}
+					/>
+					<div
+						style={{
+							position: 'absolute',
+							left: '12%',
+							right: '12%',
+							top: profile.railTop,
+							height: 1,
+							background: profile.accentColor,
+							opacity: 0.7,
+						}}
+					/>
+					<svg
+						viewBox="0 0 100 100"
+						preserveAspectRatio="none"
+						style={{
+							position: 'absolute',
+							inset: profile.panelInset,
+							overflow: 'visible',
+						}}
+					>
+						<path
+							d="M 6 70 C 20 48, 32 36, 46 42 C 62 49, 72 60, 94 22"
+							fill="none"
+							stroke={profile.curveStroke}
+							strokeWidth={profile.curveWidth}
+							strokeLinecap="round"
+							style={{opacity: profile.curveOpacity}}
+						/>
+					</svg>
+				</AbsoluteFill>
 			</AbsoluteFill>
-		</AbsoluteFill>
 	);
 };
 
@@ -360,6 +459,8 @@ export const CinematicNarrative: React.FC<CinematicNarrativeProps> = (props) => 
 	const currentFrame = useCurrentFrame();
 	const frame = props.frameOverride ?? currentFrame;
 	const {durationInFrames, fps} = useVideoConfig();
+	const targetId = props.target ?? props.targetId ?? props.renderManifest?.targetId;
+	const profile = useMemo(() => getTargetVisualProfile(targetId), [targetId]);
 	const cues = useMemo(() => buildCues(props, fps, durationInFrames), [props, fps, durationInFrames]);
 	const explicitVideoSrc = props.videoSrc ?? props.renderManifest?.videoSrc ?? props.renderManifest?.video_src;
 	const useBaseVideo = explicitVideoSrc !== null && explicitVideoSrc !== '';
@@ -389,7 +490,7 @@ export const CinematicNarrative: React.FC<CinematicNarrativeProps> = (props) => 
 					<StaticBackdrop
 						frame={frame}
 						targetKind={props.targetKind ?? props.renderManifest?.targetKind}
-						targetId={props.target ?? props.targetId ?? props.renderManifest?.targetId}
+						profile={profile}
 					/>
 				)}
 			</AbsoluteFill>
@@ -408,7 +509,7 @@ export const CinematicNarrative: React.FC<CinematicNarrativeProps> = (props) => 
 						size={cue.size}
 						color={cue.color}
 						align={cue.align}
-						maxWidth={cue.role === 'resolve' ? '88%' : '72%'}
+						maxWidth={cue.role === 'resolve' ? profile.resolveMaxWidth : profile.textMaxWidth}
 					/>
 				</Sequence>
 			))}
