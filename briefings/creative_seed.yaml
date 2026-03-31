@@ -1,5 +1,29 @@
 creative_seed:
+  title: Invisible Architecture
+  tagline: Signal learns to align
+  emotional_target: make hidden order feel inevitable
+  visual_metaphor: noise collapsing into architecture
+  resolve_word: AIOX
   tension: high
   density: low
   transformation: chaos_to_order
-  pacing: slow
+  pacing: cinematic
+  text_beats:
+    - act: turbulence
+      at_sec: 5.1
+      text: when systems break
+      position: top_zone
+      role: whisper
+      weight: 300
+    - act: turbulence
+      at_sec: 7.2
+      text: structure starts breathing
+      position: bottom_zone
+      role: statement
+      weight: 420
+    - act: resolution
+      at_sec: 11.8
+      text: AIOX
+      position: center_climax
+      role: resolve
+      weight: 560

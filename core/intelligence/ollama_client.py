@@ -321,6 +321,12 @@ Constraints:
 - Keep duration between 6 and 20 seconds.
 - confidence must be a float between 0 and 1.
 - Prefer concise, executable scene plans.
+- Structure the plan in 3 acts: genesis, turbulence, resolution.
+- Genesis should normally have no text cues in the first 2 seconds.
+- Resolution should feel more ordered than genesis.
+- If you include text_cues, each cue must have at most 5 words.
+- Prefer top_zone and bottom_zone for narrative text. Reserve center or center_climax for the emotional peak.
+- Camera cues, when useful, should be one of: static_breathe, track_subject, dramatic_zoom, observational.
 {strict_block}
 
 Registry:
@@ -335,8 +341,12 @@ Required JSON shape:
     {{
       "id": "intro",
       "duration": 3,
+      "act": "genesis",
       "primitives": ["living_curve"],
-      "params": {{"density": "low"}}
+      "params": {{"density": "low"}},
+      "camera": "static_breathe",
+      "layout_zone": "none",
+      "text_cues": []
     }}
   ],
   "assets": {{

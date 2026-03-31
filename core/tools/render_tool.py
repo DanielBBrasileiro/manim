@@ -1,6 +1,7 @@
+import json
 import os
-import subprocess
 import shutil
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
@@ -20,12 +21,15 @@ def bridge_engines(scene_name: str, script_path: str):
         os.makedirs(remotion_public.parent, exist_ok=True)
         shutil.copy(manim_output, remotion_public)
 
-def run_remotion(comp="CinematicNarrative-v4"):
+def run_remotion(comp="CinematicNarrative-v4", remotion_props: dict | None = None):
     print(f"🎬 [Remotion Tool] Compondo narrativa final...")
     os.makedirs(ROOT / "output" / "renders", exist_ok=True)
     output_path = ROOT / "output" / "renders" / f"{comp}.mp4"
     previous_mtime = output_path.stat().st_mtime if output_path.exists() else 0
     runner = str(ROOT / "scripts" / "run_remotion_node.sh")
+    env = dict(os.environ)
+    if remotion_props:
+        env["REMOTION_INPUT_PROPS_JSON"] = json.dumps(remotion_props)
     cli_cmd = [
         "/bin/zsh",
         "-lc",
@@ -43,15 +47,16 @@ def run_remotion(comp="CinematicNarrative-v4"):
     cli_timeout = int(os.getenv("AIOX_REMOTION_CLI_TIMEOUT_SECONDS", "45"))
 
     if render_mode == "direct":
-        subprocess.run(direct_cmd, check=True, cwd=str(ROOT))
+        subprocess.run(direct_cmd, check=True, cwd=str(ROOT), env=env)
     elif render_mode == "cli":
-        subprocess.run(cli_cmd, check=True, cwd=str(ROOT))
+        subprocess.run(cli_cmd, check=True, cwd=str(ROOT), env=env)
     else:
         try:
             subprocess.run(
                 direct_cmd,
                 check=True,
                 cwd=str(ROOT),
+                env=env,
             )
         except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
             print("⚠️ [Remotion Tool] Renderer direto falhou. Tentando CLI...")
@@ -59,6 +64,7 @@ def run_remotion(comp="CinematicNarrative-v4"):
                 cli_cmd,
                 check=True,
                 cwd=str(ROOT),
+                env=env,
                 timeout=cli_timeout,
             )
 
@@ -90,13 +96,21 @@ def render_pipeline(plan: dict):
             },
             "design_overlay": {
                 "aesthetic_family": plan["aesthetic_family"]
-            }
+            },
+            "timeline": plan.get("timeline", []),
+            "render_manifest": plan.get("render_manifest", {}),
+            "llm_scene_plan": plan.get("llm_scene_plan"),
         }, f, indent=2)
 
     try:
         run_manim(scene_name, script_path)
         bridge_engines(scene_name, script_path)
-        run_remotion()
+        run_remotion(
+            remotion_props={
+                "renderManifest": plan.get("render_manifest", {}),
+                "resolveWord": plan.get("render_manifest", {}).get("resolve_word"),
+            }
+        )
         return True
     except (subprocess.CalledProcessError, RuntimeError) as error:
         print(f"❌ [Render Tool] Falha no pipeline final: {error}")

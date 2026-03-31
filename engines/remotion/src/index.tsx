@@ -15,6 +15,15 @@ const Root: React.FC = () => {
         fps={60}
         width={width}
         height={height}
+        calculateMetadata={({props}) => {
+          const requestedFrames = Number(props?.renderManifest?.duration_in_frames);
+          return {
+            durationInFrames:
+              Number.isFinite(requestedFrames) && requestedFrames > 0
+                ? requestedFrames
+                : 900,
+          };
+        }}
       />
     </>
   );

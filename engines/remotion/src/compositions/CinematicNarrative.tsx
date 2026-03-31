@@ -1,6 +1,7 @@
 import React, {useMemo} from 'react';
 import {
 	AbsoluteFill,
+	Audio,
 	OffthreadVideo,
 	Sequence,
 	staticFile,
@@ -44,6 +45,11 @@ type CinematicNarrativeProps = {
 		videoSrc?: string;
 		resolveWord?: string;
 		textCues?: RawCue[];
+		audio?: {
+			enabled?: boolean;
+			bed?: string;
+			gain?: number;
+		};
 		narrative?: {
 			acts?: RawAct[];
 			resolveWord?: string;
@@ -265,6 +271,7 @@ export const CinematicNarrative: React.FC<CinematicNarrativeProps> = (props) => 
 	const {durationInFrames, fps} = useVideoConfig();
 	const cues = useMemo(() => buildCues(props, fps, durationInFrames), [props, fps, durationInFrames]);
 	const videoSrc = props.videoSrc ?? props.renderManifest?.videoSrc ?? staticFile('manim_base.mp4');
+	const audioCfg = props.renderManifest?.audio;
 
 	const turbulenceStart = Math.round(durationInFrames * 0.25);
 	const resolutionStart = Math.round(durationInFrames * 0.7);
@@ -285,6 +292,10 @@ export const CinematicNarrative: React.FC<CinematicNarrativeProps> = (props) => 
 					style={{width: '100%', height: '100%', objectFit: 'cover'}}
 				/>
 			</AbsoluteFill>
+
+			{audioCfg?.enabled && audioCfg.bed ? (
+				<Audio src={staticFile(audioCfg.bed)} volume={audioCfg.gain ?? 0.18} />
+			) : null}
 
 			{cues.map((cue) => (
 				<Sequence key={cue.id} from={cue.from} durationInFrames={cue.durationInFrames}>
