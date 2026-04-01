@@ -133,6 +133,7 @@ def build_artifact_plan(plan: dict, seed: dict | str) -> dict:
     story_atoms = _build_story_atoms(plan, brief)
     quality_constraints = _build_quality_constraints(narrative_contract, global_laws, design_canon, plan)
     style_pack_ids = _resolve_style_pack_ids(seed)
+    style_retrieval_results = _build_style_retrieval_results(brief, style_pack_ids)
     variants = _build_variants(plan, story_atoms, style_pack_ids)
 
     selected_targets: list[dict[str, Any]] = []
@@ -169,7 +170,7 @@ def build_artifact_plan(plan: dict, seed: dict | str) -> dict:
     chosen_variant = variants[0]["id"] if variants else "variant_01"
     premium_targets = _build_premium_targets(selected_targets)
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "primary_target_id": primary_target.get("id", DEFAULT_OUTPUT_TARGET),
         "primary_target": primary_target,
         "targets": selected_targets,
@@ -178,18 +179,48 @@ def build_artifact_plan(plan: dict, seed: dict | str) -> dict:
         "story_atoms": story_atoms,
         "style_pack_ids": style_pack_ids,
         "quality_constraints": quality_constraints,
+        "quality_tier": "lab_absolute",
         "quality_mode": "absolute",
         "premium_targets": premium_targets,
         "qa_frames": int(quality_constraints.get("qa_frames", 5) or 5),
         "auto_iterate_max": int(quality_constraints.get("auto_iterate_max", 1) or 1),
+        "judge_stack": [
+            "brand_precheck",
+            "structural_gate",
+            "visual_judge_fast",
+            "objective_metrics",
+            "visual_judge_heavy",
+            "variant_ranker",
+        ],
         "brand_veto_policy": {
             "hero_target": "strict",
             "video_targets": "degrade_to_fallback_pass",
             "fallback_never_premium": True,
         },
         "variants": variants,
+        "variant_scores": {},
         "chosen_variant": chosen_variant,
+        "chosen_variant_reason": "initial_priority_seed",
         "review_session_id": None,
+        "reference_evidence": [],
+        "style_retrieval_results": style_retrieval_results,
+        "objective_metrics": {
+            "still_aesthetic_model": "hpsv2_optional",
+            "video_benchmark": "vbench_subset_optional",
+        },
+        "family_spec": {
+            target.get("id", f"target_{index}"): target.get("family_spec", "short_cinematic")
+            for index, target in enumerate(selected_targets)
+        },
+        "motion_system": {
+            "cadence_profile": "premium_lab",
+            "negative_space_regime": "strict",
+            "resolve_hold_sec": 1.5,
+        },
+        "copy_budget": {
+            "max_words_per_frame": int(quality_constraints.get("max_words_per_screen", 5) or 5),
+            "target_silence_ratio": float(quality_constraints.get("silence_ratio", 0.3) or 0.3),
+        },
         "renderer_contracts": _build_renderer_contracts(selected_targets),
         "fallback_policy": _build_fallback_policy(selected_targets),
         "metrics_hooks": [
@@ -198,6 +229,8 @@ def build_artifact_plan(plan: dict, seed: dict | str) -> dict:
             "fallback_rate",
             "artifact_updated",
             "negative_space_target",
+            "judge_disagreement_rate",
+            "premium_success_rate",
         ],
         "beat_map": {
             target.get("id", f"target_{index}"): [
@@ -218,6 +251,35 @@ def build_artifact_plan(plan: dict, seed: dict | str) -> dict:
             "output_targets": requested_output_tokens,
         },
     }
+
+
+def _build_style_retrieval_results(brief: dict[str, Any], style_pack_ids: list[str]) -> list[dict[str, Any]]:
+    try:
+        from core.runtime.style_retriever import search_style_packs
+    except Exception:
+        return [{"pack_id": pack_id, "score": 1.0, "matched_terms": []} for pack_id in style_pack_ids]
+
+    query = " ".join(
+        part
+        for part in [
+            str(brief.get("title", "")).strip(),
+            str(brief.get("thesis", "")).strip(),
+            str(brief.get("visual_metaphor", "")).strip(),
+            str(brief.get("emotional_target", "")).strip(),
+        ]
+        if part
+    ).strip()
+    if not query:
+        return [{"pack_id": pack_id, "score": 1.0, "matched_terms": []} for pack_id in style_pack_ids]
+
+    results = search_style_packs(query, limit=5)
+    if style_pack_ids:
+        requested = {pack_id: {"pack_id": pack_id, "score": 1.0, "matched_terms": []} for pack_id in style_pack_ids}
+        for item in results:
+            if item.get("pack_id") in requested:
+                requested[item["pack_id"]] = item
+        return list(requested.values()) + [item for item in results if item.get("pack_id") not in requested]
+    return results
 
 
 def _coerce_brief(seed: dict | str) -> dict:
@@ -301,6 +363,8 @@ def _build_target_catalog(layout_contract: dict, formats: dict[str, dict]) -> di
             "composition": str(target.get("composition", "")).strip(),
             "legacy_composition": str(target.get("legacy_composition", "")).strip(),
             "label": str(target.get("label", target_id)).strip() or target_id,
+            "native_support": bool(target.get("native_support", True)),
+            "output_ext": str(target.get("output_ext", "")).strip(),
             "min_slides": int(target.get("min_slides", 5) or 5),
             "max_slides": int(target.get("max_slides", 9) or 9),
         }
@@ -507,7 +571,7 @@ def _build_renderer_contracts(selected_targets: list[dict[str, Any]]) -> dict[st
             "native_engine": "remotion",
             "fallback_engine": "fallback_artifact_renderer",
             "requires_base_video": render_mode == "video" and target_id == "short_cinematic_vertical",
-            "native_support": True,
+            "native_support": bool(target.get("native_support", True)),
         }
     return contracts
 
@@ -541,11 +605,31 @@ def _expand_target(
     target["still_frame"] = _target_still_frame(target, duration)
     target["plan_archetype"] = plan.get("archetype")
     target["quality_mode"] = "absolute" if str(target.get("id", "")).strip() == "linkedin_feed_4_5" else plan.get("quality_mode", "absolute")
+    target["family_spec"] = _target_family_spec(target)
     target["act_quality_profile"] = _build_act_quality_profile(plan, acts)
     target["post_fx_profile"] = _target_post_fx_profile(target)
     target["qa_sampling_frames"] = _build_qa_sampling_frames(target, acts, duration)
     target["poster_test_frames"] = _build_poster_test_frames(target, acts, duration)
     return target
+
+
+def _target_family_spec(target: dict[str, Any]) -> str:
+    target_id = str(target.get("id", "")).strip()
+    if target_id == "linkedin_feed_4_5":
+        return "hero_poster"
+    if target_id == "short_cinematic_vertical":
+        return "short_cinematic"
+    if target_id == "linkedin_carousel_square":
+        return "carousel"
+    if target_id == "youtube_essay_16_9":
+        return "essay_video"
+    if target_id == "youtube_thumbnail_16_9":
+        return "thumbnail"
+    if target_id in {"loop_gif_square", "loop_gif_vertical"}:
+        return "loop_gif"
+    if target_id == "motion_preview_webm":
+        return "motion_preview"
+    return "short_cinematic"
 
 
 def _build_act_quality_profile(plan: dict, acts: list[dict]) -> dict[str, dict[str, Any]]:

@@ -201,6 +201,60 @@ output_targets:
     preferred_channels:
       - youtube_thumbnail
 
+  loop_gif_square:
+    format: square_1_1
+    alias: instagram_post
+    channel: loop_gif
+    purpose: loop_gif
+    priority: 60
+    render_mode: video
+    native_support: false
+    output_ext: .gif
+    composition: linkedin-carousel-square
+    legacy_aliases: [gif_square, motion_loop_square]
+    label: "Loop GIF Square"
+    fps: 24
+    safe_zone: 0.10
+    preferred_channels:
+      - linkedin_feed
+      - instagram_post
+
+  loop_gif_vertical:
+    format: vertical_9_16
+    alias: instagram_reel
+    channel: loop_gif
+    purpose: loop_gif
+    priority: 58
+    render_mode: video
+    native_support: false
+    output_ext: .gif
+    composition: short-cinematic-vertical
+    legacy_aliases: [gif_vertical, motion_loop_vertical]
+    label: "Loop GIF Vertical"
+    fps: 24
+    safe_zone: 0.10
+    preferred_channels:
+      - instagram_story
+      - instagram_reel
+
+  motion_preview_webm:
+    format: wide_16_9
+    alias: twitter_video
+    channel: motion_preview
+    purpose: motion_preview
+    priority: 55
+    render_mode: video
+    native_support: false
+    output_ext: .webm
+    composition: youtube-essay-16-9
+    legacy_aliases: [preview_webm, motion_preview]
+    label: "Motion Preview WebM"
+    fps: 24
+    safe_zone: 0.06
+    preferred_channels:
+      - twitter_video
+      - linkedin_video
+
 composition:
   rule_of_thirds: true
   center_bias: 0.6                   # 60% of content in central zone

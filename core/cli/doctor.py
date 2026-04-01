@@ -17,6 +17,7 @@ from core.intelligence.model_capabilities import refresh_model_capabilities
 from core.intelligence.model_profiles import get_active_profile
 from core.runtime.capability_pool import build_capability_pool
 from core.runtime.capability_registry import build_capability_registry
+from core.runtime.model_runtime import build_runtime_os_report
 
 BUNDLE_MANIFEST = ROOT / "engines" / "remotion" / ".bundle-cache" / "bundle-manifest.json"
 
@@ -99,6 +100,7 @@ def collect_doctor_report() -> dict[str, Any]:
     )
     models = refresh_model_capabilities()
     bundle = _bundle_status()
+    runtime_os = build_runtime_os_report(profile.name)
 
     # TurboQuant server health
     turbo_report: dict[str, Any] = {"installed": False}
@@ -131,10 +133,12 @@ def collect_doctor_report() -> dict[str, Any]:
         "models": [model.id for model in models],
         "registry": {
             "targets": len(registry.targets),
+            "providers": len(registry.providers),
             "style_packs": len(registry.style_packs),
             "quality_gates": len(registry.quality_gates),
             "profiles": len(registry.profiles),
         },
+        "runtime_os": runtime_os,
         "capability_pool": build_capability_pool(),
     }
 
@@ -182,9 +186,13 @@ def cli(argv: list[str] | None = None) -> int:
     else:
         print(f"- turbo: not installed (run: bash scripts/setup_turboquant.sh)")
     print(f"Models: {', '.join(report['models']) if report['models'] else 'none'}")
+    judges = report.get("runtime_os", {}).get("judges", {})
+    available_judges = [name for name, meta in judges.items() if isinstance(meta, dict) and meta.get("available")]
+    print(f"Judges: {', '.join(available_judges) if available_judges else 'none'}")
     print(
         "Registry: "
         f"{report['registry']['targets']} targets, "
+        f"{report['registry']['providers']} providers, "
         f"{report['registry']['style_packs']} style packs, "
         f"{report['registry']['quality_gates']} quality gates"
     )

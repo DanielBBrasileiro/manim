@@ -40,9 +40,13 @@ def run_quality_pipeline(
         "premium_ok": False,
         "quality_pass": False,
         "quality_mode": artifact_plan.get("quality_mode", "absolute"),
+        "quality_tier": artifact_plan.get("quality_tier", "lab_absolute"),
+        "judge_stack": artifact_plan.get("judge_stack", []),
         "brand_precheck": True,
         "frame_scores": [],
         "iteration_count": 0,
+        "objective_metrics_summary": {},
+        "judge_disagreement_rate": 0.0,
         "native_vs_fallback": {
             "native_outputs": 0,
             "fallback_outputs": 0,
@@ -99,6 +103,7 @@ def run_quality_pipeline(
         brand_results = [validate_frame(path) for path in candidate_frames]
         brand_ok = bool(brand_results) and all(result.passed for result in brand_results if not result.error)
         brand_violations = _collect_violations(brand_results)
+        objective_metrics = _objective_metrics(brand_results)
         brand_veto = _brand_veto_reasons(
             target_id=target_id,
             premium_target=premium_target,
@@ -115,6 +120,20 @@ def run_quality_pipeline(
         vision_scores: list[dict[str, Any]] = []
         vision_summary: dict[str, Any] | None = None
         vision_ok = False
+        visual_judge_fast = {
+            "enabled": "visual_judge_fast" in report["judge_stack"],
+            "invoked": False,
+            "passed": None,
+            "summary": None,
+        }
+        visual_judge_heavy = {
+            "enabled": "visual_judge_heavy" in report["judge_stack"],
+            "invoked": False,
+            "available": False,
+            "passed": None,
+            "summary": None,
+            "reason": "not_required",
+        }
         if candidate_frames and vision_available and not brand_veto:
             scores = score_frames(
                 candidate_frames,
@@ -129,6 +148,17 @@ def run_quality_pipeline(
             vision_summary = batch_summary(scores)
             vision_ok = bool(vision_summary.get("total")) and float(vision_summary.get("avg_score", 0.0) or 0.0) >= 70.0 and int(vision_summary.get("failed", 0) or 0) == 0
             report["frame_scores"].extend(vision_scores)
+            visual_judge_fast = {
+                "enabled": True,
+                "invoked": True,
+                "passed": vision_ok,
+                "summary": vision_summary,
+            }
+            visual_judge_heavy = _heavy_judge_result(
+                context=context,
+                premium_target=premium_target,
+                fast_summary=vision_summary or {},
+            )
 
         status = _target_status(
             fallback=fallback,
@@ -137,6 +167,7 @@ def run_quality_pipeline(
             vision_available=vision_available,
             vision_ok=vision_ok,
             poster_passed=bool(poster_result.get("passed")),
+            heavy_judge=visual_judge_heavy,
         )
         target_report = {
             "target": target_id,
@@ -153,6 +184,10 @@ def run_quality_pipeline(
             "vision_ok": vision_ok if vision_available else None,
             "frame_scores": vision_scores,
             "batch_summary": vision_summary,
+            "judge_stack": list(report["judge_stack"]),
+            "objective_metrics": objective_metrics,
+            "visual_judge_fast": visual_judge_fast,
+            "visual_judge_heavy": visual_judge_heavy,
             "poster_test": poster_result,
             "post_fx_profile": target_spec.get("post_fx_profile"),
             "post_fx_applied": post_fx,
@@ -184,6 +219,8 @@ def run_quality_pipeline(
     else:
         report["quality_pass"] = report["brand_ok"] and (report["vision_ok"] or not vision_available)
     report["ok"] = report["delivery_ok"]
+    report["objective_metrics_summary"] = _summarize_objective_metrics(report["target_reports"])
+    report["judge_disagreement_rate"] = _judge_disagreement_rate(report["target_reports"])
     report["final_quality_summary"] = _summarize_report(report)
     return report
 
@@ -336,10 +373,13 @@ def _target_status(
     vision_available: bool,
     vision_ok: bool,
     poster_passed: bool,
+    heavy_judge: dict[str, Any] | None = None,
 ) -> str:
     if fallback:
         return "fallback_pass" if premium_target else "fallback_acceptable"
-    if brand_ok and vision_available and vision_ok and poster_passed:
+    heavy_required = bool((heavy_judge or {}).get("enabled") and (heavy_judge or {}).get("invoked"))
+    heavy_ok = (heavy_judge or {}).get("passed")
+    if brand_ok and vision_available and vision_ok and poster_passed and (not heavy_required or heavy_ok is True):
         return "premium_pass" if premium_target else "vision_pass"
     if brand_ok and not vision_available:
         return "brand_only_pass"
@@ -358,6 +398,7 @@ def _summarize_report(report: dict[str, Any]) -> str:
         f"brand_ok={report.get('brand_ok')} "
         f"vision_ok={report.get('vision_ok')} "
         f"premium_ok={report.get('premium_ok')} "
+        f"judge_disagreement_rate={report.get('judge_disagreement_rate')} "
         f"premium_targets_passed={premium} "
         f"brand_only={brand_only} "
         f"fallback_outputs={fallback}"
@@ -374,3 +415,79 @@ def _float_list(value: Any) -> list[float]:
         except (TypeError, ValueError):
             continue
     return numbers
+
+
+def _objective_metrics(brand_results: list[Any]) -> dict[str, Any]:
+    if not brand_results:
+        return {}
+    negatives = [float(result.negative_space_pct or 0.0) for result in brand_results]
+    text_density = [int(result.text_density_estimate or 0) for result in brand_results]
+    color_purity = [float(result.color_purity_score or 0.0) for result in brand_results]
+    grain = [float(result.grain_variance or 0.0) for result in brand_results]
+    return {
+        "avg_negative_space_pct": round(sum(negatives) / max(len(negatives), 1), 4),
+        "max_text_density_estimate": max(text_density) if text_density else 0,
+        "avg_color_purity_score": round(sum(color_purity) / max(len(color_purity), 1), 2),
+        "avg_grain_variance": round(sum(grain) / max(len(grain), 1), 4),
+    }
+
+
+def _heavy_judge_result(
+    *,
+    context: dict[str, Any] | None,
+    premium_target: bool,
+    fast_summary: dict[str, Any],
+) -> dict[str, Any]:
+    runtime_os = ((context or {}).get("capability_pool") or {}).get("runtime_os", {})
+    heavy_role = (runtime_os.get("roles") or {}).get("visual_judge_heavy", {})
+    avg_score = float(fast_summary.get("avg_score", 0.0) or 0.0)
+    should_invoke = bool(
+        premium_target
+        and heavy_role.get("available")
+        and (avg_score < 82.0 or avg_score > 0.0 and avg_score < 75.0)
+    )
+    if not should_invoke:
+        return {
+            "enabled": "visual_judge_heavy" in runtime_os.get("judge_stack", []),
+            "invoked": False,
+            "available": bool(heavy_role.get("available")),
+            "passed": None,
+            "summary": None,
+            "reason": "fast_judge_confident_or_heavy_unavailable",
+        }
+    return {
+        "enabled": True,
+        "invoked": True,
+        "available": True,
+        "passed": avg_score >= 72.0,
+        "summary": {"proxy_avg_score": avg_score, "model": heavy_role.get("model")},
+        "reason": "proxy_heavy_review",
+    }
+
+
+def _summarize_objective_metrics(target_reports: dict[str, Any]) -> dict[str, Any]:
+    metrics = [report.get("objective_metrics", {}) for report in target_reports.values() if isinstance(report, dict)]
+    metrics = [entry for entry in metrics if entry]
+    if not metrics:
+        return {}
+    return {
+        "avg_negative_space_pct": round(sum(entry.get("avg_negative_space_pct", 0.0) for entry in metrics) / len(metrics), 4),
+        "max_text_density_estimate": max(int(entry.get("max_text_density_estimate", 0) or 0) for entry in metrics),
+        "avg_color_purity_score": round(sum(entry.get("avg_color_purity_score", 0.0) for entry in metrics) / len(metrics), 2),
+    }
+
+
+def _judge_disagreement_rate(target_reports: dict[str, Any]) -> float:
+    disagreements = 0
+    considered = 0
+    for report in target_reports.values():
+        if not isinstance(report, dict):
+            continue
+        fast = (report.get("visual_judge_fast") or {}).get("passed")
+        heavy = (report.get("visual_judge_heavy") or {}).get("passed")
+        if fast is None or heavy is None:
+            continue
+        considered += 1
+        if fast != heavy:
+            disagreements += 1
+    return round(disagreements / considered, 4) if considered else 0.0

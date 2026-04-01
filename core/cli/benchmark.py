@@ -14,11 +14,12 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT))
 
 from core.intelligence.model_capabilities import refresh_model_capabilities
-from core.intelligence.model_profiles import get_active_profile_name, get_profile
+from core.intelligence.model_profiles import get_active_profile_name, get_profile, available_profiles
 from core.intelligence.model_router import TASK_FAST_PLAN, TASK_PLAN, TASK_QUALITY_PLAN, TASK_VISION_PLAN
+from core.runtime.capability_registry import build_capability_registry
 from core.intelligence.ollama_client import generate_scene_plan
 from core.runtime.capability_pool import build_capability_pool
-from core.runtime.capability_registry import build_capability_registry
+from core.runtime.model_runtime import build_runtime_os_report
 
 
 @contextmanager
@@ -69,13 +70,13 @@ def cli(argv: list[str] | None = None) -> int:
         "--profiles",
         nargs="+",
         default=[get_active_profile_name()],
-        choices=sorted({"air_m4_safe", "air_m4_quality", "desktop_quality"}),
+        choices=sorted(available_profiles().keys()),
     )
     parser.add_argument(
         "--task-roles",
         nargs="+",
         default=[TASK_FAST_PLAN, TASK_PLAN, TASK_QUALITY_PLAN],
-        choices=[TASK_FAST_PLAN, TASK_PLAN, TASK_QUALITY_PLAN, TASK_VISION_PLAN],
+        choices=list(build_capability_registry().model_roles),
     )
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--disable-cache", action="store_true")
@@ -98,6 +99,7 @@ def cli(argv: list[str] | None = None) -> int:
                     "render_preferences": profile.render_preferences,
                     "planning": planning,
                     "targets": [entry["id"] for entry in registry.targets],
+                    "runtime_os": build_runtime_os_report(profile.name),
                     "capability_pool": build_capability_pool(),
                 }
             )

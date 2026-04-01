@@ -105,12 +105,14 @@ def render_video_artifact(
 ) -> Path:
     output = Path(output_path)
     output.parent.mkdir(parents=True, exist_ok=True)
+    desired_ext = output.suffix.lower()
+    temp_output = output if desired_ext in {"", ".mp4"} else output.with_suffix(".mp4")
 
     if source_video:
         source = Path(source_video)
         if source.exists():
-            shutil.copy2(source, output)
-            return output
+            shutil.copy2(source, temp_output)
+            return _convert_video_output(temp_output, output)
 
     with tempfile.TemporaryDirectory(prefix="aiox_video_fallback_") as tmp_dir:
         tmp_root = Path(tmp_dir)
@@ -174,12 +176,78 @@ def render_video_artifact(
                 "libx264",
                 "-pix_fmt",
                 "yuv420p",
-                str(output),
+                str(temp_output),
             ],
             check=True,
             capture_output=True,
         )
-    return output
+    return _convert_video_output(temp_output, output)
+
+
+def _convert_video_output(source_mp4: Path, desired_output: Path) -> Path:
+    if source_mp4 == desired_output or desired_output.suffix.lower() in {"", ".mp4"}:
+        return source_mp4
+
+    desired_output.parent.mkdir(parents=True, exist_ok=True)
+    ffmpeg = shutil.which("ffmpeg") or "ffmpeg"
+    suffix = desired_output.suffix.lower()
+    if suffix == ".webm":
+        subprocess.run(
+            [
+                ffmpeg,
+                "-y",
+                "-i",
+                str(source_mp4),
+                "-c:v",
+                "libvpx-vp9",
+                "-b:v",
+                "0",
+                "-crf",
+                "32",
+                "-an",
+                str(desired_output),
+            ],
+            check=True,
+            capture_output=True,
+        )
+        return desired_output
+
+    if suffix == ".gif":
+        palette = source_mp4.with_name(f"{source_mp4.stem}_palette.png")
+        subprocess.run(
+            [
+                ffmpeg,
+                "-y",
+                "-i",
+                str(source_mp4),
+                "-vf",
+                "fps=16,scale=1080:-1:flags=lanczos,palettegen",
+                str(palette),
+            ],
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            [
+                ffmpeg,
+                "-y",
+                "-i",
+                str(source_mp4),
+                "-i",
+                str(palette),
+                "-lavfi",
+                "fps=16,scale=1080:-1:flags=lanczos[x];[x][1:v]paletteuse",
+                str(desired_output),
+            ],
+            check=True,
+            capture_output=True,
+        )
+        if palette.exists():
+            palette.unlink()
+        return desired_output
+
+    shutil.copy2(source_mp4, desired_output)
+    return desired_output
 
 
 def _body_text(target: dict[str, Any], artifact_plan: dict[str, Any], slide: dict[str, Any] | None) -> str:

@@ -17,6 +17,13 @@ ROLE_QUALITY_PLAN = "quality_plan"
 ROLE_VISION_PLAN = "vision_plan"
 ROLE_COPY_REFINER = "copy_refiner"
 ROLE_VARIANT_RANKER = "variant_ranker"
+ROLE_REFERENCE_PARSER = "reference_parser"
+ROLE_VISUAL_JUDGE_FAST = "visual_judge_fast"
+ROLE_VISUAL_JUDGE_HEAVY = "visual_judge_heavy"
+ROLE_TEXT_RERANKER = "text_reranker"
+ROLE_STYLE_RETRIEVER = "style_retriever"
+ROLE_CONCEPT_ARTIST = "concept_artist"
+ROLE_THUMBNAIL_REFINER = "thumbnail_refiner"
 
 
 @dataclass(frozen=True)
@@ -51,6 +58,13 @@ def _base_role_models() -> dict[str, str]:
         ROLE_VISION_PLAN: _env("OLLAMA_VISION_MODEL", "qwen3-vl:4b-instruct-q4_K_M"),
         ROLE_COPY_REFINER: _env("OLLAMA_COPY_REFINER_MODEL", _env("OLLAMA_TEXT_MODEL", "qwen2.5:7b-instruct-q4_K_M")),
         ROLE_VARIANT_RANKER: _env("OLLAMA_VARIANT_RANKER_MODEL", _env("OLLAMA_TEXT_FAST_MODEL", "qwen3:4b-instruct-2507-q4_K_M")),
+        ROLE_REFERENCE_PARSER: _env("OLLAMA_REFERENCE_PARSER_MODEL", _env("OLLAMA_VISION_MODEL", "qwen3-vl:4b-instruct-q4_K_M")),
+        ROLE_VISUAL_JUDGE_FAST: _env("OLLAMA_VISUAL_JUDGE_FAST_MODEL", _env("OLLAMA_VISION_MODEL", "qwen3-vl:4b-instruct-q4_K_M")),
+        ROLE_VISUAL_JUDGE_HEAVY: _env("OLLAMA_VISUAL_JUDGE_HEAVY_MODEL", _env("OLLAMA_VISION_MODEL", "qwen3-vl:4b-instruct-q4_K_M")),
+        ROLE_TEXT_RERANKER: _env("OLLAMA_TEXT_RERANKER_MODEL", _env("OLLAMA_TEXT_QUALITY_MODEL", "qwen2.5:14b-instruct-q4_K_M")),
+        ROLE_STYLE_RETRIEVER: _env("OLLAMA_STYLE_RETRIEVER_MODEL", _env("OLLAMA_TEXT_QUALITY_MODEL", "qwen2.5:14b-instruct-q4_K_M")),
+        ROLE_CONCEPT_ARTIST: _env("OLLAMA_CONCEPT_ARTIST_MODEL", _env("OLLAMA_VISION_MODEL", "qwen3-vl:4b-instruct-q4_K_M")),
+        ROLE_THUMBNAIL_REFINER: _env("OLLAMA_THUMBNAIL_REFINER_MODEL", _env("OLLAMA_VISION_MODEL", "qwen3-vl:4b-instruct-q4_K_M")),
     }
 
 
@@ -102,6 +116,13 @@ def _default_profiles() -> dict[str, RuntimeProfile]:
                 **roles,
                 ROLE_COPY_REFINER: roles[ROLE_QUALITY_PLAN],
                 ROLE_VARIANT_RANKER: roles[ROLE_QUALITY_PLAN],
+                ROLE_TEXT_RERANKER: roles[ROLE_QUALITY_PLAN],
+                ROLE_STYLE_RETRIEVER: roles[ROLE_QUALITY_PLAN],
+                ROLE_REFERENCE_PARSER: roles[ROLE_VISION_PLAN],
+                ROLE_VISUAL_JUDGE_FAST: roles[ROLE_VISION_PLAN],
+                ROLE_VISUAL_JUDGE_HEAVY: roles[ROLE_VISION_PLAN],
+                ROLE_THUMBNAIL_REFINER: roles[ROLE_VISION_PLAN],
+                ROLE_CONCEPT_ARTIST: roles[ROLE_VISION_PLAN],
             },
             timeouts=_profile_timeout_map(plan=24.0, retry=36.0, fast=16.0, quality=55.0, vision=36.0, copy=40.0, variant=16.0),
             retry_timeouts=_profile_retry_map(plan=24.0, retry=36.0, fast=24.0, quality=80.0, vision=50.0, copy=56.0, variant=22.0),
@@ -111,6 +132,35 @@ def _default_profiles() -> dict[str, RuntimeProfile]:
                 "prefer_native_still": True,
                 "prefer_native_video": True,
                 "variant_count": 4,
+                "judge_stack": ["brand_precheck", "structural_gate", "visual_judge_fast", "objective_metrics", "variant_ranker"],
+            },
+        ),
+        "air_m4_lab": RuntimeProfile(
+            name="air_m4_lab",
+            provider="ollama",
+            description="Perfil de laboratorio em Apple Silicon com julgamento multicamadas, ranking agressivo e targets expandidos.",
+            model_roles={
+                **roles,
+                ROLE_PLAN: roles[ROLE_QUALITY_PLAN],
+                ROLE_COPY_REFINER: roles[ROLE_QUALITY_PLAN],
+                ROLE_VARIANT_RANKER: roles[ROLE_QUALITY_PLAN],
+                ROLE_TEXT_RERANKER: roles[ROLE_QUALITY_PLAN],
+                ROLE_STYLE_RETRIEVER: roles[ROLE_QUALITY_PLAN],
+                ROLE_REFERENCE_PARSER: roles[ROLE_VISION_PLAN],
+                ROLE_VISUAL_JUDGE_FAST: roles[ROLE_VISION_PLAN],
+                ROLE_VISUAL_JUDGE_HEAVY: roles[ROLE_VISION_PLAN],
+                ROLE_THUMBNAIL_REFINER: roles[ROLE_VISION_PLAN],
+                ROLE_CONCEPT_ARTIST: roles[ROLE_VISION_PLAN],
+            },
+            timeouts=_profile_timeout_map(plan=28.0, retry=40.0, fast=18.0, quality=60.0, vision=45.0, copy=45.0, variant=28.0),
+            retry_timeouts=_profile_retry_map(plan=28.0, retry=40.0, fast=28.0, quality=90.0, vision=60.0, copy=60.0, variant=36.0),
+            render_preferences={
+                "max_parallel_renders": 1,
+                "hero_target": "linkedin_feed_4_5",
+                "prefer_native_still": True,
+                "prefer_native_video": True,
+                "variant_count": 5,
+                "judge_stack": ["brand_precheck", "structural_gate", "visual_judge_fast", "objective_metrics", "visual_judge_heavy", "variant_ranker"],
             },
         ),
         "desktop_quality": RuntimeProfile(
@@ -122,6 +172,13 @@ def _default_profiles() -> dict[str, RuntimeProfile]:
                 ROLE_PLAN: roles[ROLE_QUALITY_PLAN],
                 ROLE_COPY_REFINER: roles[ROLE_QUALITY_PLAN],
                 ROLE_VARIANT_RANKER: roles[ROLE_PLAN],
+                ROLE_TEXT_RERANKER: roles[ROLE_QUALITY_PLAN],
+                ROLE_STYLE_RETRIEVER: roles[ROLE_QUALITY_PLAN],
+                ROLE_REFERENCE_PARSER: roles[ROLE_VISION_PLAN],
+                ROLE_VISUAL_JUDGE_FAST: roles[ROLE_VISION_PLAN],
+                ROLE_VISUAL_JUDGE_HEAVY: roles[ROLE_VISION_PLAN],
+                ROLE_THUMBNAIL_REFINER: roles[ROLE_VISION_PLAN],
+                ROLE_CONCEPT_ARTIST: roles[ROLE_VISION_PLAN],
             },
             timeouts=_profile_timeout_map(plan=20.0, retry=32.0, fast=12.0, quality=40.0, vision=24.0, copy=28.0, variant=12.0),
             retry_timeouts=_profile_retry_map(plan=20.0, retry=32.0, fast=18.0, quality=60.0, vision=36.0, copy=40.0, variant=18.0),
@@ -131,6 +188,35 @@ def _default_profiles() -> dict[str, RuntimeProfile]:
                 "prefer_native_still": True,
                 "prefer_native_video": True,
                 "variant_count": 5,
+                "judge_stack": ["brand_precheck", "structural_gate", "visual_judge_fast", "objective_metrics", "visual_judge_heavy", "variant_ranker"],
+            },
+        ),
+        "desktop_lab": RuntimeProfile(
+            name="desktop_lab",
+            provider="hf_transformers",
+            description="Perfil de laboratorio para desktop com juizes visuais mais pesados, retrieval e benchmark expandido.",
+            model_roles={
+                **roles,
+                ROLE_PLAN: roles[ROLE_QUALITY_PLAN],
+                ROLE_COPY_REFINER: roles[ROLE_QUALITY_PLAN],
+                ROLE_VARIANT_RANKER: roles[ROLE_QUALITY_PLAN],
+                ROLE_TEXT_RERANKER: roles[ROLE_QUALITY_PLAN],
+                ROLE_STYLE_RETRIEVER: roles[ROLE_QUALITY_PLAN],
+                ROLE_REFERENCE_PARSER: _env("LAB_REFERENCE_PARSER_MODEL", "Qwen2.5-VL-7B"),
+                ROLE_VISUAL_JUDGE_FAST: roles[ROLE_VISION_PLAN],
+                ROLE_VISUAL_JUDGE_HEAVY: _env("LAB_VISUAL_JUDGE_HEAVY_MODEL", "MiniCPM-V-4_5"),
+                ROLE_THUMBNAIL_REFINER: _env("LAB_THUMBNAIL_REFINER_MODEL", "Qwen-Image-Edit"),
+                ROLE_CONCEPT_ARTIST: _env("LAB_CONCEPT_ARTIST_MODEL", "Qwen-Image"),
+            },
+            timeouts=_profile_timeout_map(plan=32.0, retry=50.0, fast=18.0, quality=70.0, vision=55.0, copy=55.0, variant=30.0),
+            retry_timeouts=_profile_retry_map(plan=32.0, retry=50.0, fast=28.0, quality=100.0, vision=75.0, copy=70.0, variant=40.0),
+            render_preferences={
+                "max_parallel_renders": 2,
+                "hero_target": "linkedin_feed_4_5",
+                "prefer_native_still": True,
+                "prefer_native_video": True,
+                "variant_count": 5,
+                "judge_stack": ["brand_precheck", "structural_gate", "visual_judge_fast", "objective_metrics", "visual_judge_heavy", "variant_ranker"],
             },
         ),
         # ---------------------------------------------------------------
@@ -245,9 +331,11 @@ def detect_default_profile_name() -> str:
     machine = platform.machine().lower()
     if system == "darwin" and machine == "arm64":
         if _has_quality_stack():
+            if os.environ.get("AIOX_QUALITY_TRACK", "aggressive_lab").strip().lower() == "aggressive_lab":
+                return "air_m4_lab"
             return "air_m4_quality"
         return "air_m4_safe"
-    return "desktop_quality"
+    return "desktop_lab"
 
 
 def get_active_profile_name() -> str:

@@ -113,6 +113,15 @@ class GraphRuntime:
         preview_path = generate_preview(self.state["plan"])
         storyboard_paths = write_storyboard(artifact_plan)
         quality_report = evaluate_artifact_plan(artifact_plan)
+        try:
+            from core.runtime.variant_ranker import rank_variants
+
+            ranking = rank_variants(artifact_plan)
+            artifact_plan["chosen_variant"] = ranking.get("chosen_variant") or artifact_plan.get("chosen_variant")
+            artifact_plan["variant_scores"] = ranking.get("variant_scores", {})
+            artifact_plan["chosen_variant_reason"] = ranking.get("chosen_variant_reason", "rank_unavailable")
+        except Exception:
+            pass
 
         self.state["previs"] = {
             "plan_preview": preview_path,
@@ -310,11 +319,7 @@ class GraphRuntime:
                 brief=self.state.get("input"),
                 creative_plan=self.state.get("plan"),
                 artifact_plan=self.state.get("artifact_plan"),
-                chosen_variant=str(
-                    ((self.state.get("artifact_plan") or {}).get("primary_target_id"))
-                    or ((self.state.get("plan") or {}).get("archetype"))
-                    or "default"
-                ),
+                chosen_variant=str((self.state.get("artifact_plan") or {}).get("chosen_variant") or "variant_01"),
                 exported_targets=(self.state.get("output") or {}).get("outputs", [])
                 if isinstance(self.state.get("output"), dict)
                 else [],

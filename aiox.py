@@ -46,6 +46,34 @@ def main():
     benchmark_parser.add_argument("--json", action="store_true")
     audit_parser = subparsers.add_parser("audit", help="Audita paridade entre artifact_plan e outputs")
     audit_parser.add_argument("--json", action="store_true")
+    judge_parser = subparsers.add_parser("judge", help="Julga um artefato visual via quality runtime")
+    judge_parser.add_argument("path")
+    judge_parser.add_argument("--target", default="linkedin_feed_4_5")
+    judge_parser.add_argument("--briefing")
+    judge_parser.add_argument("--archetype", default="emergence")
+    judge_parser.add_argument("--fallback", action="store_true")
+    judge_parser.add_argument("--json", action="store_true")
+
+    references_parent = subparsers.add_parser("references", help="Ferramentas de ingestao de referencias")
+    references_subparsers = references_parent.add_subparsers(dest="references_command", required=True)
+    references_ingest = references_subparsers.add_parser("ingest", help="Ingesta referencias em style packs")
+    references_ingest.add_argument("urls", nargs="+")
+    references_ingest.add_argument("--output-dir", default="contracts/references")
+
+    style_parent = subparsers.add_parser("style", help="Ferramentas de busca de style packs")
+    style_subparsers = style_parent.add_subparsers(dest="style_command", required=True)
+    style_search = style_subparsers.add_parser("search", help="Busca style packs")
+    style_search.add_argument("query")
+    style_search.add_argument("--limit", type=int, default=5)
+    style_search.add_argument("--json", action="store_true")
+
+    variants_parent = subparsers.add_parser("variants", help="Ferramentas de ranqueamento de variantes")
+    variants_subparsers = variants_parent.add_subparsers(dest="variants_command", required=True)
+    variants_rank = variants_subparsers.add_parser("rank", help="Ranqueia variantes de um briefing")
+    variants_rank.add_argument("briefing")
+    variants_rank.add_argument("--json", action="store_true")
+    variants_rank.add_argument("--heuristic", action="store_true")
+    variants_rank.add_argument("--timeout-seconds", type=float)
 
     # Comando AGENT: Agentic Runtime (v5.0)
     agent_parser = subparsers.add_parser("agent", help="Agentic Runtime — executa prompt com tool routing automático")
@@ -102,6 +130,12 @@ def main():
         reference_cli(reference_args)
         return
 
+    elif args.command == "references":
+        if args.references_command == "ingest":
+            from core.cli.reference import cli as reference_cli
+            reference_cli([*args.urls, "--output-dir", args.output_dir])
+            return
+
     elif args.command == "doctor":
         from core.cli.doctor import cli as doctor_cli
         doctor_cli(["--json"] if args.json else [])
@@ -129,6 +163,40 @@ def main():
         audit_args = ["--json"] if args.json else []
         audit_cli(audit_args)
         return
+
+    elif args.command == "judge":
+        from core.cli.judge import cli as judge_cli
+        judge_args = [args.path, "--target", args.target, "--archetype", args.archetype]
+        if args.briefing:
+            judge_args.extend(["--briefing", args.briefing])
+        if args.fallback:
+            judge_args.append("--fallback")
+        if args.json:
+            judge_args.append("--json")
+        judge_cli(judge_args)
+        return
+
+    elif args.command == "style":
+        if args.style_command == "search":
+            from core.cli.style_search import cli as style_search_cli
+            style_args = [args.query, "--limit", str(args.limit)]
+            if args.json:
+                style_args.append("--json")
+            style_search_cli(style_args)
+            return
+
+    elif args.command == "variants":
+        if args.variants_command == "rank":
+            from core.cli.variants_rank import cli as variants_rank_cli
+            variant_args = [args.briefing]
+            if args.json:
+                variant_args.append("--json")
+            if args.heuristic:
+                variant_args.append("--heuristic")
+            if args.timeout_seconds is not None:
+                variant_args.extend(["--timeout-seconds", str(args.timeout_seconds)])
+            variants_rank_cli(variant_args)
+            return
 
     elif args.command == "agent":
         import asyncio as _asyncio

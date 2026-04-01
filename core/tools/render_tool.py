@@ -445,9 +445,19 @@ def _build_target_props(target: dict[str, Any], artifact_plan: dict[str, Any], r
         "style_packs": style_packs,
         "story_atoms": story_atoms,
         "variants": variants,
+        "variant_scores": artifact_plan.get("variant_scores", {}),
         "chosen_variant": chosen_variant_id,
+        "chosen_variant_reason": artifact_plan.get("chosen_variant_reason"),
         "active_variant": active_variant,
         "quality_constraints": artifact_plan.get("quality_constraints", {}),
+        "quality_tier": artifact_plan.get("quality_tier", "lab_absolute"),
+        "judge_stack": artifact_plan.get("judge_stack", []),
+        "reference_evidence": artifact_plan.get("reference_evidence", []),
+        "style_retrieval_results": artifact_plan.get("style_retrieval_results", []),
+        "objective_metrics": artifact_plan.get("objective_metrics", {}),
+        "family_spec": target.get("family_spec"),
+        "motion_system": artifact_plan.get("motion_system", {}),
+        "copy_budget": artifact_plan.get("copy_budget", {}),
         "quality_mode": target.get("quality_mode", artifact_plan.get("quality_mode", "absolute")),
         "premium_targets": artifact_plan.get("premium_targets", []),
         "qaFrames": artifact_plan.get("qa_frames"),
@@ -494,11 +504,14 @@ def _build_target_props(target: dict[str, Any], artifact_plan: dict[str, Any], r
 def _target_output_path(target: dict[str, Any]) -> Path:
     render_mode = str(target.get("render_mode", "video")).strip().lower()
     target_id = str(target.get("id", "target")).strip() or "target"
+    output_ext = str(target.get("output_ext", "")).strip().lower()
     if render_mode == "still":
         return ROOT / "output" / "stills" / f"{target_id}.png"
     if render_mode == "carousel":
         return ROOT / "output" / "carousel" / target_id
-    return ROOT / "output" / "renders" / f"{target_id}.mp4"
+    suffix = output_ext if output_ext.startswith(".") else ".mp4"
+    suffix = suffix or ".mp4"
+    return ROOT / "output" / "renders" / f"{target_id}{suffix}"
 
 
 def _alias_output_path(target: dict[str, Any], canonical_output: Path) -> Path | None:
@@ -517,7 +530,7 @@ def _alias_output_path(target: dict[str, Any], canonical_output: Path) -> Path |
         return canonical_output.with_name(f"{legacy_name}.png")
     if canonical_output.is_dir():
         return canonical_output.parent / legacy_name
-    return canonical_output.with_name(f"{legacy_name}.mp4")
+    return canonical_output.with_name(f"{legacy_name}{canonical_output.suffix or '.mp4'}")
 
 
 def _copy_alias_output(canonical_output: Path, alias_output: Path | None) -> None:
@@ -697,6 +710,19 @@ def render_pipeline(
 
         canonical_output = _target_output_path(target)
         alias_output = _alias_output_path(target, canonical_output)
+
+        if not bool(target.get("native_support", True)):
+            print(f"🧪 [Render Tool] Target '{target_id}' ainda usa fallback canônico ({canonical_output.suffix}).")
+            try:
+                fallback_output = _fallback_target_render(target, artifact_plan, canonical_output)
+                _copy_alias_output(canonical_output, alias_output)
+                fallback_output["alias_output"] = str(alias_output) if alias_output else None
+                fallback_output["remotion_skipped"] = True
+                outputs.append(fallback_output)
+                continue
+            except Exception as fallback_error:
+                print(f"❌ [Render Tool] Falha ao renderizar target '{target_id}': {fallback_error}")
+                return {"ok": False, "errors": [str(fallback_error)], "outputs": outputs}
 
         if remotion_unavailable_reason is not None:
             print(

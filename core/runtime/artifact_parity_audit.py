@@ -25,6 +25,7 @@ class ArtifactParityAuditResult:
         lines.append(f"Premium approved: **{self.stats.get('premium_approved', 0)}**")
         lines.append(f"Brand passed: **{self.stats.get('brand_passed', 0)}**")
         lines.append(f"Vision passed: **{self.stats.get('vision_passed', 0)}**")
+        lines.append(f"Judge disagreement: **{self.stats.get('judge_disagreement_rate', 0.0)}**")
         lines.append("")
         lines.append("Errors:")
         lines.extend([f"- {entry}" for entry in self.errors] or ["- none"])
@@ -151,6 +152,7 @@ def run_artifact_parity_audit(
             "premium_approved": premium_approved,
             "brand_passed": brand_passed,
             "vision_passed": vision_passed,
+            "judge_disagreement_rate": float(quality_report.get("judge_disagreement_rate", 0.0) or 0.0),
             "profile": profile_name,
             "quality_pass": bool(quality_report.get("quality_pass")),
             "premium_ok": bool(quality_report.get("premium_ok")),
