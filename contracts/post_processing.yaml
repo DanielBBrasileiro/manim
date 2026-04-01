@@ -18,6 +18,12 @@ constraints:
   breath_exposure:
     max_amplitude: 0.06
     freq_range: [0.1, 0.5]
+  depth_of_field:
+    max_blur_radius: 10
+    focus_radius_range: [0.24, 0.40]
+  anamorphic_flare:
+    max_intensity: 0.22
+    streak_length_range: [35, 75]
 
 # ── Archetype Mapping ──────────────────────────────────────────────────────
 archetypes:
@@ -30,7 +36,7 @@ archetypes:
   chaos_to_order:
     preset: "cinematic"
     mandatory: ["chromatic_aberration", "vignette"]
-    optional: ["halation", "breath_exposure"]
+    optional: ["halation", "breath_exposure", "depth_of_field", "anamorphic_flare"]
     emotion_default: "mastery"
     
   fragmented_reveal:
@@ -42,13 +48,13 @@ archetypes:
   gravitational_collapse:
     preset: "turbulence"
     mandatory: ["vignette", "halation", "chromatic_aberration"]
-    optional: ["glow"]
+    optional: ["glow", "anamorphic_flare"]
     emotion_default: "tension"
     
   resolution:
     preset: "resolution"
     mandatory: ["vignette", "halation"]
-    optional: ["color_grade"]
+    optional: ["color_grade", "depth_of_field"]
     emotion_default: "mastery"
 
 # ── Render Mode Specifics ──────────────────────────────────────────────────
@@ -57,8 +63,10 @@ modes:
     upscale_multiplier: 2.0
     grain_temporal: false
     breath_enabled: false
+    dof_enabled: true
   video:
     fps: 60
     grain_temporal: true
     breath_enabled: true
     crf: 18
+    dof_enabled: true

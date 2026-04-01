@@ -232,6 +232,75 @@ def color_grade(
     return result.clip(0, 255).astype(np.uint8)
 
 
+def depth_of_field(
+    frame: np.ndarray,
+    blur_radius: int = 8,
+    focus_radius: float = 0.32,
+    focus_center: tuple[float, float] = (0.38, 0.62),
+) -> np.ndarray:
+    """
+    Simula depth of field analitico usando uma mascara radial de foco.
+    O foreground central fica mais nitido; o entorno cai suavemente em blur.
+    """
+    try:
+        from PIL import Image, ImageFilter
+    except ImportError:
+        return frame
+
+    h, w = frame.shape[:2]
+    y = np.linspace(0, 1, h)
+    x = np.linspace(0, 1, w)
+    xx, yy = np.meshgrid(x, y)
+    cx, cy = focus_center
+    dist = np.sqrt((xx - cx) ** 2 + (yy - cy) ** 2)
+    mask = np.clip((dist - focus_radius) / max(1e-4, 0.75 - focus_radius), 0, 1)
+    mask = np.power(mask, 1.35)[:, :, np.newaxis]
+
+    img = Image.fromarray(frame)
+    blurred = img.filter(ImageFilter.GaussianBlur(radius=blur_radius))
+    sharp = np.array(img).astype(np.float32)
+    soft = np.array(blurred).astype(np.float32)
+    result = sharp * (1.0 - mask) + soft * mask
+    return result.clip(0, 255).astype(np.uint8)
+
+
+def anamorphic_flare(
+    frame: np.ndarray,
+    intensity: float = 0.18,
+    streak_length: int = 55,
+    threshold: float = 0.78,
+) -> np.ndarray:
+    """
+    Cria um flare horizontal frio em highlights usando convolucao 1D via FFT.
+    Nao substitui lente real, mas entrega um comportamento mais optico que blur basico.
+    """
+    gray = frame.mean(axis=2) / 255.0
+    highlights = np.clip((gray - threshold) / max(1e-4, 1.0 - threshold), 0, 1)
+    if highlights.max() <= 0:
+        return frame
+
+    kernel_size = max(9, int(streak_length) | 1)
+    half = kernel_size // 2
+    x = np.arange(-half, half + 1, dtype=np.float32)
+    kernel = np.exp(-np.abs(x) / max(1.0, kernel_size / 7.5)).astype(np.float32)
+    kernel /= max(kernel.sum(), 1e-6)
+
+    flare_lines = np.zeros_like(highlights, dtype=np.float32)
+    fft_size = highlights.shape[1] + kernel_size - 1
+    kernel_fft = np.fft.rfft(kernel, n=fft_size)
+    for row_index in range(highlights.shape[0]):
+        row_fft = np.fft.rfft(highlights[row_index], n=fft_size)
+        convolved = np.fft.irfft(row_fft * kernel_fft, n=fft_size)
+        flare_lines[row_index] = convolved[half:half + highlights.shape[1]]
+
+    flare_lines = np.clip(flare_lines * (intensity * 255.0), 0, 255)
+    result = frame.astype(np.float32)
+    result[:, :, 1] += flare_lines * 0.45
+    result[:, :, 2] += flare_lines * 0.85
+    result[:, :, 0] += flare_lines * 0.15
+    return result.clip(0, 255).astype(np.uint8)
+
+
 # ── PostProcessor ─────────────────────────────────────────────────────────────
 
 EFFECT_FNS = {
@@ -243,6 +312,8 @@ EFFECT_FNS = {
     "halation": halation,
     "breath_exposure": breath_exposure,
     "color_grade": color_grade,
+    "depth_of_field": depth_of_field,
+    "anamorphic_flare": anamorphic_flare,
 }
 
 # Presets narrativos
@@ -262,12 +333,14 @@ PRESETS: Dict[str, List[Dict]] = {
         {"name": "chromatic_aberration", "strength": 0.009},
         {"name": "film_grain", "intensity": 0.055},
         {"name": "halation", "intensity": 0.4, "threshold": 0.6},
+        {"name": "anamorphic_flare", "intensity": 0.12, "streak_length": 51, "threshold": 0.8},
         {"name": "color_grade", "emotion": "tension"},
     ],
     "resolution": [
         {"name": "vignette", "strength": 0.3},
         {"name": "halation", "intensity": 0.25, "threshold": 0.7},
         {"name": "film_grain", "intensity": 0.02},
+        {"name": "depth_of_field", "blur_radius": 6, "focus_radius": 0.3},
         {"name": "color_grade", "emotion": "mastery"},
     ],
     "premium": [
@@ -275,6 +348,8 @@ PRESETS: Dict[str, List[Dict]] = {
         {"name": "vignette", "strength": 0.35},
         {"name": "halation", "radius": 12, "intensity": 0.3, "threshold": 0.72},
         {"name": "film_grain", "intensity": 0.03},
+        {"name": "depth_of_field", "blur_radius": 6, "focus_radius": 0.28},
+        {"name": "anamorphic_flare", "intensity": 0.14, "streak_length": 61, "threshold": 0.84},
         {"name": "breath_exposure", "amplitude": 0.03},
     ],
 }

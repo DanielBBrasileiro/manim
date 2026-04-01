@@ -2,6 +2,7 @@ import React, {useMemo} from 'react';
 import {
 	AbsoluteFill,
 	Audio,
+	Img,
 	OffthreadVideo,
 	Sequence,
 	staticFile,
@@ -49,6 +50,27 @@ type StoryAtoms = {
 	resolveWord?: string;
 };
 
+type EditorialBox = {
+	x?: number;
+	y?: number;
+	w?: number;
+	h?: number;
+};
+
+type EditorialLayout = {
+	family?: string;
+	curve_box?: EditorialBox;
+	eyebrow_box?: EditorialBox;
+	title_box?: EditorialBox;
+	accent_anchor?: {x?: number; y?: number};
+	asset_crop?: {
+		object_position?: string;
+		veil_opacity?: number;
+		grayscale?: number;
+		contrast?: number;
+	};
+};
+
 export type CinematicNarrativeProps = {
 	videoSrc?: string;
 	resolveWord?: string;
@@ -80,6 +102,10 @@ export type CinematicNarrativeProps = {
 			gain?: number;
 		};
 		story_atoms?: StoryAtoms;
+		bgSrc?: string;
+		bg_src?: string;
+		editorialLayout?: EditorialLayout;
+		editorial_layout?: EditorialLayout;
 		active_variant?: {
 			id?: string;
 			label?: string;
@@ -228,13 +254,20 @@ const wordCap = (text?: string, maxWords = 2): string => {
 		.join(' ');
 };
 
-const StaticBackdrop: React.FC<{frame: number; targetKind?: string; profile: TargetVisualProfile}> = ({
+const StaticBackdrop: React.FC<{frame: number; targetKind?: string; profile: TargetVisualProfile; bgSrc?: string | null; editorialLayout?: EditorialLayout}> = ({
 	frame,
 	targetKind,
 	profile,
+	bgSrc,
+	editorialLayout,
 }) => {
 	const drift = Math.sin(frame / 24) * profile.driftStrength;
 	const glow = Math.cos(frame / 38) * 0.06 + 0.18;
+	const assetCrop = editorialLayout?.asset_crop ?? {};
+	const objectPosition = assetCrop.object_position ?? '55% 42%';
+	const veilOpacity = Number(assetCrop.veil_opacity ?? 0.2);
+	const grayscale = Number(assetCrop.grayscale ?? 1.0);
+	const contrast = Number(assetCrop.contrast ?? 1.12);
 
 	return (
 		<AbsoluteFill
@@ -245,6 +278,24 @@ const StaticBackdrop: React.FC<{frame: number; targetKind?: string; profile: Tar
 						: 'linear-gradient(180deg, #020202 0%, #090909 55%, #040404 100%)',
 			}}
 		>
+			{bgSrc ? (
+				<>
+					<Img
+						src={staticFile(bgSrc)}
+						style={{
+							position: 'absolute',
+							inset: 0,
+							width: '100%',
+							height: '100%',
+							objectFit: 'cover',
+							objectPosition,
+							filter: `grayscale(${grayscale}) contrast(${contrast}) brightness(0.7)`,
+							opacity: 0.62,
+						}}
+					/>
+					<div style={{position: 'absolute', inset: 0, background: '#000000', opacity: veilOpacity}} />
+				</>
+			) : null}
 				<AbsoluteFill
 					style={{
 						transform: `translate(${drift}px, ${drift * 0.35}px)`,
@@ -293,21 +344,38 @@ const StaticBackdrop: React.FC<{frame: number; targetKind?: string; profile: Tar
 	);
 };
 
+const boxStyle = (box: EditorialBox | undefined): React.CSSProperties => ({
+	position: 'absolute',
+	left: `${(((box?.x ?? 0) as number) * 100).toFixed(3)}%`,
+	top: `${(((box?.y ?? 0) as number) * 100).toFixed(3)}%`,
+	width: `${(((box?.w ?? 0) as number) * 100).toFixed(3)}%`,
+	height: `${(((box?.h ?? 0) as number) * 100).toFixed(3)}%`,
+});
+
 const PosterHeroBackdrop: React.FC<{
 	frame: number;
 	profile: TargetVisualProfile;
 	storyAtoms?: StoryAtoms;
 	activeVariant?: {label?: string; composition_mode?: string};
 	targetId?: string;
-}> = ({frame, profile, storyAtoms, activeVariant, targetId}) => {
+	bgSrc?: string | null;
+	editorialLayout?: EditorialLayout;
+}> = ({frame, profile, storyAtoms, activeVariant, targetId, bgSrc, editorialLayout}) => {
 	const drift = Math.sin(frame / 52) * 1.4;
 	const titleWord = wordCap(storyAtoms?.resolve_word ?? storyAtoms?.resolveWord ?? 'AIOX', 1) || 'AIOX';
 	const accentLabel = wordCap(storyAtoms?.tagline ?? activeVariant?.label ?? 'Signal', 2);
 	const isWide = targetId === 'youtube_thumbnail_16_9';
 	const titleSize = isWide ? 'clamp(2.4rem, 6vw, 4rem)' : 'clamp(2.8rem, 8vw, 4.5rem)';
-	const anchorLeft = isWide ? '8%' : '11%';
-	const titleTop = isWide ? '66%' : '70%';
-	const curveInset = isWide ? '12% 7% 14% 7%' : '10% 8% 12% 8%';
+	const layout = editorialLayout ?? {};
+	const eyebrowBox = layout.eyebrow_box ?? {x: isWide ? 0.08 : 0.11, y: 0.14, w: 0.26, h: 0.05};
+	const titleBox = layout.title_box ?? {x: isWide ? 0.08 : 0.11, y: isWide ? 0.66 : 0.70, w: isWide ? 0.30 : 0.34, h: 0.16};
+	const curveBox = layout.curve_box ?? {x: 0.08, y: 0.08, w: 0.84, h: 0.80};
+	const accentAnchor = layout.accent_anchor ?? {x: isWide ? 0.92 : 0.90, y: isWide ? 0.16 : 0.14};
+	const assetCrop = layout.asset_crop ?? {};
+	const objectPosition = assetCrop.object_position ?? (isWide ? '64% 44%' : '58% 46%');
+	const veilOpacity = Number(assetCrop.veil_opacity ?? 0.34);
+	const grayscale = Number(assetCrop.grayscale ?? 1.0);
+	const contrast = Number(assetCrop.contrast ?? 1.18);
 
 	return (
 		<AbsoluteFill
@@ -315,6 +383,22 @@ const PosterHeroBackdrop: React.FC<{
 				background: '#000000',
 			}}
 		>
+			{bgSrc && (
+				<Img
+					src={staticFile(bgSrc)}
+					style={{
+						position: 'absolute',
+						inset: 0,
+						width: '100%',
+						height: '100%',
+						objectFit: 'cover',
+						objectPosition,
+						filter: `grayscale(${grayscale}) contrast(${contrast}) brightness(0.78)`,
+						opacity: 0.92,
+					}}
+				/>
+			)}
+			<div style={{position: 'absolute', inset: 0, background: '#000000', opacity: veilOpacity}} />
 			<AbsoluteFill
 				style={{
 					transform: `translate(${drift}px, ${drift * 0.25}px)`,
@@ -324,8 +408,7 @@ const PosterHeroBackdrop: React.FC<{
 					viewBox="0 0 100 100"
 					preserveAspectRatio="none"
 					style={{
-						position: 'absolute',
-						inset: curveInset,
+						...boxStyle(curveBox),
 						overflow: 'visible',
 					}}
 				>
@@ -337,14 +420,16 @@ const PosterHeroBackdrop: React.FC<{
 						strokeLinecap="round"
 						vectorEffect="non-scaling-stroke"
 					/>
-					<circle cx={isWide ? 92 : 90} cy={isWide ? 16 : 14} r={1.6} fill="#FF3366" />
+					<circle
+						cx={Number(((accentAnchor.x ?? (isWide ? 0.92 : 0.90)) as number) * 100).toFixed(2)}
+						cy={Number(((accentAnchor.y ?? (isWide ? 0.16 : 0.14)) as number) * 100).toFixed(2)}
+						r={1.6}
+						fill="#FF3366"
+					/>
 				</svg>
 				<div
 					style={{
-						position: 'absolute',
-						left: anchorLeft,
-						top: '14%',
-						maxWidth: isWide ? '26%' : '28%',
+						...boxStyle(eyebrowBox),
 						color: '#FF3366',
 						fontFamily: tokens.typography.fonts.narrative.family,
 					}}
@@ -363,10 +448,7 @@ const PosterHeroBackdrop: React.FC<{
 				</div>
 				<div
 					style={{
-						position: 'absolute',
-						left: anchorLeft,
-						top: titleTop,
-						maxWidth: isWide ? '30%' : '34%',
+						...boxStyle(titleBox),
 						color: '#FFFFFF',
 						fontFamily: tokens.typography.fonts.narrative.family,
 					}}
@@ -615,6 +697,8 @@ export const CinematicNarrative: React.FC<CinematicNarrativeProps> = (props) => 
 	const targetKind = props.targetKind ?? props.renderManifest?.targetKind;
 	const profile = useMemo(() => getTargetVisualProfile(targetId), [targetId]);
 	const storyAtoms = props.renderManifest?.story_atoms;
+	const bgSrc = props.renderManifest?.bgSrc ?? props.renderManifest?.bg_src;
+	const editorialLayout = props.renderManifest?.editorialLayout ?? props.renderManifest?.editorial_layout;
 	const activeVariant = props.renderManifest?.active_variant;
 	const cues = useMemo(() => buildCues(props, fps, durationInFrames), [props, fps, durationInFrames]);
 	const explicitVideoSrc = props.videoSrc ?? props.renderManifest?.videoSrc ?? props.renderManifest?.video_src;
@@ -652,12 +736,16 @@ export const CinematicNarrative: React.FC<CinematicNarrativeProps> = (props) => 
 						storyAtoms={storyAtoms}
 						activeVariant={activeVariant}
 						targetId={targetId}
+						bgSrc={bgSrc}
+						editorialLayout={editorialLayout}
 					/>
 				) : (
 					<StaticBackdrop
 						frame={frame}
 						targetKind={targetKind}
 						profile={profile}
+						bgSrc={bgSrc}
+						editorialLayout={editorialLayout}
 					/>
 				)}
 			</AbsoluteFill>

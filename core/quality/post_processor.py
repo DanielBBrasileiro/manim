@@ -220,6 +220,27 @@ def _effect_from_contract(
             "amplitude": _clamp(float(limit.get("max_amplitude", 0.04) or 0.04) * 0.5, minimum=0.005, maximum=float(limit.get("max_amplitude", 0.06) or 0.06)),
             "frequency": frequency,
         }
+    if name == "depth_of_field":
+        limit = constraints.get("depth_of_field", {})
+        if not bool(mode_config.get("dof_enabled", True)):
+            return None
+        focus_range = limit.get("focus_radius_range", [0.24, 0.40]) if isinstance(limit.get("focus_radius_range", [0.24, 0.40]), list) else [0.24, 0.40]
+        focus_radius = float(sum(float(item) for item in focus_range[:2]) / max(min(len(focus_range), 2), 1))
+        return {
+            "name": name,
+            "blur_radius": int(limit.get("max_blur_radius", 8) or 8),
+            "focus_radius": _clamp(focus_radius, minimum=0.12, maximum=0.48),
+        }
+    if name == "anamorphic_flare":
+        limit = constraints.get("anamorphic_flare", {})
+        streak_range = limit.get("streak_length_range", [35, 75]) if isinstance(limit.get("streak_length_range", [35, 75]), list) else [35, 75]
+        streak_length = int(sum(float(item) for item in streak_range[:2]) / max(min(len(streak_range), 2), 1))
+        return {
+            "name": name,
+            "intensity": _clamp(float(limit.get("max_intensity", 0.18) or 0.18) * 0.72, minimum=0.04, maximum=float(limit.get("max_intensity", 0.22) or 0.22)),
+            "streak_length": max(15, streak_length),
+            "threshold": 0.82 if render_mode == "still" else 0.78,
+        }
     if name == "vignette":
         return {"name": name, "strength": 0.35, "softness": 0.55}
     if name == "scanlines":

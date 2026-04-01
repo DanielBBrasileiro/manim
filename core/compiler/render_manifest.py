@@ -148,6 +148,7 @@ def build_artifact_plan(plan: dict, seed: dict | str) -> dict:
                     acts=acts,
                     text_beats=text_beats,
                     duration=duration,
+                    design_canon=design_canon,
                 )
             )
 
@@ -163,6 +164,7 @@ def build_artifact_plan(plan: dict, seed: dict | str) -> dict:
                     acts=acts,
                     text_beats=text_beats,
                     duration=duration,
+                    design_canon=design_canon,
                 )
             ]
 
@@ -594,6 +596,7 @@ def _expand_target(
     acts: list[dict],
     text_beats: list[dict],
     duration: float,
+    design_canon: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     target = copy.deepcopy(target_spec)
     target["summary"] = _target_summary(target, story_atoms)
@@ -610,7 +613,82 @@ def _expand_target(
     target["post_fx_profile"] = _target_post_fx_profile(target)
     target["qa_sampling_frames"] = _build_qa_sampling_frames(target, acts, duration)
     target["poster_test_frames"] = _build_poster_test_frames(target, acts, duration)
+    target["editorial_layout"] = _build_editorial_layout(target, design_canon or {})
+    target["master_asset_strategy"] = _build_master_asset_strategy(target)
     return target
+
+
+def _build_editorial_layout(target: dict[str, Any], design_canon: dict[str, Any]) -> dict[str, Any]:
+    math_precision = (
+        design_canon.get("mathematical_precision", {})
+        if isinstance(design_canon.get("mathematical_precision", {}), dict)
+        else {}
+    )
+    phi = float(math_precision.get("golden_ratio", 1.618) or 1.618)
+    fibonacci = math_precision.get("fibonacci_spacing", [8, 13, 21, 34, 55, 89])
+    baseline_step = int(fibonacci[2] if isinstance(fibonacci, list) and len(fibonacci) > 2 else 21)
+    width = int(target.get("width", 1080) or 1080)
+    height = int(target.get("height", 1350) or 1350)
+    safe_margin_px = max(int(math_precision.get("safe_zone_margin_px", 64) or 64), int(min(width, height) * 0.06))
+    family = _target_family_spec(target)
+
+    base_layout = {
+        "family": family,
+        "golden_ratio": phi,
+        "baseline_step_px": baseline_step,
+        "safe_margin_px": safe_margin_px,
+        "curve_box": {"x": 0.08, "y": 0.08, "w": 0.84, "h": 0.80},
+        "eyebrow_box": {"x": 0.11, "y": 0.14, "w": 0.26, "h": 0.05},
+        "title_box": {"x": 0.11, "y": 0.68, "w": 0.32, "h": 0.16},
+        "accent_anchor": {"x": 0.90, "y": 0.14},
+        "asset_crop": {"object_position": "58% 46%", "veil_opacity": 0.34, "grayscale": 1.0, "contrast": 1.18},
+    }
+
+    if family == "thumbnail":
+        return {
+            **base_layout,
+            "curve_box": {"x": 0.08, "y": 0.10, "w": 0.86, "h": 0.74},
+            "eyebrow_box": {"x": 0.08, "y": 0.14, "w": 0.22, "h": 0.05},
+            "title_box": {"x": 0.08, "y": 0.64, "w": 0.30, "h": 0.18},
+            "accent_anchor": {"x": 0.92, "y": 0.16},
+            "asset_crop": {"object_position": "64% 44%", "veil_opacity": 0.28, "grayscale": 1.0, "contrast": 1.2},
+        }
+    if family == "carousel":
+        return {
+            **base_layout,
+            "curve_box": {"x": 0.08, "y": 0.10, "w": 0.84, "h": 0.72},
+            "eyebrow_box": {"x": 0.10, "y": 0.12, "w": 0.28, "h": 0.06},
+            "title_box": {"x": 0.10, "y": 0.62, "w": 0.42, "h": 0.20},
+            "accent_anchor": {"x": 0.88, "y": 0.16},
+            "asset_crop": {"object_position": "55% 42%", "veil_opacity": 0.24, "grayscale": 1.0, "contrast": 1.14},
+        }
+    if family == "loop_gif":
+        return {
+            **base_layout,
+            "curve_box": {"x": 0.06, "y": 0.08, "w": 0.88, "h": 0.78},
+            "eyebrow_box": {"x": 0.09, "y": 0.12, "w": 0.22, "h": 0.05},
+            "title_box": {"x": 0.09, "y": 0.70, "w": 0.28, "h": 0.14},
+            "accent_anchor": {"x": 0.90, "y": 0.16},
+            "asset_crop": {"object_position": "60% 45%", "veil_opacity": 0.22, "grayscale": 1.0, "contrast": 1.12},
+        }
+    return base_layout
+
+
+def _build_master_asset_strategy(target: dict[str, Any]) -> dict[str, Any]:
+    family = _target_family_spec(target)
+    if family in {"hero_poster", "thumbnail", "carousel", "loop_gif"}:
+        return {
+            "role": "hero_anchor",
+            "source": "manim_hero_bg.png",
+            "inherit_visual_dna": True,
+            "crop_mode": "cover",
+        }
+    return {
+        "role": "supporting_anchor",
+        "source": "manim_hero_bg.png",
+        "inherit_visual_dna": family in {"short_cinematic", "essay_video", "motion_preview"},
+        "crop_mode": "cover",
+    }
 
 
 def _target_family_spec(target: dict[str, Any]) -> str:
@@ -621,6 +699,10 @@ def _target_family_spec(target: dict[str, Any]) -> str:
         return "short_cinematic"
     if target_id == "linkedin_carousel_square":
         return "carousel"
+    if target_id in {"loop_gif_square", "loop_gif_vertical"}:
+        return "loop_gif"
+    if target_id == "motion_preview_webm":
+        return "motion_preview"
     if target_id == "youtube_essay_16_9":
         return "essay_video"
     if target_id == "youtube_thumbnail_16_9":

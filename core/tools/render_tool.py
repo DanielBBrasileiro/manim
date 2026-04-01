@@ -42,6 +42,11 @@ def run_manim(scene_name: str, script_path: str) -> None:
     cmd = ["manim", "-f", "-qh", script_path, scene_name]
     subprocess.run(cmd, check=True, cwd=str(ROOT / "engines" / "manim"), env=env)
 
+def run_manim_hero_still(scene_name: str = "HeroStillGeometry", script_path: str = "scenes/hero_still.py") -> None:
+    print(f"🖼️  [Manim Tool] Renderizando geometria MASTER em 1080x1350 para {scene_name}...")
+    env = dict(os.environ, PYTHONPATH=str(ROOT))
+    cmd = ["manim", "-f", "-qh", "-s", "-r", "1080,1350", script_path, scene_name]
+    subprocess.run(cmd, check=True, cwd=str(ROOT / "engines" / "manim"), env=env)
 
 def bridge_engines(scene_name: str, script_path: str) -> None:
     script_name = Path(script_path).stem
@@ -57,10 +62,28 @@ def bridge_engines(scene_name: str, script_path: str) -> None:
     )
     remotion_public = ROOT / "engines" / "remotion" / "public" / "manim_base.mp4"
     if manim_output.exists():
-        print(f"🌉 [Bridge Tool] Injetando {scene_name} no React...")
+        print(f"🌉 [Bridge Tool] Injetando {scene_name}.mp4 no React...")
         os.makedirs(remotion_public.parent, exist_ok=True)
         shutil.copy(manim_output, remotion_public)
 
+def bridge_manim_hero_still(scene_name: str = "HeroStillGeometry", script_path: str = "scenes/hero_still.py") -> bool:
+    script_name = Path(script_path).stem
+    manim_output = (
+        ROOT
+        / "engines"
+        / "manim"
+        / "media"
+        / "images"
+        / script_name
+        / f"{scene_name}.png"
+    )
+    remotion_public = ROOT / "engines" / "remotion" / "public" / "manim_hero_bg.png"
+    if manim_output.exists():
+        print(f"🌉 [Bridge Tool] Transportando {scene_name}.png para {remotion_public.name}...")
+        os.makedirs(remotion_public.parent, exist_ok=True)
+        shutil.copy(manim_output, remotion_public)
+        return True
+    return False
 
 def _load_remotion_runner() -> str:
     return str(ROOT / "scripts" / "run_remotion_node.sh")
@@ -99,6 +122,27 @@ def _prewarm_remotion_bundle(timeout_seconds: int = DEFAULT_BUNDLE_WARM_TIMEOUT)
     subprocess.run(warm_cmd, check=True, cwd=str(ROOT), env=env, timeout=timeout_seconds)
 
 
+def _run_remotion_via_daemon(command: str, composition: str, output_path: Path, remotion_props: dict[str, Any] | None, timeout_seconds: int) -> bool:
+    import urllib.request
+    import json
+    try:
+        data = json.dumps({
+            "command": command,
+            "requestedCompositionId": composition,
+            "outputLocation": str(output_path),
+            "inputProps": remotion_props or {}
+        }).encode('utf-8')
+        req = urllib.request.Request("http://127.0.0.1:3333/render", data=data, headers={'Content-Type': 'application/json'})
+        with urllib.request.urlopen(req, timeout=timeout_seconds) as response:
+            res = json.loads(response.read().decode('utf-8'))
+            if not res.get("ok"):
+                print(f"⚠️ [Daemon] Ocorreu erro interno: {res.get('error')}")
+                return False
+            return True
+    except Exception:
+        # Silencioso. Se falhar, o daemon nao esta on. Fallback para CLI.
+        return False
+
 def _run_remotion_command(
     command: str,
     composition: str,
@@ -118,6 +162,12 @@ def _run_remotion_command(
         os.getenv("AIOX_REMOTION_DIRECT_TIMEOUT_SECONDS", str(DEFAULT_DIRECT_TIMEOUT))
     )
     effective_timeout = max(cli_timeout, direct_timeout)
+    
+    # ⚡️ THE AIOX 5.0 TURBO MECHANISM: DEMON OPPORTUNISTIC ROUTING
+    if render_mode in ("auto", "daemon"):
+        if _run_remotion_via_daemon(command, composition, output_path, remotion_props, effective_timeout):
+            return
+
     env = _load_remotion_env(remotion_props, timeout_seconds=effective_timeout, concurrency=concurrency)
 
     cli_cmd = [
@@ -471,6 +521,14 @@ def _build_target_props(target: dict[str, Any], artifact_plan: dict[str, Any], r
         "postFxProfile": target.get("post_fx_profile"),
         "qaSamplingFrames": target.get("qa_sampling_frames", []),
         "posterTestFrames": target.get("poster_test_frames", []),
+        "bgSrc": target.get("bg_src"),
+        "bg_src": target.get("bg_src"),
+        "masterAssetSrc": target.get("master_asset_src"),
+        "master_asset_src": target.get("master_asset_src"),
+        "editorialLayout": target.get("editorial_layout", {}),
+        "editorial_layout": target.get("editorial_layout", {}),
+        "masterAssetStrategy": target.get("master_asset_strategy", {}),
+        "master_asset_strategy": target.get("master_asset_strategy", {}),
         "narrative": {
             "acts": acts,
             "resolveWord": story_atoms.get("resolve_word"),
@@ -497,6 +555,9 @@ def _build_target_props(target: dict[str, Any], artifact_plan: dict[str, Any], r
         "postFxProfile": target.get("post_fx_profile"),
         "qaSamplingFrames": target.get("qa_sampling_frames", []),
         "posterTestFrames": target.get("poster_test_frames", []),
+        "masterAssetSrc": target.get("master_asset_src"),
+        "editorialLayout": target.get("editorial_layout", {}),
+        "masterAssetStrategy": target.get("master_asset_strategy", {}),
         "renderManifest": manifest,
     }
 
@@ -689,6 +750,38 @@ def render_pipeline(
             return {"ok": False, "errors": [str(error)]}
     else:
         print("🪶 [Render Tool] Nenhum target exige base de video. Pulando Manim.")
+
+    hero_target_present = any(
+        str(target.get("id")).strip()
+        in (
+            "linkedin_feed_4_5",
+            "youtube_thumbnail_16_9",
+            "linkedin_carousel_square",
+            "loop_gif_square",
+            "loop_gif_vertical",
+            "motion_preview_webm",
+        )
+        for target in targets
+        if isinstance(target, dict)
+    )
+    if hero_target_present:
+        try:
+            run_manim_hero_still()
+            success = bridge_manim_hero_still()
+            # Injeta prop dinamicamente
+            for target in targets:
+                if str(target.get("id")).strip() in (
+                    "linkedin_feed_4_5",
+                    "youtube_thumbnail_16_9",
+                    "linkedin_carousel_square",
+                    "loop_gif_square",
+                    "loop_gif_vertical",
+                    "motion_preview_webm",
+                ):
+                    target["bg_src"] = "manim_hero_bg.png" if success else None
+                target["master_asset_src"] = "manim_hero_bg.png" if success else None
+        except Exception as error:
+            print(f"⚠️ [Render Tool] Sem pre-render avançado do Hero Still: {error}. Usando fallback.")
 
     outputs: list[dict[str, Any]] = []
     remotion_unavailable_reason: str | None = None
