@@ -89,6 +89,11 @@ def build_render_manifest(plan: dict, seed: dict | str) -> dict:
         "story_atoms": artifact_plan.get("story_atoms", {}),
         "style_pack_ids": artifact_plan.get("style_pack_ids", []),
         "quality_constraints": artifact_plan.get("quality_constraints", {}),
+        "quality_mode": artifact_plan.get("quality_mode", "absolute"),
+        "premium_targets": artifact_plan.get("premium_targets", []),
+        "qa_frames": artifact_plan.get("qa_frames"),
+        "auto_iterate_max": artifact_plan.get("auto_iterate_max"),
+        "brand_veto_policy": artifact_plan.get("brand_veto_policy", {}),
         "render_inputs": render_inputs,
         "title": brief.get("title") or "AIOX v4.0",
         "tagline": brief.get("tagline") or "Invisible Architecture",
@@ -111,6 +116,7 @@ def build_artifact_plan(plan: dict, seed: dict | str) -> dict:
     narrative_contract = _load_contract("contracts/narrative.yaml")
     layout_contract = _load_contract("contracts/layout.yaml")
     global_laws = _load_contract("contracts/global_laws.yaml")
+    design_canon = _load_contract("contracts/design_canon.yaml")
     formats = layout_contract.get("formats", {}) if isinstance(layout_contract.get("formats", {}), dict) else {}
     target_catalog = _build_target_catalog(layout_contract, formats)
     requested_output_tokens = _extract_requested_output_tokens(seed, brief)
@@ -125,7 +131,7 @@ def build_artifact_plan(plan: dict, seed: dict | str) -> dict:
     acts = _build_act_windows(duration, plan, narrative_contract)
     text_beats = _collect_text_beats(brief, acts, duration, plan)
     story_atoms = _build_story_atoms(plan, brief)
-    quality_constraints = _build_quality_constraints(narrative_contract, global_laws)
+    quality_constraints = _build_quality_constraints(narrative_contract, global_laws, design_canon, plan)
     style_pack_ids = _resolve_style_pack_ids(seed)
     variants = _build_variants(plan, story_atoms, style_pack_ids)
 
@@ -161,6 +167,7 @@ def build_artifact_plan(plan: dict, seed: dict | str) -> dict:
 
     primary_target = selected_targets[0] if selected_targets else {}
     chosen_variant = variants[0]["id"] if variants else "variant_01"
+    premium_targets = _build_premium_targets(selected_targets)
     return {
         "schema_version": 2,
         "primary_target_id": primary_target.get("id", DEFAULT_OUTPUT_TARGET),
@@ -171,6 +178,15 @@ def build_artifact_plan(plan: dict, seed: dict | str) -> dict:
         "story_atoms": story_atoms,
         "style_pack_ids": style_pack_ids,
         "quality_constraints": quality_constraints,
+        "quality_mode": "absolute",
+        "premium_targets": premium_targets,
+        "qa_frames": int(quality_constraints.get("qa_frames", 5) or 5),
+        "auto_iterate_max": int(quality_constraints.get("auto_iterate_max", 1) or 1),
+        "brand_veto_policy": {
+            "hero_target": "strict",
+            "video_targets": "degrade_to_fallback_pass",
+            "fallback_never_premium": True,
+        },
         "variants": variants,
         "chosen_variant": chosen_variant,
         "review_session_id": None,
@@ -398,17 +414,28 @@ def _build_story_atoms(plan: dict, brief: dict) -> dict[str, Any]:
     }
 
 
-def _build_quality_constraints(narrative_contract: dict, global_laws: dict) -> dict[str, Any]:
+def _build_quality_constraints(
+    narrative_contract: dict,
+    global_laws: dict,
+    design_canon: dict,
+    plan: dict,
+) -> dict[str, Any]:
     pacing = narrative_contract.get("pacing", {}) if isinstance(narrative_contract.get("pacing", {}), dict) else {}
     constraints = global_laws.get("constraints", {}) if isinstance(global_laws.get("constraints", {}), dict) else {}
+    canon_typography = design_canon.get("typography", {}) if isinstance(design_canon.get("typography", {}), dict) else {}
+    canon_sizing = canon_typography.get("sizing", {}) if isinstance(canon_typography.get("sizing", {}), dict) else {}
+    canon_math = design_canon.get("mathematical_precision", {}) if isinstance(design_canon.get("mathematical_precision", {}), dict) else {}
+    pacing_profile = plan.get("pacing_profile", {}) if isinstance(plan.get("pacing_profile", {}), dict) else {}
     return {
-        "text_minimum_gap": pacing.get("text_minimum_gap", "1.5s"),
-        "max_words_per_screen": int(pacing.get("max_text_words_per_screen", TEXT_WORD_LIMIT) or TEXT_WORD_LIMIT),
-        "silence_ratio": float(pacing.get("silence_ratio", 0.3) or 0.3),
-        "negative_space_target": float(constraints.get("min_negative_space", 0.4) or 0.4),
+        "text_minimum_gap": pacing_profile.get("text_minimum_gap_sec", pacing.get("text_minimum_gap", "1.5s")),
+        "max_words_per_screen": int(canon_sizing.get("max_words_per_screen", pacing.get("max_text_words_per_screen", TEXT_WORD_LIMIT)) or TEXT_WORD_LIMIT),
+        "silence_ratio": float(pacing_profile.get("silence_ratio", pacing.get("silence_ratio", 0.3)) or 0.3),
+        "negative_space_target": float(canon_math.get("min_negative_space", constraints.get("min_negative_space", 0.4)) or 0.4),
         "max_colors": int(constraints.get("max_colors", 2) or 2),
         "contrast_floor": 4.5,
         "typography_conformance": "strict",
+        "qa_frames": 5,
+        "auto_iterate_max": 1,
     }
 
 
@@ -439,6 +466,21 @@ def _build_variants(plan: dict, story_atoms: dict[str, Any], style_pack_ids: lis
             }
         )
     return variants
+
+
+def _build_premium_targets(selected_targets: list[dict[str, Any]]) -> list[str]:
+    ordered = ["linkedin_feed_4_5", "short_cinematic_vertical"]
+    requested = {
+        str(target.get("id", "")).strip()
+        for target in selected_targets
+        if isinstance(target, dict) and str(target.get("id", "")).strip()
+    }
+    premium_targets = [target_id for target_id in ordered if target_id in requested]
+    if not premium_targets and selected_targets:
+        first_target = str(selected_targets[0].get("id", "")).strip()
+        if first_target:
+            premium_targets.append(first_target)
+    return premium_targets
 
 
 def _build_renderer_contracts(selected_targets: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -488,7 +530,79 @@ def _expand_target(
     target["story_atoms"] = story_atoms
     target["still_frame"] = _target_still_frame(target, duration)
     target["plan_archetype"] = plan.get("archetype")
+    target["act_quality_profile"] = _build_act_quality_profile(plan, acts)
+    target["post_fx_profile"] = _target_post_fx_profile(target)
+    target["qa_sampling_frames"] = _build_qa_sampling_frames(target, acts, duration)
+    target["poster_test_frames"] = _build_poster_test_frames(target, acts, duration)
     return target
+
+
+def _build_act_quality_profile(plan: dict, acts: list[dict]) -> dict[str, dict[str, Any]]:
+    pacing_profile = plan.get("pacing_profile", {}) if isinstance(plan.get("pacing_profile", {}), dict) else {}
+    pacing_acts = {
+        str(act.get("act_id", "")).strip(): act
+        for act in pacing_profile.get("acts", [])
+        if isinstance(act, dict) and str(act.get("act_id", "")).strip()
+    }
+    profile: dict[str, dict[str, Any]] = {}
+    for act in acts:
+        act_id = str(act.get("id", "")).strip()
+        pacing_act = pacing_acts.get(act_id, {})
+        profile[act_id] = {
+            "emotion": act.get("emotion"),
+            "tension": act.get("tension"),
+            "breath_points": list(pacing_act.get("breath_points", [])) if isinstance(pacing_act.get("breath_points", []), list) else [],
+            "silence_ratio": float(pacing_act.get("silence_ratio", pacing_profile.get("silence_ratio", 0.3)) or 0.3),
+            "poster_test": True,
+        }
+    return profile
+
+
+def _target_post_fx_profile(target: dict[str, Any]) -> str:
+    target_id = str(target.get("id", "")).strip()
+    render_mode = str(target.get("render_mode", "video")).strip().lower()
+    if target_id in {"linkedin_feed_4_5", "youtube_thumbnail_16_9"}:
+        return "premium"
+    if render_mode == "carousel":
+        return "premium"
+    if target_id == "short_cinematic_vertical":
+        return "premium"
+    if target_id == "youtube_essay_16_9":
+        return "cinematic"
+    return "cinematic"
+
+
+def _build_qa_sampling_frames(target: dict[str, Any], acts: list[dict], duration: float) -> list[float]:
+    render_mode = str(target.get("render_mode", "video")).strip().lower()
+    if render_mode == "still":
+        return [float(target.get("still_frame", 0) or 0)]
+    if render_mode == "carousel":
+        slides = target.get("slides", []) if isinstance(target.get("slides", []), list) else []
+        return [float(index) for index in range(min(len(slides), 6))]
+
+    samples: list[float] = []
+    for act in acts:
+        start = float(act.get("start_sec", 0.0) or 0.0)
+        end = float(act.get("end_sec", duration) or duration)
+        midpoint = round((start + end) / 2.0, 2)
+        samples.append(midpoint)
+    if not samples:
+        samples = [round(duration * ratio, 2) for ratio in (0.2, 0.5, 0.8)]
+    return samples
+
+
+def _build_poster_test_frames(target: dict[str, Any], acts: list[dict], duration: float) -> list[float]:
+    render_mode = str(target.get("render_mode", "video")).strip().lower()
+    if render_mode == "still":
+        return [float(target.get("still_frame", 0) or 0)]
+    if render_mode == "carousel":
+        slides = target.get("slides", []) if isinstance(target.get("slides", []), list) else []
+        if len(slides) >= 5:
+            return [0.0, 4.0, float(len(slides) - 1)]
+        return [float(index) for index in range(len(slides))]
+    if acts:
+        return [round((float(act.get("start_sec", 0.0) or 0.0) + float(act.get("end_sec", duration) or duration)) / 2.0, 2) for act in acts]
+    return [round(duration * ratio, 2) for ratio in (0.25, 0.55, 0.85)]
 
 
 def _target_duration(target: dict[str, Any], base_duration: float) -> float:
@@ -640,6 +754,15 @@ def _build_render_inputs(
             "story_atoms": artifact_plan.get("story_atoms", {}),
             "style_pack_ids": artifact_plan.get("style_pack_ids", []),
             "quality_constraints": artifact_plan.get("quality_constraints", {}),
+            "quality_mode": artifact_plan.get("quality_mode", "absolute"),
+            "premium_targets": artifact_plan.get("premium_targets", []),
+            "qa_frames": artifact_plan.get("qa_frames"),
+            "auto_iterate_max": artifact_plan.get("auto_iterate_max"),
+            "brand_veto_policy": artifact_plan.get("brand_veto_policy", {}),
+            "act_quality_profile": target.get("act_quality_profile", {}),
+            "post_fx_profile": target.get("post_fx_profile"),
+            "qa_sampling_frames": target.get("qa_sampling_frames", []),
+            "poster_test_frames": target.get("poster_test_frames", []),
             "brief": {
                 "title": brief.get("title"),
                 "tagline": brief.get("tagline"),

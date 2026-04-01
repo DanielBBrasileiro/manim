@@ -30,6 +30,7 @@ class GraphRuntime:
             "signature": None,
             "manifest": None,
             "previs": {},
+            "artifact_quality_report": None,
             "quality_report": None,
             "capability_pool": {},
             "review_session_id": None,
@@ -101,7 +102,7 @@ class GraphRuntime:
         print("🗂️ [Runtime] Gerando Storyboard e Quality Gate")
         artifact_plan = self.state.get("artifact_plan") or {}
         if not artifact_plan:
-            self.state["quality_report"] = {"ok": True, "errors": [], "warnings": ["artifact_plan_missing"]}
+            self.state["artifact_quality_report"] = {"ok": True, "errors": [], "warnings": ["artifact_plan_missing"]}
             self._record_step("preview", "Generate preview", details={"artifact_plan_missing": True})
             return
 
@@ -118,7 +119,7 @@ class GraphRuntime:
             "storyboard": storyboard_paths,
             "storyboard_text": summarize_storyboard(artifact_plan),
         }
-        self.state["quality_report"] = quality_report
+        self.state["artifact_quality_report"] = quality_report
         if isinstance(self.state.get("artifact_plan"), dict):
             review_session_id = generate_review_session_id()
             self.state["review_session_id"] = review_session_id
@@ -172,7 +173,7 @@ class GraphRuntime:
             chosen_variant = (artifact_plan or {}).get("chosen_variant")
             if chosen_variant:
                 print(f"🧪 Variante: {chosen_variant}")
-            quality_report = self.state.get("quality_report") or {}
+            quality_report = self.state.get("artifact_quality_report") or {}
             if quality_report.get("errors"):
                 print(f"⚠️ Quality Gate errors: {', '.join(quality_report['errors'])}")
             elif quality_report.get("warnings"):
@@ -200,6 +201,7 @@ class GraphRuntime:
         self.state["approved"] = True
         self.state["status"] = "rendering"
         self.step_render()
+        self.step_quality()
         self.step_log()
         
     def step_render(self):
@@ -209,7 +211,7 @@ class GraphRuntime:
             self.state["plan"],
             artifact_plan=self.state.get("artifact_plan"),
             briefing=self.state.get("input"),
-            quality_report=self.state.get("quality_report"),
+            quality_report=self.state.get("artifact_quality_report"),
         )
         render_ok = self.state["output"]
         if isinstance(render_ok, dict):
@@ -220,13 +222,56 @@ class GraphRuntime:
         else:
             self.state["status"] = "failed"
             print("❌ [Runtime] Render final falhou.")
+        self._record_step("render", "Render output", details={"ok": bool(render_ok), "status": self.state["status"]})
+
+    def step_quality(self):
         exported_targets = (self.state["output"] or {}).get("outputs", []) if isinstance(self.state.get("output"), dict) else []
+        if not exported_targets:
+            self.state["quality_report"] = {
+                "ok": False,
+                "render_ok": False,
+                "brand_ok": False,
+                "vision_ok": False,
+                "premium_ok": False,
+                "quality_pass": False,
+                "brand_precheck": False,
+                "frame_scores": [],
+                "iteration_count": 0,
+                "final_quality_summary": "Nenhum output disponível para QA.",
+                "native_vs_fallback": {"native_outputs": 0, "fallback_outputs": 0},
+                "target_reports": {},
+            }
+        else:
+            print("🧪 [Runtime] Rodando Quality Runtime canônico...")
+            from core.quality.quality_runtime import run_quality_pipeline
+
+            self.state["quality_report"] = run_quality_pipeline(
+                exported_targets,
+                self.state.get("artifact_plan") or {},
+                context={
+                    "archetype": (self.state.get("plan") or {}).get("archetype"),
+                    "runtime_profile": self.state.get("runtime_profile"),
+                    "capability_pool": self.state.get("capability_pool") or {},
+                },
+            )
+
         self.state["parity_audit"] = run_artifact_parity_audit(
             self.state.get("artifact_plan"),
             exported_targets,
             profile_name=self.state.get("runtime_profile"),
+            quality_report=self.state.get("quality_report"),
         )
-        self._record_step("render", "Render output", details={"ok": bool(render_ok), "status": self.state["status"]})
+        summary = (self.state.get("quality_report") or {}).get("final_quality_summary")
+        if summary:
+            print(f"🛡️ [Runtime] Quality summary: {summary}")
+        self._record_step(
+            "quality",
+            "Evaluate render quality",
+            details={
+                "quality_pass": bool((self.state.get("quality_report") or {}).get("quality_pass")),
+                "premium_ok": bool((self.state.get("quality_report") or {}).get("premium_ok")),
+            },
+        )
         
     def step_log(self):
         try:
@@ -238,6 +283,8 @@ class GraphRuntime:
                 "intent": self.state["intent"],
                 "creative_plan": self.state["plan"],
                 "artifact_plan": self.state.get("artifact_plan"),
+                "artifact_quality_report": self.state.get("artifact_quality_report"),
+                "quality_report": self.state.get("quality_report"),
                 "output_signature": self.state["signature"],
                 "execution_graph": self.execution_graph.to_dict(),
                 "parity_audit": self.state.get("parity_audit").stats if self.state.get("parity_audit") else {},
@@ -277,6 +324,7 @@ class GraphRuntime:
                 runtime_profile=self.state.get("runtime_profile"),
                 review_session_id=self.state.get("review_session_id"),
                 benchmark_metrics=self.state.get("parity_audit").stats if self.state.get("parity_audit") else {},
+                quality_report=self.state.get("quality_report"),
             )
             print("🧠 [Runtime] Decisão gravada na Memória Criativa.")
         except Exception as exc:
