@@ -219,6 +219,15 @@ const splitLockupTitle = (title?: string): string[] => {
 	return [words.slice(0, midpoint).join(' '), words.slice(midpoint).join(' ')];
 };
 
+const wordCap = (text?: string, maxWords = 2): string => {
+	return String(text || '')
+		.trim()
+		.split(/\s+/)
+		.filter(Boolean)
+		.slice(0, maxWords)
+		.join(' ');
+};
+
 const StaticBackdrop: React.FC<{frame: number; targetKind?: string; profile: TargetVisualProfile}> = ({
 	frame,
 	targetKind,
@@ -284,136 +293,93 @@ const StaticBackdrop: React.FC<{frame: number; targetKind?: string; profile: Tar
 	);
 };
 
-const LinkedInFeedHeroBackdrop: React.FC<{
+const PosterHeroBackdrop: React.FC<{
 	frame: number;
 	profile: TargetVisualProfile;
 	storyAtoms?: StoryAtoms;
 	activeVariant?: {label?: string; composition_mode?: string};
-}> = ({frame, profile, storyAtoms, activeVariant}) => {
-	const drift = Math.sin(frame / 42) * 2.2;
-	const pulse = Math.sin(frame / 28) * 0.02 + 0.08;
-	const lockupLines = splitLockupTitle(storyAtoms?.title ?? storyAtoms?.resolve_word ?? storyAtoms?.resolveWord);
-	const eyebrow = String(storyAtoms?.tagline || activeVariant?.composition_mode || 'Poster first').trim();
-	const resolveWord = String(storyAtoms?.resolve_word || storyAtoms?.resolveWord || 'AIOX').trim();
+	targetId?: string;
+}> = ({frame, profile, storyAtoms, activeVariant, targetId}) => {
+	const drift = Math.sin(frame / 52) * 1.4;
+	const titleWord = wordCap(storyAtoms?.resolve_word ?? storyAtoms?.resolveWord ?? 'AIOX', 1) || 'AIOX';
+	const accentLabel = wordCap(storyAtoms?.tagline ?? activeVariant?.label ?? 'Signal', 2);
+	const isWide = targetId === 'youtube_thumbnail_16_9';
+	const titleSize = isWide ? 'clamp(2.4rem, 6vw, 4rem)' : 'clamp(2.8rem, 8vw, 4.5rem)';
+	const anchorLeft = isWide ? '8%' : '11%';
+	const titleTop = isWide ? '66%' : '70%';
+	const curveInset = isWide ? '12% 7% 14% 7%' : '10% 8% 12% 8%';
 
 	return (
 		<AbsoluteFill
 			style={{
-				background:
-					'radial-gradient(circle at 18% 18%, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 24%, rgba(0,0,0,0) 50%), linear-gradient(180deg, #030303 0%, #090909 56%, #050505 100%)',
+				background: '#000000',
 			}}
 		>
 			<AbsoluteFill
 				style={{
 					transform: `translate(${drift}px, ${drift * 0.25}px)`,
-					opacity: 0.9,
 				}}
 			>
-				<div
-					style={{
-						position: 'absolute',
-						inset: profile.panelInset,
-						border: `1px solid ${profile.accentColor}`,
-						borderRadius: profile.panelRadius,
-						background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)',
-						boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.02)',
-					}}
-				/>
-				<div
-					style={{
-						position: 'absolute',
-						left: '12%',
-						right: '12%',
-						top: profile.railTop,
-						height: 1,
-						background: profile.accentColor,
-						opacity: 0.76,
-					}}
-				/>
-				<div
-					style={{
-						position: 'absolute',
-						right: '8.5%',
-						top: '12.5%',
-						width: '28%',
-						height: '42%',
-						borderRadius: 999,
-						border: '1px solid rgba(255,255,255,0.08)',
-						transform: `scale(${1 + pulse})`,
-						opacity: 0.55,
-					}}
-				/>
 				<svg
 					viewBox="0 0 100 100"
 					preserveAspectRatio="none"
 					style={{
 						position: 'absolute',
-						inset: profile.panelInset,
+						inset: curveInset,
 						overflow: 'visible',
 					}}
 				>
 					<path
-						d="M 8 72 C 20 60, 30 38, 45 44 C 61 49, 74 62, 92 24"
+						d={isWide ? 'M 8 74 C 22 66, 42 52, 58 44 C 74 36, 83 28, 92 16' : 'M 10 78 C 21 70, 38 57, 52 46 C 66 35, 79 24, 90 14'}
 						fill="none"
-						stroke={profile.curveStroke}
-						strokeWidth={profile.curveWidth}
+						stroke="#FFFFFF"
+						strokeWidth={isWide ? 1.8 : 2}
 						strokeLinecap="round"
-						style={{opacity: profile.curveOpacity}}
+						vectorEffect="non-scaling-stroke"
 					/>
-					<path
-						d="M 14 78 C 31 67, 43 53, 54 54 C 69 56, 81 67, 92 41"
-						fill="none"
-						stroke="rgba(255,255,255,0.18)"
-						strokeWidth={1.1}
-						strokeLinecap="round"
-					/>
+					<circle cx={isWide ? 92 : 90} cy={isWide ? 16 : 14} r={1.6} fill="#FF3366" />
 				</svg>
 				<div
 					style={{
 						position: 'absolute',
-						left: profile.heroLockupOffset,
+						left: anchorLeft,
 						top: '14%',
-						maxWidth: '38%',
-						color: Theme.colors.textPrimary,
+						maxWidth: isWide ? '26%' : '28%',
+						color: '#FF3366',
 						fontFamily: tokens.typography.fonts.narrative.family,
-						letterSpacing: '-0.04em',
 					}}
 				>
 					<div
 						style={{
-							fontSize: profile.heroSubtitleSize,
+							fontSize: '0.72rem',
 							fontWeight: 300,
 							textTransform: 'uppercase',
-							letterSpacing: '0.32em',
-							opacity: 0.56,
-							marginBottom: '0.7rem',
-						}}
-					>
-						{eyebrow}
-					</div>
-					<div
-						style={{
-							fontSize: profile.heroTitleSize,
-							fontWeight: 500,
-							lineHeight: 0.95,
-							maxWidth: '8ch',
-						}}
-					>
-						{lockupLines[0]}
-						<br />
-						{lockupLines[1] || resolveWord}
-					</div>
-					<div
-						style={{
-							fontSize: '0.92rem',
-							fontWeight: 400,
 							letterSpacing: '0.28em',
-							textTransform: 'uppercase',
-							opacity: 0.42,
-							marginTop: '1.1rem',
+							lineHeight: 1.2,
 						}}
 					>
-						{resolveWord}
+						{accentLabel || 'Signal'}
+					</div>
+				</div>
+				<div
+					style={{
+						position: 'absolute',
+						left: anchorLeft,
+						top: titleTop,
+						maxWidth: isWide ? '30%' : '34%',
+						color: '#FFFFFF',
+						fontFamily: tokens.typography.fonts.narrative.family,
+					}}
+				>
+					<div
+						style={{
+							fontSize: titleSize,
+							fontWeight: 300,
+							lineHeight: 0.92,
+							letterSpacing: '-0.055em',
+						}}
+					>
+						{titleWord}
 					</div>
 				</div>
 			</AbsoluteFill>
@@ -609,6 +575,10 @@ const buildCues = (
 	durationInFrames: number,
 ): ResolvedCue[] => {
 	const manifest = props.renderManifest ?? {};
+	const targetId = props.target ?? props.targetId ?? manifest.targetId ?? manifest.target;
+	if (targetId === 'linkedin_feed_4_5' || targetId === 'youtube_thumbnail_16_9') {
+		return [];
+	}
 	const directCues = props.textCues ?? manifest.textCues ?? manifest.text_cues;
 	const resolveWord = props.resolveWord ?? manifest.resolveWord ?? manifest.resolve_word;
 
@@ -675,8 +645,14 @@ export const CinematicNarrative: React.FC<CinematicNarrativeProps> = (props) => 
 						src={videoSrc}
 						style={{width: '100%', height: '100%', objectFit: 'cover'}}
 					/>
-				) : targetId === 'linkedin_feed_4_5' ? (
-					<LinkedInFeedHeroBackdrop frame={frame} profile={profile} storyAtoms={storyAtoms} activeVariant={activeVariant} />
+				) : targetId === 'linkedin_feed_4_5' || targetId === 'youtube_thumbnail_16_9' ? (
+					<PosterHeroBackdrop
+						frame={frame}
+						profile={profile}
+						storyAtoms={storyAtoms}
+						activeVariant={activeVariant}
+						targetId={targetId}
+					/>
 				) : (
 					<StaticBackdrop
 						frame={frame}
