@@ -448,7 +448,7 @@ def _build_target_props(target: dict[str, Any], artifact_plan: dict[str, Any], r
         "chosen_variant": chosen_variant_id,
         "active_variant": active_variant,
         "quality_constraints": artifact_plan.get("quality_constraints", {}),
-        "quality_mode": artifact_plan.get("quality_mode", "absolute"),
+        "quality_mode": target.get("quality_mode", artifact_plan.get("quality_mode", "absolute")),
         "premium_targets": artifact_plan.get("premium_targets", []),
         "qaFrames": artifact_plan.get("qa_frames"),
         "autoIterateMax": artifact_plan.get("auto_iterate_max"),

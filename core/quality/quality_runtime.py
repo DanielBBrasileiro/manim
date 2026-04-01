@@ -6,10 +6,10 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from core.generators.post_processor import PRESETS, PostProcessor
 from core.intelligence.model_capabilities import load_model_capabilities
 from core.quality.brand_validator import validate_frame
 from core.quality.frame_scorer import batch_summary, score_frames
+from core.quality.post_processor import apply_post_fx_to_target
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 
@@ -75,7 +75,23 @@ def run_quality_pipeline(
         else:
             report["native_vs_fallback"]["native_outputs"] += 1
 
-        post_fx = _apply_post_fx(output, target_spec)
+        post_fx = _apply_post_fx(
+            target_report={
+                "target": target_id,
+                "mode": output.get("mode"),
+                "output": output.get("output"),
+                "slides": output.get("slides", []),
+                "fallback": fallback,
+                "premium_target": premium_target,
+                "post_fx_profile": target_spec.get("post_fx_profile"),
+            },
+            context={
+                **context,
+                "post_fx_profile": target_spec.get("post_fx_profile"),
+                "quality_mode": artifact_plan.get("quality_mode", "absolute"),
+                "strict_effect_enforcement": premium_target and not fallback,
+            },
+        )
         frame_payload = _collect_quality_frames(output, target_spec)
         candidate_frames = frame_payload["qa_frames"]
         poster_frames = frame_payload["poster_frames"]
@@ -245,36 +261,12 @@ def _extract_video_frames(video_path: str, sample_points: list[float]) -> list[s
     return frames
 
 
-def _apply_post_fx(output: dict[str, Any], target_spec: dict[str, Any]) -> dict[str, Any]:
-    preset = str(target_spec.get("post_fx_profile", "")).strip()
-    if not preset or preset not in PRESETS:
-        return {"applied": False, "preset": preset or None}
-
-    render_mode = str(target_spec.get("render_mode", output.get("mode", "video"))).strip().lower()
-    processor = PostProcessor(preset=preset)
+def _apply_post_fx(target_report: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    """Usa a ponte oficial para aplicar efeitos baseados no contrato."""
     try:
-        if render_mode == "still":
-            output_path = str(output.get("output", "")).strip()
-            if output_path:
-                processor.process_image(output_path)
-                return {"applied": True, "preset": preset}
-        elif render_mode == "carousel":
-            slide_paths = [str(path).strip() for path in output.get("slides", []) if str(path).strip()]
-            for slide_path in slide_paths:
-                processor.process_image(slide_path)
-            return {"applied": bool(slide_paths), "preset": preset}
-        elif str(target_spec.get("id", "")).strip() == "short_cinematic_vertical":
-            output_path = str(output.get("output", "")).strip()
-            duration = float(target_spec.get("duration_sec", 0.0) or 0.0)
-            if output_path and duration <= 20.0:
-                temp_output = str(Path(output_path).with_name(f"{Path(output_path).stem}.postfx{Path(output_path).suffix}"))
-                if processor.process_video(output_path, temp_output, fps=float(target_spec.get("fps", 60) or 60.0)):
-                    shutil.move(temp_output, output_path)
-                    return {"applied": True, "preset": preset}
-        return {"applied": False, "preset": preset}
+        return apply_post_fx_to_target(target_report, context=context)
     except Exception as exc:
-        return {"applied": False, "preset": preset, "error": f"{type(exc).__name__}: {exc}"}
-
+        return {"applied": False, "error": str(exc)}
 
 def _collect_violations(results: list[Any]) -> list[str]:
     violations: list[str] = []

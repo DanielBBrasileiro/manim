@@ -105,8 +105,9 @@ def validate_frame(frame_path: str, threshold: float = 70.0) -> BrandValidationR
             (255, 255, 255), # #FFFFFF foreground
             (255, 51, 102),  # #FF3366 accent
         ]
-        TOLERANCE = 35  # color distance threshold (0-441 range)
-        BG_TOLERANCE = 30  # tighter for background detection
+        # High-fidelity tolerance (allows for cinematic halation and grain)
+        TOLERANCE = 45  # was 35; allows for slight color bleed from post-fx
+        BG_TOLERANCE = 35  # was 30; allows for grain in background
 
         # -- Check 1: Color purity --
         off_brand = 0
@@ -155,7 +156,7 @@ def validate_frame(frame_path: str, threshold: float = 70.0) -> BrandValidationR
                 f"negative_space {result.negative_space_pct*100:.0f}% < 40% required"
             )
 
-        if result.text_density_estimate > 8:
+        if result.text_density_estimate > 5:
             violations.append(
                 f"text_density estimate {result.text_density_estimate} words — max 5 required"
             )

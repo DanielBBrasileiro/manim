@@ -1,324 +1,241 @@
 """
-post_processor.py — Cinematic post-processing for AIOX renders.
+post_processor.py — Contract-driven post-processing bridge.
 
-Applies film-grade effects that transform digital output into
-premium cinematic output. All effects use Pillow + NumPy only.
-
-Effects:
-  grain        — Film grain texture (existing, from tokens.json grain: 0.06)
-  halation     — Optical bloom on highlights (simulates film response)
-  breath_exposure — Sinusoidal exposure variation ±2% (living camera feel)
-  color_grade  — Narrative-act-aware LUT: genesis=cool, turbulence=contrast, resolution=warm
-  vignette     — Subtle edge darkening for cinematic framing
-
-Presets (archetype-driven):
-  genesis_preset     — grain + halation(soft) + breath_exposure + color_grade(genesis)
-  turbulence_preset  — grain + halation(intense) + color_grade(turbulence) + vignette
-  resolution_preset  — grain + color_grade(resolution) + breath_exposure(gentle)
-  default_preset     — grain + vignette
+Loads contracts/post_processing.yaml and applies archetype-aware,
+mode-aware effects through the generator-grade PostProcessor.
 """
 from __future__ import annotations
 
-import math
-from dataclasses import dataclass, field
+import shutil
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+import yaml
 
-@dataclass
-class PostProcessConfig:
-    """Configuration for a post-processing run."""
-    grain: float = 0.06          # Film grain intensity (0-1)
-    halation: float = 0.0        # Optical bloom on highlights (0-1)
-    halation_warmth: float = 0.3 # Warm tint for halation (0-1)
-    breath_exposure: float = 0.0 # Exposure breath amplitude (0-0.05)
-    breath_phase: float = 0.0    # Phase offset for breath (0-2π)
-    color_grade: str = "none"    # "none" | "genesis" | "turbulence" | "resolution"
-    vignette: float = 0.0        # Vignette strength (0-1)
+from core.generators.post_processor import EFFECT_FNS, PostProcessor
 
-    @classmethod
-    def genesis(cls) -> "PostProcessConfig":
-        return cls(grain=0.055, halation=0.12, halation_warmth=0.15,
-                   breath_exposure=0.018, color_grade="genesis", vignette=0.15)
-
-    @classmethod
-    def turbulence(cls) -> "PostProcessConfig":
-        return cls(grain=0.075, halation=0.22, halation_warmth=0.35,
-                   color_grade="turbulence", vignette=0.25)
-
-    @classmethod
-    def resolution_act(cls) -> "PostProcessConfig":
-        return cls(grain=0.05, breath_exposure=0.012, breath_phase=math.pi * 0.5,
-                   color_grade="resolution", vignette=0.10)
-
-    @classmethod
-    def default(cls) -> "PostProcessConfig":
-        return cls(grain=0.06, vignette=0.10)
+ROOT = Path(__file__).resolve().parent.parent.parent
+CONTRACT_PATH = ROOT / "contracts" / "post_processing.yaml"
 
 
-# Preset registry
-_PRESETS: dict[str, PostProcessConfig] = {
-    "genesis": PostProcessConfig.genesis(),
-    "turbulence": PostProcessConfig.turbulence(),
-    "resolution": PostProcessConfig.resolution_act(),
-    "default": PostProcessConfig.default(),
-}
-
-
-def get_preset(act_id: str, archetype: str = "") -> PostProcessConfig:
-    """
-    Select a PostProcessConfig based on narrative act and archetype.
-
-    Priority: act_id match → archetype-derived → default
-    """
-    act_lower = act_id.lower()
-
-    # Direct act match
-    for key in ("genesis", "turbulence", "resolution"):
-        if key in act_lower:
-            return _PRESETS[key]
-
-    # Archetype-derived fallback
-    high_chaos = {"fragmented_reveal", "order_to_chaos", "signal_break", "chaotic_dispersion"}
-    if archetype in high_chaos:
-        return _PRESETS["turbulence"]
-
-    calm_close = {"resolution", "synchronization", "loop_stability", "expansion_field"}
-    if archetype in calm_close:
-        return _PRESETS["resolution"]
-
-    return _PRESETS["default"]
-
-
-def apply_grain(pixels, intensity: float):
-    """Apply film grain texture using Gaussian noise."""
-    import numpy as np
-    noise = np.random.normal(0, intensity * 255, pixels.shape).astype(np.float32)
-    return np.clip(pixels.astype(np.float32) + noise, 0, 255).astype(np.uint8)
-
-
-def apply_halation(pixels, strength: float, warmth: float):
-    """
-    Halation: optical bloom on bright highlights.
-
-    Simulates film emulsion's light-scattering around bright areas.
-    Different from glow: softer falloff, warm color shift in highlights.
-    Strength: 0 = disabled, 1 = strong bloom
-    Warmth: adds subtle warm (R+G) shift to bloom areas
-    """
-    import numpy as np
-    from PIL import Image
-
-    if strength < 0.01:
-        return pixels
-
-    img = Image.fromarray(pixels.astype(np.uint8), mode="RGB")
-    width, height = img.size
-
-    # Extract highlight mask (pixels > 200 brightness)
-    arr = pixels.astype(np.float32)
-    gray = arr.mean(axis=2)
-    highlight_mask = np.clip((gray - 200) / 55.0, 0, 1)  # smooth threshold
-
-    # Blur the highlights heavily for bloom
-    from PIL import ImageFilter
-    mask_img = Image.fromarray((highlight_mask * 255).astype(np.uint8), mode="L")
-    blurred = mask_img.filter(ImageFilter.GaussianBlur(radius=max(2, int(min(width, height) * 0.015))))
-    bloom = np.array(blurred, dtype=np.float32) / 255.0
-
-    # Apply warm tint to bloom (add R and slightly G)
-    bloom_rgb = np.stack([
-        bloom * (1.0 + warmth * 0.3),   # R channel warmer
-        bloom * (1.0 + warmth * 0.1),   # G slightly warm
-        bloom * 1.0,                      # B unchanged
-    ], axis=2)
-
-    result = arr + bloom_rgb * strength * 40
-    return np.clip(result, 0, 255).astype(np.uint8)
-
-
-def apply_breath_exposure(pixels, amplitude: float, phase: float):
-    """
-    Breath exposure: sinusoidal ±amplitude variation in overall exposure.
-
-    Gives the render a subtle "living camera" feel — the exposure
-    oscillates as if a human is holding the camera and breathing.
-    Amplitude: 0.02 = ±2% exposure variation (recommended)
-    """
-    import numpy as np
-
-    if amplitude < 0.001:
-        return pixels
-
-    factor = 1.0 + amplitude * math.sin(phase)
-    result = pixels.astype(np.float32) * factor
-    return np.clip(result, 0, 255).astype(np.uint8)
-
-
-def apply_color_grade(pixels, grade: str):
-    """
-    Narrative-act LUT (simplified 3-channel curves).
-
-    genesis:    Cool shift — desaturated, slightly blue. Curiosity/uncertainty.
-    turbulence: High contrast + warm highlights. Tension/heat.
-    resolution: Balanced with slight warmth. Mastery/completion.
-    """
-    import numpy as np
-
-    if grade == "none" or not grade:
-        return pixels
-
-    arr = pixels.astype(np.float32)
-
-    if grade == "genesis":
-        # Cool, slightly desaturated
-        arr[:, :, 0] *= 0.94   # reduce red
-        arr[:, :, 1] *= 0.97   # reduce green slightly
-        arr[:, :, 2] *= 1.06   # boost blue
-        # Slight desaturation: blend toward gray
-        gray = arr.mean(axis=2, keepdims=True)
-        arr = arr * 0.88 + gray * 0.12
-
-    elif grade == "turbulence":
-        # High contrast + warm highlights
-        # S-curve: boost darks toward black, boost lights toward white
-        normalized = arr / 255.0
-        # Simple contrast S-curve: 3x^2 - 2x^3 (smooth step) mapped to ±boost
-        contrast_boost = 1.25
-        mid = 0.5
-        normalized = mid + (normalized - mid) * contrast_boost
-        # Warm shift in highlights
-        warm_mask = np.clip((normalized - 0.7) / 0.3, 0, 1)
-        normalized[:, :, 0] += warm_mask * 0.06   # warm reds
-        normalized[:, :, 1] += warm_mask * 0.02   # slight green
-        arr = np.clip(normalized * 255, 0, 255)
-
-    elif grade == "resolution":
-        # Balanced + slight warmth
-        arr[:, :, 0] = np.clip(arr[:, :, 0] * 1.03, 0, 255)  # very slight warm
-        arr[:, :, 2] = np.clip(arr[:, :, 2] * 0.97, 0, 255)  # reduce blue slightly
-        # Lift blacks very subtly (0.02 toe)
-        arr = np.clip(arr + 5, 0, 255)
-
-    return np.clip(arr, 0, 255).astype(np.uint8)
-
-
-def apply_vignette(pixels, strength: float):
-    """Subtle circular vignette — edge darkening for cinematic framing."""
-    import numpy as np
-
-    if strength < 0.01:
-        return pixels
-
-    h, w = pixels.shape[:2]
-    cy, cx = h / 2.0, w / 2.0
-    y_idx = np.arange(h, dtype=np.float32)
-    x_idx = np.arange(w, dtype=np.float32)
-    yy, xx = np.meshgrid(y_idx, x_idx, indexing="ij")
-    dist = np.sqrt(((yy - cy) / cy) ** 2 + ((xx - cx) / cx) ** 2)
-    vignette_map = 1.0 - np.clip(dist * strength, 0, 1)
-    vignette_map = vignette_map[:, :, np.newaxis]
-    result = pixels.astype(np.float32) * vignette_map
-    return np.clip(result, 0, 255).astype(np.uint8)
-
-
-def process_frame(
-    frame_path: str,
-    output_path: str | None = None,
-    *,
-    config: PostProcessConfig | None = None,
-    act_id: str = "default",
-    archetype: str = "",
-) -> str:
-    """
-    Apply post-processing to a single rendered frame.
-
-    Args:
-        frame_path: Input PNG/JPEG path
-        output_path: Output path (defaults to overwrite in place)
-        config: Explicit PostProcessConfig (overrides act_id/archetype)
-        act_id: Narrative act for preset selection
-        archetype: Archetype for preset selection fallback
-
-    Returns:
-        Path to processed frame
-    """
+@lru_cache(maxsize=1)
+def load_post_processing_contract() -> dict[str, Any]:
+    if not CONTRACT_PATH.exists():
+        return {}
     try:
-        import numpy as np
-        from PIL import Image
-    except ImportError:
-        return frame_path  # Fail gracefully
-
-    cfg = config or get_preset(act_id, archetype)
-    out_path = output_path or frame_path
-
-    img = Image.open(frame_path).convert("RGB")
-    pixels = np.array(img, dtype=np.uint8)
-
-    # Apply effects in order: grade → halation → grain → exposure → vignette
-    if cfg.color_grade and cfg.color_grade != "none":
-        pixels = apply_color_grade(pixels, cfg.color_grade)
-
-    if cfg.halation > 0:
-        pixels = apply_halation(pixels, cfg.halation, cfg.halation_warmth)
-
-    if cfg.grain > 0:
-        pixels = apply_grain(pixels, cfg.grain)
-
-    if cfg.breath_exposure > 0:
-        pixels = apply_breath_exposure(pixels, cfg.breath_exposure, cfg.breath_phase)
-
-    if cfg.vignette > 0:
-        pixels = apply_vignette(pixels, cfg.vignette)
-
-    result_img = Image.fromarray(pixels, mode="RGB")
-    result_img.save(out_path, optimize=True)
-    return out_path
+        with open(CONTRACT_PATH, "r", encoding="utf-8") as handle:
+            return yaml.safe_load(handle) or {}
+    except Exception:
+        return {}
 
 
-def process_pipeline_outputs(
-    outputs: list[dict[str, Any]],
+def resolve_post_fx_plan(target_report: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
+    context = context or {}
+    contract = load_post_processing_contract()
+    constraints = contract.get("constraints", {}) if isinstance(contract.get("constraints", {}), dict) else {}
+    archetypes = contract.get("archetypes", {}) if isinstance(contract.get("archetypes", {}), dict) else {}
+    modes = contract.get("modes", {}) if isinstance(contract.get("modes", {}), dict) else {}
+
+    archetype = str(context.get("archetype") or "emergence").strip() or "emergence"
+    archetype_config = archetypes.get(archetype) or archetypes.get("emergence") or {}
+
+    render_mode = str(target_report.get("mode") or "video").strip().lower()
+    mode_config = modes.get(render_mode, {}) if isinstance(modes.get(render_mode, {}), dict) else {}
+
+    preset = str(
+        target_report.get("post_fx_profile")
+        or context.get("post_fx_profile")
+        or archetype_config.get("preset")
+        or "cinematic"
+    ).strip() or "cinematic"
+    emotion = str(archetype_config.get("emotion_default") or context.get("emotion") or "mastery").strip() or "mastery"
+
+    mandatory = _string_list(archetype_config.get("mandatory"))
+    optional = _string_list(archetype_config.get("optional"))
+    strict = bool(context.get("strict_effect_enforcement", False))
+    requested_effects = mandatory + ([] if strict else optional)
+
+    effects = _build_effects(
+        requested_effects=requested_effects,
+        constraints=constraints,
+        emotion=emotion,
+        render_mode=render_mode,
+        mode_config=mode_config,
+    )
+
+    missing_mandatory = [name for name in mandatory if name not in {effect.get("name") for effect in effects}]
+
+    return {
+        "contract_loaded": bool(contract),
+        "archetype": archetype,
+        "render_mode": render_mode,
+        "preset": preset,
+        "emotion": emotion,
+        "strict": strict,
+        "effects": effects,
+        "mandatory": mandatory,
+        "optional": optional,
+        "missing_mandatory": missing_mandatory,
+        "constraints": constraints,
+        "mode_config": mode_config,
+    }
+
+
+def apply_post_fx_to_target(target_report: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
+    plan = resolve_post_fx_plan(target_report, context=context)
+    output_path = str(target_report.get("output") or "").strip()
+    if not output_path or not Path(output_path).exists():
+        return {
+            **plan,
+            "applied": False,
+            "reason": "output_missing",
+        }
+
+    if plan["strict"] and plan["missing_mandatory"]:
+        return {
+            **plan,
+            "applied": False,
+            "reason": "mandatory_effects_missing",
+        }
+
+    processor = PostProcessor(effects=plan["effects"] or None, preset=plan["preset"] if not plan["effects"] else None)
+
+    try:
+        if plan["render_mode"] == "still":
+            processor.process_image(output_path)
+            applied = True
+        elif plan["render_mode"] == "carousel":
+            applied = False
+            for slide_path in target_report.get("slides", []) or []:
+                slide = str(slide_path).strip()
+                if slide and Path(slide).exists():
+                    processor.process_image(slide)
+                    applied = True
+        elif plan["render_mode"] == "video":
+            target_id = str(target_report.get("target") or "").strip()
+            if target_id == "short_cinematic_vertical":
+                source = Path(output_path)
+                temp_output = source.with_name(f"{source.stem}.postfx{source.suffix}")
+                fps = float(plan["mode_config"].get("fps", 60) or 60.0)
+                crf = int(plan["mode_config"].get("crf", 18) or 18)
+                applied = bool(processor.process_video(output_path, str(temp_output), fps=fps, crf=crf))
+                if applied and temp_output.exists():
+                    shutil.move(str(temp_output), output_path)
+            else:
+                applied = False
+        else:
+            applied = False
+    except Exception as exc:
+        return {
+            **plan,
+            "applied": False,
+            "reason": f"{type(exc).__name__}: {exc}",
+        }
+
+    return {
+        **plan,
+        "applied": applied,
+        "reason": "ok" if applied else "unsupported_target_or_mode",
+    }
+
+
+def _build_effects(
     *,
-    archetype: str = "",
-    acts: list[dict[str, Any]] | None = None,
+    requested_effects: list[str],
+    constraints: dict[str, Any],
+    emotion: str,
+    render_mode: str,
+    mode_config: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    """
-    Apply post-processing to all still outputs from a render pipeline.
+    effects: list[dict[str, Any]] = []
+    seen: set[str] = set()
 
-    Args:
-        outputs: render_pipeline output list (dicts with 'output' key)
-        archetype: active archetype for preset selection
-        acts: pacing acts list (each with act_id for per-act presets)
+    def add_effect(effect: dict[str, Any]) -> None:
+        name = str(effect.get("name") or "").strip()
+        if not name or name in seen or name not in EFFECT_FNS:
+            return
+        seen.add(name)
+        effects.append(effect)
 
-    Returns:
-        outputs with 'post_processed' key added to each still
-    """
-    act_id = "default"
-    if acts:
-        # Use turbulence act as default (most common render moment)
-        for act in acts:
-            if "turbulence" in str(act.get("act_id", "")).lower():
-                act_id = "turbulence"
-                break
-        if act_id == "default" and acts:
-            act_id = str(acts[0].get("act_id", "default"))
+    add_effect({"name": "color_grade", "emotion": emotion})
+    for name in requested_effects:
+        effect = _effect_from_contract(name, constraints, render_mode=render_mode, mode_config=mode_config)
+        if effect:
+            add_effect(effect)
 
-    processed = []
-    for output in outputs:
-        if not isinstance(output, dict):
-            processed.append(output)
-            continue
+    return effects
 
-        out_path = output.get("output", "")
-        render_mode = output.get("mode", "video")
 
-        # Only post-process stills (videos need frame-level processing)
-        if render_mode == "still" and out_path and out_path.endswith(".png"):
-            try:
-                process_frame(out_path, act_id=act_id, archetype=archetype)
-                output = {**output, "post_processed": True, "post_process_preset": act_id}
-            except Exception as exc:
-                output = {**output, "post_processed": False, "post_process_error": str(exc)}
+def _effect_from_contract(
+    effect_name: str,
+    constraints: dict[str, Any],
+    *,
+    render_mode: str,
+    mode_config: dict[str, Any],
+) -> dict[str, Any] | None:
+    name = str(effect_name or "").strip()
+    if name == "chromatic_aberration":
+        limit = constraints.get("chromatic_aberration", {})
+        return {
+            "name": name,
+            "strength": _clamp(
+                float(limit.get("min_strength", 0.005) or 0.005),
+                minimum=float(limit.get("min_strength", 0.002) or 0.002),
+                maximum=float(limit.get("max_strength", 0.01) or 0.01),
+            ),
+        }
+    if name == "film_grain":
+        limit = constraints.get("film_grain", {})
+        return {
+            "name": name,
+            "intensity": _clamp(
+                float(limit.get("min_intensity", 0.04) or 0.04),
+                minimum=float(limit.get("min_intensity", 0.02) or 0.02),
+                maximum=float(limit.get("max_intensity", 0.12) or 0.12),
+            ),
+            "temporal": bool(mode_config.get("grain_temporal", render_mode == "video")),
+        }
+    if name == "halation":
+        limit = constraints.get("halation", {})
+        threshold_range = limit.get("threshold_range", [0.55, 0.85]) if isinstance(limit.get("threshold_range", [0.55, 0.85]), list) else [0.55, 0.85]
+        threshold = float(sum(float(item) for item in threshold_range[:2]) / max(min(len(threshold_range), 2), 1))
+        return {
+            "name": name,
+            "intensity": _clamp(
+                float(limit.get("max_intensity", 0.35) or 0.35) * 0.7,
+                minimum=0.05,
+                maximum=float(limit.get("max_intensity", 0.5) or 0.5),
+            ),
+            "threshold": threshold,
+        }
+    if name == "breath_exposure":
+        limit = constraints.get("breath_exposure", {})
+        if not bool(mode_config.get("breath_enabled", render_mode == "video")):
+            return None
+        freq_range = limit.get("freq_range", [0.1, 0.5]) if isinstance(limit.get("freq_range", [0.1, 0.5]), list) else [0.1, 0.5]
+        frequency = float(sum(float(item) for item in freq_range[:2]) / max(min(len(freq_range), 2), 1))
+        return {
+            "name": name,
+            "amplitude": _clamp(float(limit.get("max_amplitude", 0.04) or 0.04) * 0.5, minimum=0.005, maximum=float(limit.get("max_amplitude", 0.06) or 0.06)),
+            "frequency": frequency,
+        }
+    if name == "vignette":
+        return {"name": name, "strength": 0.35, "softness": 0.55}
+    if name == "scanlines":
+        return {"name": name, "spacing": 3, "darkness": 0.05}
+    if name == "glow":
+        return {"name": name, "radius": 8, "intensity": 0.18, "threshold": 0.78}
+    if name == "color_grade":
+        return {"name": name}
+    return None
 
-        processed.append(output)
-    return processed
+
+def _clamp(value: float, *, minimum: float, maximum: float) -> float:
+    return max(minimum, min(maximum, value))
+
+
+def _string_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item).strip() for item in value if str(item).strip()]

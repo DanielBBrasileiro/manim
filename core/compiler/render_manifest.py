@@ -316,21 +316,31 @@ def _resolve_requested_target_ids(
     requested_output_tokens: list[str] | None = None,
 ) -> list[str]:
     requested: list[str] = []
-    sources = [
+    explicit_sources = [
         requested_output_tokens or [],
         plan.get("targets"),
         plan.get("llm_scene_plan", {}).get("targets", []),
         brief.get("target"),
+    ]
+    fallback_sources = [
         brief.get("platform"),
         brief.get("format"),
     ]
 
-    for source in sources:
+    for source in explicit_sources:
         if isinstance(source, list):
             for item in source:
                 requested.extend(_map_target_token(str(item), target_catalog, formats))
         elif isinstance(source, str):
             requested.extend(_map_target_token(source, target_catalog, formats))
+
+    if not requested:
+        for source in fallback_sources:
+            if isinstance(source, list):
+                for item in source:
+                    requested.extend(_map_target_token(str(item), target_catalog, formats))
+            elif isinstance(source, str):
+                requested.extend(_map_target_token(source, target_catalog, formats))
 
     deduped: list[str] = []
     for target_id in requested:
@@ -530,6 +540,7 @@ def _expand_target(
     target["story_atoms"] = story_atoms
     target["still_frame"] = _target_still_frame(target, duration)
     target["plan_archetype"] = plan.get("archetype")
+    target["quality_mode"] = "absolute" if str(target.get("id", "")).strip() == "linkedin_feed_4_5" else plan.get("quality_mode", "absolute")
     target["act_quality_profile"] = _build_act_quality_profile(plan, acts)
     target["post_fx_profile"] = _target_post_fx_profile(target)
     target["qa_sampling_frames"] = _build_qa_sampling_frames(target, acts, duration)
@@ -754,7 +765,7 @@ def _build_render_inputs(
             "story_atoms": artifact_plan.get("story_atoms", {}),
             "style_pack_ids": artifact_plan.get("style_pack_ids", []),
             "quality_constraints": artifact_plan.get("quality_constraints", {}),
-            "quality_mode": artifact_plan.get("quality_mode", "absolute"),
+            "quality_mode": target.get("quality_mode", artifact_plan.get("quality_mode", "absolute")),
             "premium_targets": artifact_plan.get("premium_targets", []),
             "qa_frames": artifact_plan.get("qa_frames"),
             "auto_iterate_max": artifact_plan.get("auto_iterate_max"),

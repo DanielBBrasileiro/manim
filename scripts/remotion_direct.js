@@ -136,11 +136,59 @@ const latestMtimeInTree = (rootPath) => {
   return latest;
 };
 
+const syncDirectoryContents = (sourceDir, destinationDir) => {
+  fs.mkdirSync(destinationDir, {recursive: true});
+
+  const seenEntries = new Set();
+  for (const entry of fs.readdirSync(sourceDir, {withFileTypes: true})) {
+    seenEntries.add(entry.name);
+    const sourcePath = path.join(sourceDir, entry.name);
+    const destinationPath = path.join(destinationDir, entry.name);
+
+    if (entry.isDirectory()) {
+      syncDirectoryContents(sourcePath, destinationPath);
+      continue;
+    }
+
+    if (entry.isSymbolicLink()) {
+      const target = fs.readlinkSync(sourcePath);
+      try {
+        if (fs.existsSync(destinationPath)) {
+          fs.rmSync(destinationPath, {recursive: true, force: true});
+        }
+      } catch (_) {}
+      fs.symlinkSync(target, destinationPath);
+      continue;
+    }
+
+    const sourceStat = fs.statSync(sourcePath);
+    const destinationExists = fs.existsSync(destinationPath);
+    const destinationStat = destinationExists ? fs.statSync(destinationPath) : null;
+    const destinationIsStale =
+      !destinationStat ||
+      destinationStat.size !== sourceStat.size ||
+      destinationStat.mtimeMs < sourceStat.mtimeMs;
+
+    if (destinationIsStale) {
+      fs.mkdirSync(path.dirname(destinationPath), {recursive: true});
+      fs.copyFileSync(sourcePath, destinationPath);
+      fs.utimesSync(destinationPath, sourceStat.atime, sourceStat.mtime);
+    }
+  }
+
+  for (const entry of fs.readdirSync(destinationDir, {withFileTypes: true})) {
+    if (seenEntries.has(entry.name)) {
+      continue;
+    }
+    fs.rmSync(path.join(destinationDir, entry.name), {recursive: true, force: true});
+  }
+};
+
 const syncPublicAssets = (bundlePath) => {
   const bundlePublicDir = path.join(bundlePath, "public");
   console.log(`Sincronizando assets publicos em ${bundlePublicDir}...`);
   fs.mkdirSync(bundlePublicDir, {recursive: true});
-  fs.cpSync(PUBLIC_DIR, bundlePublicDir, {recursive: true, force: true});
+  syncDirectoryContents(PUBLIC_DIR, bundlePublicDir);
   console.log("Assets publicos sincronizados.");
 };
 
@@ -228,11 +276,17 @@ const loadRenderer = () => {
 
   console.log("Carregando renderer Remotion...");
   const startedAt = Date.now();
+  console.log(" - require get-compositions.js");
   const {getCompositions} = require(path.join(RENDERER_DIST, "get-compositions.js"));
+  console.log(`   ok em ${Date.now() - startedAt}ms`);
+  console.log(" - require render-media.js");
   const {renderMedia} = require(path.join(RENDERER_DIST, "render-media.js"));
+  console.log(`   ok em ${Date.now() - startedAt}ms`);
   let renderStill = null;
   try {
+    console.log(" - require render-still.js");
     ({renderStill} = require(path.join(RENDERER_DIST, "render-still.js")));
+    console.log(`   ok em ${Date.now() - startedAt}ms`);
   } catch (_error) {
     renderStill = null;
   }
