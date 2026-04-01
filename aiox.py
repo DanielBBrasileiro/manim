@@ -54,10 +54,20 @@ def main():
     agent_parser.add_argument("--tool", help="Executar uma tool específica pelo nome")
     agent_parser.add_argument("--mode", default="interactive", choices=["interactive", "autonomous", "read_only"], help="Modo de execução")
     agent_parser.add_argument("--json", dest="agent_json", action="store_true", help="Output em JSON")
+
+    # Comando COORDINATE: Multi-agent creative coordinator (v5.0)
+    coord_parser = subparsers.add_parser("coordinate", help="Coordena workers criativos em paralelo para uma produção autônoma")
+    coord_parser.add_argument("intent", nargs="?", help="Intenção criativa para coordenar")
+    coord_parser.add_argument("--list-workers", action="store_true", help="Lista workers disponíveis")
+    coord_parser.add_argument("--briefing", help="Path para briefing YAML (ativa render)")
+    coord_parser.add_argument("--json", dest="coord_json", action="store_true", help="Output em JSON")
     
     # Comando SYNC: Apenas sincroniza o DNA visual (útil para testes)
     sync_parser = subparsers.add_parser("sync", help="Atualiza o theme.json com a identidade solicitada")
     sync_parser.add_argument("identity", help="Ex: aiox_default", nargs="?", default="aiox_default")
+
+    # Comando MCP: Model Context Protocol Server
+    mcp_parser = subparsers.add_parser("mcp", help="Inicia o servidor MCP (Model Context Protocol) via stdio")
 
     args = parser.parse_args()
     
@@ -155,9 +165,45 @@ def main():
         else:
             print(report.as_markdown())
         return
-        
+
+    elif args.command == "coordinate":
+        import asyncio as _asyncio
+        from core.coordinator.coordinator import CreativeCoordinator
+        from core.coordinator.workers import list_workers
+
+        if args.list_workers:
+            workers = list_workers()
+            print(f"Workers disponíveis ({len(workers)}):")
+            from core.coordinator.workers import WORKERS
+            for name, w in WORKERS.items():
+                print(f"  - {name}: {w.persona}")
+            return
+
+        if not args.intent:
+            print("❌ Forneça uma intenção criativa ou use --list-workers")
+            return
+
+        context = {}
+        if getattr(args, "briefing", None):
+            context["briefing_path"] = args.briefing
+
+        coordinator = CreativeCoordinator(context=context)
+        report = _asyncio.run(coordinator.run(args.intent))
+
+        if getattr(args, "coord_json", False):
+            import json as _json
+            print(_json.dumps(report.to_dict(), indent=2))
+        else:
+            print(report.as_markdown())
+        return
+
     elif args.command == "sync":
         subprocess.run(["python3", "core/cli/brand.py", args.identity], check=True)
+
+    elif args.command == "mcp":
+        from core.mcp.server import serve
+        serve()
+        return
 
 if __name__ == "__main__":
     main()

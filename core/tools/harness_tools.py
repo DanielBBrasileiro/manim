@@ -279,3 +279,10 @@ class StoryboardTool(AIOXTool):
 
         seed = params.get("seed") or params.get("prompt", "")
         return generate_storyboard(seed)
+
+
+# Import VisionQATool so it's discoverable by the ToolRegistry
+try:
+    from core.tools.vision_qa_tool import VisionQATool  # noqa: F401
+except ImportError:
+    pass
