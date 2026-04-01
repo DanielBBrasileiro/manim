@@ -1,3 +1,31 @@
-pattern: spiral_in
-rhythm: accelerating
-stability: high_center
+# contracts/motion/signatures/vortex_pull.yaml
+pattern: centripetal_spiral
+rhythm: medium
+stability: medium
+
+spring:
+  stiffness: 120
+  damping: 14
+  mass: 1.0
+
+easing:
+  name: "snap"
+  curve: "cubic-bezier(0.87, 0, 0.13, 1)"
+  description: "Fast approach, precise landing"
+
+temporal_signature:
+  acceleration_profile: "exponential_approach"
+  angular_velocity_deg_per_sec: 180
+  radius_decay: "logarithmic"
+  convergence_threshold_px: 4
+
+narrative_acts:
+  primary: "turbulence"
+  secondary: "resolution"
+  avoid: "genesis"
+  reason: "Convergence implies conclusion, not beginning"
+
+use_cases:
+  - "gravitational_collapse archetype signature"
+  - "Data points converging to insight"
+  - "Multiple elements resolving to single focal point"

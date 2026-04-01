@@ -1,2 +1,34 @@
-pattern: broken_motion
-rhythm: chaotic
+# contracts/motion/signatures/fragmented_noise.yaml
+pattern: stochastic_displacement
+rhythm: fast
+stability: low
+
+spring:
+  stiffness: 320
+  damping: 6
+  mass: 0.5
+
+easing:
+  name: "snap"
+  curve: "cubic-bezier(0.87, 0, 0.13, 1)"
+  description: "Near-instantaneous with high randomness"
+
+temporal_signature:
+  acceleration_profile: "impulse"
+  noise_type: "perlin_fbm"
+  octaves: 4
+  lacunarity: 2.0
+  persistence: 0.5
+  displacement_max_px: 24
+
+narrative_acts:
+  primary: "turbulence"
+  secondary: "none"
+  avoid: "resolution"
+  reason: "Noise is antithetical to resolution's clarity"
+
+use_cases:
+  - "fragmented_reveal archetype signature"
+  - "order_to_chaos archetype"
+  - "Stress/data overload visualization"
+  - "Glitch aesthetic moment"
