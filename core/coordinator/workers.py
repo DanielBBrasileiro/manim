@@ -240,7 +240,6 @@ class UmaWorker(BaseWorker):
         scratchpad: Scratchpad,
         context: dict[str, Any],
     ) -> dict[str, Any]:
-        # Check if render artifacts exist
         artifacts = scratchpad.read_artifacts()
         render_decision = scratchpad.latest_decision("build")
 
@@ -248,8 +247,6 @@ class UmaWorker(BaseWorker):
         if render_decision and isinstance(render_decision.content, dict):
             render_ok = render_decision.content.get("ok", False)
 
-        # Vision QA: score rendered frames if available
-        scored_frames: list[dict] = []
         image_extensions = (".png", ".jpg", ".jpeg", ".webp")
         frame_paths = [
             str(a.content) for a in artifacts
@@ -258,12 +255,51 @@ class UmaWorker(BaseWorker):
             )
         ]
 
+        # -- Fast brand pre-check (no LLM, milliseconds) --
+        brand_veto = False
+        all_brand_violations: list[str] = []
+        if frame_paths:
+            try:
+                from core.quality.brand_validator import validate_frame
+                for fpath in frame_paths[:3]:
+                    brand_result = await asyncio.to_thread(validate_frame, fpath)
+                    if brand_result.violations:
+                        all_brand_violations.extend(brand_result.violations)
+                    if not brand_result.passed and brand_result.color_purity_score < 50:
+                        brand_veto = True
+
+                if brand_veto:
+                    scratchpad.write(
+                        worker=self.name,
+                        phase=task.phase.value,
+                        content=f"Brand pre-check VETO: {'; '.join(all_brand_violations[:3])}",
+                        entry_type="veto",
+                        confidence=0.95,
+                    )
+                    return {
+                        "render_ok": render_ok,
+                        "artifacts_count": len(artifacts),
+                        "brand_precheck": False,
+                        "brand_violations": all_brand_violations,
+                        "vision_qa": False,
+                        "quality_pass": False,
+                    }
+            except Exception as exc:
+                scratchpad.write(
+                    worker=self.name,
+                    phase=task.phase.value,
+                    content=f"Brand pre-check unavailable: {exc}",
+                    entry_type="observation",
+                )
+
+        # -- Vision QA (LLM scoring) --
+        scored_frames: list[dict] = []
         if frame_paths:
             try:
                 from core.quality.frame_scorer import score_frame, batch_summary
 
                 scores = []
-                for fpath in frame_paths[:5]:  # Cap at 5 frames
+                for fpath in frame_paths[:5]:
                     score = await asyncio.to_thread(
                         score_frame, fpath, threshold=70.0, context=context,
                     )
@@ -286,13 +322,14 @@ class UmaWorker(BaseWorker):
                 return {
                     "render_ok": render_ok,
                     "artifacts_count": len(artifacts),
+                    "brand_precheck": not brand_veto,
+                    "brand_violations": all_brand_violations,
                     "vision_qa": True,
                     "quality_pass": quality_pass,
                     "frame_scores": scored_frames,
                     "batch_summary": summary,
                 }
             except Exception as exc:
-                # Vision QA failed — fall through to basic check
                 scratchpad.write(
                     worker=self.name,
                     phase=task.phase.value,
@@ -303,6 +340,8 @@ class UmaWorker(BaseWorker):
         return {
             "render_ok": render_ok,
             "artifacts_count": len(artifacts),
+            "brand_precheck": not brand_veto,
+            "brand_violations": all_brand_violations,
             "vision_qa": False,
             "quality_pass": render_ok,
         }

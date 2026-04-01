@@ -150,28 +150,50 @@ class FrameScore:
 # Vision prompt construction
 # ---------------------------------------------------------------------------
 
-def _build_score_prompt(context: dict[str, Any] | None = None) -> str:
-    """Build the vision scoring prompt with quality checklist."""
+def _build_score_prompt(context: dict[str, Any] | None = None, render_mode: str = "still") -> str:
+    """Build the vision scoring prompt with unified brand context."""
+    from core.quality.contract_loader import load_quality_contract
+
+    contract = load_quality_contract()
+    brand_laws = contract.get_vision_context()
+
+    archetype = (context or {}).get("archetype", "")
+    archetype_block = ""
+    if archetype:
+        archetype_block = contract.get_archetype_context(archetype)
+        if archetype_block:
+            archetype_block = f"\n# ARCHETYPE CONTEXT\n{archetype_block}\n"
+
     criteria_text = ""
     for dim_name, dim_info in QUALITY_DIMENSIONS.items():
         criteria_list = "\n".join(f"    - {c}" for c in dim_info["criteria"])
         criteria_text += f"\n  {dim_name} (weight={dim_info['weight']}):\n{criteria_list}\n"
+
+    # Adjust weights for video vs still
+    if render_mode == "video":
+        # Motion signature matters more for video; negative space slightly less
+        criteria_text = criteria_text.replace("weight=0.15", "weight=0.25")
+        criteria_text = criteria_text.replace("weight=0.25", "weight=0.15")
 
     context_block = ""
     if context:
         context_block = f"\nAdditional context about this frame:\n{json.dumps(context, indent=2)[:500]}\n"
 
     return f"""You are a premium visual quality auditor for AIOX Studio.
-Analyze this rendered frame against the quality checklist below.
+Analyze this rendered frame against the design laws and quality checklist below.
+
+# MANDATORY DESIGN LAWS
+{brand_laws}
+{archetype_block}
+# QUALITY CHECKLIST
+{criteria_text}
+{context_block}
 
 For each dimension, provide:
 - score: integer 0-100 (0=terrible, 50=acceptable, 70=good, 90=excellent)
 - issues: list of specific problems found (empty if none)
 - notes: brief explanation of the score
 
-Quality Checklist:
-{criteria_text}
-{context_block}
 Return ONLY a JSON object with this exact shape:
 {{
   "composition": {{"score": 85, "issues": [], "notes": "Clean layout with ample negative space"}},
@@ -236,7 +258,8 @@ def score_frame(
         return result
 
     # Build prompt
-    prompt = _build_score_prompt(context)
+    render_mode = (context or {}).get("render_mode", "still")
+    prompt = _build_score_prompt(context, render_mode=render_mode)
 
     # Call vision model via Ollama
     try:

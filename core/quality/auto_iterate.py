@@ -102,20 +102,55 @@ class AutoIterateReport:
 # ---------------------------------------------------------------------------
 
 def extract_corrections(score: FrameScore) -> list[str]:
-    """Extract actionable corrections from a FrameScore."""
+    """Extract contract-bound actionable corrections from a FrameScore."""
     corrections: list[str] = []
 
-    for dim in score.dimensions:
-        if dim.score < 70:
-            for issue in dim.issues:
-                if issue and issue != "LLM response could not be parsed":
-                    corrections.append(f"[{dim.name}] {issue}")
+    # Contract-specific fix recipes per dimension score range
+    _FIXES: dict[str, dict[str, str]] = {
+        "typography": {
+            "critical": "Reduce to MAX 3 words. Use weight 300 (Whisper). Lowercase only. Remove all text except core statement.",
+            "poor":     "Reduce to max 5 words. Use weight 300 or 500 only. No serif. No uppercase prose.",
+            "weak":     "Tighten word count. Verify weight is 300 (whisper) or 500 (statement) only.",
+        },
+        "color": {
+            "critical": "Use ONLY #000000 background and #FFFFFF foreground. Remove ALL other colors. Accent #FF3366 max 2% if needed.",
+            "poor":     "Eliminate parasitic colors. Palette must be #000/#FFF with optional #FF3366 accent < 2% coverage.",
+            "weak":     "Check for off-black or off-white values. Purify to strict #000/#FFF.",
+        },
+        "composition": {
+            "critical": "Increase negative space to >= 50%. Apply Rule of Thirds. Single focal point. Remove all secondary elements.",
+            "poor":     "Negative space must be >= 40%. Clear visual hierarchy. 64px minimum edge margin.",
+            "weak":     "Increase breathing room. Reduce element density. Confirm single dominant focal point.",
+        },
+        "motion_signature": {
+            "critical": "Add strong directional tension. Elements must imply movement or weight. Use spring physics.",
+            "poor":     "Increase implied momentum. Frame should convey physical behavior even as a still.",
+            "weak":     "Subtle tension cues: diagonal asymmetry, implied velocity, off-center gravity.",
+        },
+        "brand_compliance": {
+            "critical": "CRITICAL VIOLATIONS: Remove all gradients, shadows, glassmorphism, logos immediately.",
+            "poor":     "Remove anti-patterns. Verify no gradients, shadows, glow effects, or tech logos present.",
+            "weak":     "Minor compliance issues. Check for subtle shadows or faint gradients.",
+        },
+    }
 
-            if not dim.issues and dim.score < 50:
-                corrections.append(
-                    f"[{dim.name}] Score critically low ({dim.score}/100) — "
-                    f"review {dim.name} criteria"
-                )
+    for dim in score.dimensions:
+        if dim.score >= 70:
+            continue
+
+        if dim.score < 40:
+            tier = "critical"
+        elif dim.score < 60:
+            tier = "poor"
+        else:
+            tier = "weak"
+
+        fix = _FIXES.get(dim.name, {}).get(tier, f"Improve {dim.name} quality.")
+        corrections.append(f"[{dim.name.upper()} {dim.score}/100] {fix}")
+
+        for issue in dim.issues:
+            if issue and issue != "LLM response could not be parsed":
+                corrections.append(f"  -> {issue}")
 
     return corrections
 
