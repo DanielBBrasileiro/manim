@@ -142,6 +142,30 @@ def run_quality_pipeline(
                     "archetype": str(target_spec.get("plan_archetype") or context.get("archetype") or ""),
                     "render_mode": str(target_spec.get("render_mode", output.get("mode", "still"))).strip().lower(),
                     "target": target_id,
+                    "judge_profile": target_spec.get("judge_profile"),
+                    "style_pack": target_spec.get("style_pack"),
+                    "typography_system": target_spec.get("typography_system"),
+                    "still_family": target_spec.get("still_family"),
+                    "motion_grammar": target_spec.get("motion_grammar"),
+                    "negative_space_target": target_spec.get(
+                        "negative_space_target",
+                        (artifact_plan.get("quality_constraints") or {}).get("negative_space_target", 0.4),
+                    ),
+                    "max_words_per_screen": int(
+                        (artifact_plan.get("copy_budget") or {}).get(
+                            "max_words_per_frame",
+                            (artifact_plan.get("quality_constraints") or {}).get("max_words_per_screen", 5),
+                        )
+                        or 5
+                    ),
+                    "silence_ratio": float(
+                        (artifact_plan.get("copy_budget") or {}).get(
+                            "target_silence_ratio",
+                            (artifact_plan.get("quality_constraints") or {}).get("silence_ratio", 0.3),
+                        )
+                        or 0.3
+                    ),
+                    "act_quality_profile": target_spec.get("act_quality_profile", {}),
                 },
             )
             vision_scores = [score.to_dict() for score in scores]

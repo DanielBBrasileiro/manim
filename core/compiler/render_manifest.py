@@ -99,6 +99,7 @@ def build_render_manifest(plan: dict, seed: dict | str) -> dict:
         "quality_constraints": artifact_plan.get("quality_constraints", {}),
         "quality_mode": artifact_plan.get("quality_mode", "absolute"),
         "premium_targets": artifact_plan.get("premium_targets", []),
+        "preview_policy": artifact_plan.get("preview_policy", {}),
         "qa_frames": artifact_plan.get("qa_frames"),
         "auto_iterate_max": artifact_plan.get("auto_iterate_max"),
         "brand_veto_policy": artifact_plan.get("brand_veto_policy", {}),
@@ -239,6 +240,12 @@ def build_artifact_plan(plan: dict, seed: dict | str) -> dict:
             "cadence_profile": "premium_lab",
             "negative_space_regime": "strict",
             "resolve_hold_sec": 1.5,
+        },
+        "preview_policy": {
+            "enabled": True,
+            "max_iterations": min(2, int(quality_constraints.get("auto_iterate_max", 1) or 1) + 1),
+            "accept_score": 72.0,
+            "plateau_delta": 2.5,
         },
         "copy_budget": {
             "max_words_per_frame": int(quality_constraints.get("max_words_per_screen", 5) or 5),

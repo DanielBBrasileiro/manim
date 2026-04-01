@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from core.env_loader import load_repo_env
+from core.quality.brand_validator import validate_frame
 
 load_repo_env()
 
@@ -99,6 +100,14 @@ class FrameScore:
     latency_ms: float = 0.0
     model_used: str = ""
     judge_profile: str = ""
+    threshold_used: float = 70.0
+    artifact_class: str = ""
+    hard_veto: bool = False
+    hard_veto_reasons: list[dict[str, Any]] = field(default_factory=list)
+    objective_signals: dict[str, Any] = field(default_factory=dict)
+    quality_band: str = "unscored"
+    structural_invalidity: bool = False
+    premium_shortfall: bool = False
     error: str | None = None
 
     def compute_composite(self) -> float:
@@ -130,6 +139,14 @@ class FrameScore:
             "latency_ms": round(self.latency_ms, 2),
             "model": self.model_used,
             "judge_profile": self.judge_profile,
+            "threshold_used": round(self.threshold_used, 1),
+            "artifact_class": self.artifact_class,
+            "hard_veto": self.hard_veto,
+            "hard_veto_reasons": self.hard_veto_reasons,
+            "objective_signals": self.objective_signals,
+            "quality_band": self.quality_band,
+            "structural_invalidity": self.structural_invalidity,
+            "premium_shortfall": self.premium_shortfall,
             "error": self.error,
         }
 
@@ -138,7 +155,7 @@ class FrameScore:
         dims = " | ".join(
             f"{d.name[:4]}={d.score}" for d in self.dimensions
         )
-        return f"{icon} {self.composite_score:.0f}/100 [{dims}] — {Path(self.frame_path).name}"
+        return f"{icon} {self.composite_score:.0f}/100 [{dims}] {self.quality_band} — {Path(self.frame_path).name}"
 
 
 # ---------------------------------------------------------------------------
@@ -173,6 +190,241 @@ def _resolve_judge_profile(context: dict[str, Any] | None, render_mode: str) -> 
     return profile
 
 
+def _resolve_threshold(threshold: float, judge_profile: dict[str, Any]) -> float:
+    profile_threshold = float(judge_profile.get("threshold", threshold) or threshold)
+    return max(float(threshold or 0.0), profile_threshold)
+
+
+def _objective_signal_block(signals: dict[str, Any]) -> str:
+    if not signals:
+        return ""
+
+    lines = [
+        f"HARD_VETO: {signals.get('hard_veto', False)}",
+        f"NEGATIVE_SPACE_PCT: {signals.get('negative_space_pct', 0.0)}",
+        f"TEXT_DENSITY_ESTIMATE: {signals.get('text_density_estimate', 0)}",
+        f"COLOR_PURITY_SCORE: {signals.get('color_purity_score', 0.0)}",
+        f"GRAIN_VARIANCE: {signals.get('grain_variance', 0.0)}",
+    ]
+    if "recommended_negative_space_target" in signals:
+        lines.append(f"NEGATIVE_SPACE_TARGET: {signals['recommended_negative_space_target']}")
+    if "max_words_per_screen" in signals:
+        lines.append(f"MAX_WORDS_PER_SCREEN: {signals['max_words_per_screen']}")
+    if "silence_ratio" in signals:
+        lines.append(f"SILENCE_RATIO: {signals['silence_ratio']}")
+    if "minimum_hold_ms" in signals:
+        lines.append(f"MINIMUM_HOLD_MS: {signals['minimum_hold_ms']}")
+    if "breath_points_count" in signals:
+        lines.append(f"BREATH_POINTS_COUNT: {signals['breath_points_count']}")
+    if "transition_hint" in signals:
+        lines.append(f"TRANSITION_HINT: {signals['transition_hint']}")
+    if signals.get("hard_veto_codes"):
+        lines.append(f"HARD_VETO_CODES: {', '.join(signals['hard_veto_codes'])}")
+    return "\n# OBJECTIVE SIGNALS\n" + "\n".join(lines) + "\n"
+
+
+def _collect_objective_signals(frame_path: str, context: dict[str, Any] | None, render_mode: str) -> dict[str, Any]:
+    context = context or {}
+    brand_result = validate_frame(frame_path)
+    act_profile = context.get("act_quality_profile", {})
+    profiles = [value for value in act_profile.values() if isinstance(value, dict)] if isinstance(act_profile, dict) else []
+    silence_values = [float(item.get("silence_ratio", 0.0) or 0.0) for item in profiles]
+    hold_values = [int(item.get("minimum_hold_ms", 0) or 0) for item in profiles]
+    stagger_sizes = [len(item.get("stagger_profile", []) or []) for item in profiles]
+    breath_points_count = sum(len(item.get("breath_points", []) or []) for item in profiles)
+    transition_hint = next(
+        (str(item.get("transition_to", "")).strip() for item in profiles if str(item.get("transition_to", "")).strip()),
+        "",
+    )
+    hard_veto_reasons = list((context or {}).get("hard_veto_reasons", []) or [])
+    if not hard_veto_reasons and brand_result.hard_veto_reasons:
+        hard_veto_reasons = list(brand_result.hard_veto_reasons)
+
+    return {
+        "render_mode": render_mode,
+        "color_purity_score": float(brand_result.color_purity_score or 0.0),
+        "negative_space_pct": float(brand_result.negative_space_pct or 0.0),
+        "text_density_estimate": int(brand_result.text_density_estimate or 0),
+        "grain_variance": float(brand_result.grain_variance or 0.0),
+        "recommended_negative_space_target": float((context or {}).get("negative_space_target", 0.4) or 0.4),
+        "max_words_per_screen": int((context or {}).get("max_words_per_screen", 5) or 5),
+        "silence_ratio": round(sum(silence_values) / len(silence_values), 3) if silence_values else float((context or {}).get("silence_ratio", 0.0) or 0.0),
+        "minimum_hold_ms": round(sum(hold_values) / len(hold_values), 1) if hold_values else 0.0,
+        "stagger_count": round(sum(stagger_sizes) / len(stagger_sizes), 2) if stagger_sizes else 0.0,
+        "breath_points_count": breath_points_count,
+        "transition_hint": transition_hint or str((context or {}).get("transition_to", "")).strip(),
+        "hard_veto": bool(hard_veto_reasons),
+        "hard_veto_codes": [str(item.get("code", "")).strip() for item in hard_veto_reasons if isinstance(item, dict)],
+        "hard_veto_reasons": hard_veto_reasons,
+        "brand_validation_passed": bool(brand_result.passed),
+    }
+
+
+def _veto_dimensions(judge_profile: dict[str, Any], hard_veto_reasons: list[dict[str, Any]]) -> list[DimensionScore]:
+    dimension_specs = judge_profile.get("dimensions", {}) if isinstance(judge_profile.get("dimensions", {}), dict) else {}
+    if not dimension_specs:
+        dimension_specs = LEGACY_QUALITY_DIMENSIONS
+    veto_messages = [
+        str(item.get("detail", "Structural veto triggered.")).strip()
+        for item in hard_veto_reasons
+        if isinstance(item, dict)
+    ] or ["Structural veto triggered."]
+    dimensions: list[DimensionScore] = []
+    for dim_name, dim_info in dimension_specs.items():
+        score = 8 if dim_name in {"brand_discipline", "spatial_intelligence", "hierarchy_strength", "motion_coherence"} else 18
+        dimensions.append(
+            DimensionScore(
+                name=dim_name,
+                score=score,
+                weight=dim_info.get("weight", 0.0),
+                issues=veto_messages,
+                notes="Structural invalidity due to hard veto. Craft score suppressed.",
+            )
+        )
+    return dimensions
+
+
+def _adjust_dimension_score(score: DimensionScore, delta: int = 0, issue: str | None = None) -> DimensionScore:
+    issues = list(score.issues)
+    if issue and issue not in issues:
+        issues.append(issue)
+    return DimensionScore(
+        name=score.name,
+        score=max(0, min(100, int(round(score.score + delta)))),
+        weight=score.weight,
+        issues=issues,
+        notes=score.notes,
+    )
+
+
+def _calibrate_dimensions(
+    dimensions: list[DimensionScore],
+    *,
+    signals: dict[str, Any],
+    render_mode: str,
+) -> list[DimensionScore]:
+    calibrated = list(dimensions)
+    by_name = {item.name: item for item in calibrated}
+    negative_space_pct = float(signals.get("negative_space_pct", 0.0) or 0.0)
+    negative_space_target = float(signals.get("recommended_negative_space_target", 0.4) or 0.4)
+    text_density = int(signals.get("text_density_estimate", 0) or 0)
+    max_words = int(signals.get("max_words_per_screen", 5) or 5)
+    color_purity = float(signals.get("color_purity_score", 0.0) or 0.0)
+    grain_variance = float(signals.get("grain_variance", 0.0) or 0.0)
+    silence_ratio = float(signals.get("silence_ratio", 0.0) or 0.0)
+    minimum_hold_ms = float(signals.get("minimum_hold_ms", 0.0) or 0.0)
+    breath_points_count = int(signals.get("breath_points_count", 0) or 0)
+    transition_hint = str(signals.get("transition_hint", "") or "").strip().lower()
+    stagger_count = float(signals.get("stagger_count", 0.0) or 0.0)
+
+    space_penalty = max(0.0, negative_space_target - negative_space_pct)
+    if "spatial_intelligence" in by_name and space_penalty > 0:
+        by_name["spatial_intelligence"] = _adjust_dimension_score(
+            by_name["spatial_intelligence"],
+            delta=-int(min(24, round(space_penalty * 100))),
+            issue=f"Negative space below target ({negative_space_pct:.2f} < {negative_space_target:.2f}).",
+        )
+    if text_density > max_words:
+        excess = text_density - max_words
+        if "hierarchy_strength" in by_name:
+            by_name["hierarchy_strength"] = _adjust_dimension_score(
+                by_name["hierarchy_strength"],
+                delta=-(8 + min(12, excess * 3)),
+                issue=f"Text density is too high for clear hierarchy ({text_density}>{max_words}).",
+            )
+        if "typographic_craft" in by_name:
+            by_name["typographic_craft"] = _adjust_dimension_score(
+                by_name["typographic_craft"],
+                delta=-(6 + min(10, excess * 2)),
+                issue=f"Text density reduces typographic control ({text_density}>{max_words}).",
+            )
+        if "poster_impact" in by_name:
+            by_name["poster_impact"] = _adjust_dimension_score(
+                by_name["poster_impact"],
+                delta=-(6 + min(10, excess * 2)),
+                issue="Poster impact is diluted by overcrowding.",
+            )
+    if color_purity < 85:
+        if "brand_discipline" in by_name:
+            by_name["brand_discipline"] = _adjust_dimension_score(
+                by_name["brand_discipline"],
+                delta=-int(min(20, round((85 - color_purity) * 0.7))),
+                issue=f"Palette purity is weak ({color_purity:.1f}/100).",
+            )
+        if "material_finish" in by_name:
+            by_name["material_finish"] = _adjust_dimension_score(
+                by_name["material_finish"],
+                delta=-int(min(12, round((85 - color_purity) * 0.4))),
+                issue="Finish feels less controlled because the palette drifts off-brand.",
+            )
+    if grain_variance < 0.01 or grain_variance > 0.15:
+        if "material_finish" in by_name:
+            by_name["material_finish"] = _adjust_dimension_score(
+                by_name["material_finish"],
+                delta=-8,
+                issue=f"Material finish falls outside the expected grain window ({grain_variance:.4f}).",
+            )
+
+    if render_mode == "motion":
+        if silence_ratio < 0.25 or breath_points_count == 0:
+            if "silence_quality" in by_name:
+                by_name["silence_quality"] = _adjust_dimension_score(
+                    by_name["silence_quality"],
+                    delta=-10,
+                    issue=f"Silence placement is weak (silence_ratio={silence_ratio:.2f}, breath_points={breath_points_count}).",
+                )
+        if minimum_hold_ms < 220 or stagger_count <= 0:
+            if "temporal_rhythm" in by_name:
+                by_name["temporal_rhythm"] = _adjust_dimension_score(
+                    by_name["temporal_rhythm"],
+                    delta=-10,
+                    issue=f"Temporal rhythm lacks hold or stagger control (hold={minimum_hold_ms:.0f}ms, stagger={stagger_count:.1f}).",
+                )
+        if not transition_hint:
+            if "transition_quality" in by_name:
+                by_name["transition_quality"] = _adjust_dimension_score(
+                    by_name["transition_quality"],
+                    delta=-8,
+                    issue="Transition intent is missing, reducing motion authorship.",
+                )
+        elif transition_hint == "cut" and minimum_hold_ms < 260:
+            if "transition_quality" in by_name:
+                by_name["transition_quality"] = _adjust_dimension_score(
+                    by_name["transition_quality"],
+                    delta=-6,
+                    issue="Cut transitions feel abrupt for the current hold structure.",
+                )
+    else:
+        if space_penalty > 0 and "poster_impact" in by_name:
+            by_name["poster_impact"] = _adjust_dimension_score(
+                by_name["poster_impact"],
+                delta=-int(min(16, round(space_penalty * 70))),
+                issue="Poster impact is weakened by compressed breathing room.",
+            )
+
+    return [by_name.get(item.name, item) for item in calibrated]
+
+
+def _classify_quality(score: FrameScore, judge_profile: dict[str, Any]) -> None:
+    threshold = float(score.threshold_used or 70.0)
+    premium_threshold = float(judge_profile.get("premium_threshold", threshold + 8) or (threshold + 8))
+    craft_floor = float(judge_profile.get("craft_floor", max(60.0, threshold - 4)) or max(60.0, threshold - 4))
+    if score.hard_veto:
+        score.quality_band = "structural_invalidity"
+        score.structural_invalidity = True
+        score.premium_shortfall = True
+        return
+    if score.composite_score < craft_floor:
+        score.quality_band = "craft_weakness"
+        score.premium_shortfall = True
+        return
+    if score.composite_score < premium_threshold:
+        score.quality_band = "premium_shortfall"
+        score.premium_shortfall = True
+        return
+    score.quality_band = "premium_ready"
+
+
 def _build_score_prompt(context: dict[str, Any] | None = None, render_mode: str = "still") -> tuple[str, dict[str, Any]]:
     """Build the vision scoring prompt with unified brand context."""
     from core.quality.contract_loader import load_quality_contract
@@ -183,6 +435,9 @@ def _build_score_prompt(context: dict[str, Any] | None = None, render_mode: str 
     dimension_specs = judge_profile.get("dimensions", {}) if isinstance(judge_profile.get("dimensions", {}), dict) else {}
     if not dimension_specs:
         dimension_specs = LEGACY_QUALITY_DIMENSIONS
+    objective_signals = (context or {}).get("objective_signals", {})
+    if not objective_signals and (context or {}).get("frame_path"):
+        objective_signals = _collect_objective_signals(str((context or {}).get("frame_path", "")), context, render_mode)
 
     archetype = (context or {}).get("archetype", "")
     archetype_block = ""
@@ -216,6 +471,7 @@ def _build_score_prompt(context: dict[str, Any] | None = None, render_mode: str 
         if contract_context_lines
         else ""
     )
+    objective_context = _objective_signal_block(objective_signals)
 
     response_shape = {
         dim_name: {"score": 85, "issues": [], "notes": "Short rationale"}
@@ -229,8 +485,10 @@ Analyze this rendered frame against the design laws and quality checklist below.
 {brand_laws}
 {archetype_block}
 {contract_context}
+{objective_context}
 # JUDGE PROFILE
 PROFILE: {judge_profile.get("id", f"{render_mode}_judge")}
+ARTIFACT_CLASS: {judge_profile.get("artifact_class", render_mode)}
 RENDER MODE: {render_mode}
 
 # QUALITY CHECKLIST
@@ -302,8 +560,24 @@ def score_frame(
 
     # Build prompt
     render_mode = _normalize_render_mode((context or {}).get("render_mode", "still"))
-    prompt, judge_profile = _build_score_prompt(context, render_mode=render_mode)
+    scoring_context = dict(context or {})
+    scoring_context["frame_path"] = frame_path
+    result.objective_signals = _collect_objective_signals(frame_path, scoring_context, render_mode)
+    scoring_context["objective_signals"] = result.objective_signals
+    prompt, judge_profile = _build_score_prompt(scoring_context, render_mode=render_mode)
     result.judge_profile = str(judge_profile.get("id", ""))
+    result.artifact_class = str(judge_profile.get("artifact_class", render_mode))
+    result.threshold_used = _resolve_threshold(threshold, judge_profile)
+    result.hard_veto = bool(result.objective_signals.get("hard_veto"))
+    result.hard_veto_reasons = list(result.objective_signals.get("hard_veto_reasons", []) or [])
+
+    if result.hard_veto:
+        result.dimensions = _veto_dimensions(judge_profile, result.hard_veto_reasons)
+        result.compute_composite()
+        result.passed = False
+        _classify_quality(result, judge_profile)
+        result.latency_ms = (time.time() - start) * 1000
+        return result
 
     # Call vision model via Ollama
     try:
@@ -334,9 +608,15 @@ def score_frame(
 
         # Parse response
         dimensions = _parse_score_response(response_text, judge_profile)
+        dimensions = _calibrate_dimensions(
+            dimensions,
+            signals=result.objective_signals,
+            render_mode=render_mode,
+        )
         result.dimensions = dimensions
         result.compute_composite()
-        result.passed = result.composite_score >= threshold
+        result.passed = result.composite_score >= result.threshold_used
+        _classify_quality(result, judge_profile)
 
         # Unload vision model to reclaim VRAM
         try:
