@@ -99,6 +99,15 @@ def collect_doctor_report() -> dict[str, Any]:
     )
     models = refresh_model_capabilities()
     bundle = _bundle_status()
+
+    # TurboQuant server health
+    turbo_report: dict[str, Any] = {"installed": False}
+    try:
+        from core.intelligence.ollama_client import check_turbo_health
+        turbo_report = check_turbo_health()
+    except Exception:
+        pass
+
     return {
         "profile": {
             "name": profile.name,
@@ -118,6 +127,7 @@ def collect_doctor_report() -> dict[str, Any]:
             "remotion_cli": npm,
         },
         "bundle": bundle,
+        "turbo": turbo_report,
         "models": [model.id for model in models],
         "registry": {
             "targets": len(registry.targets),
@@ -163,6 +173,14 @@ def cli(argv: list[str] | None = None) -> int:
         age = bundle.get("age_hours")
         bundle_status += f" ({age}h ago)" if age is not None else ""
     print(f"- bundle: {bundle_status}")
+    turbo = report.get("turbo", {})
+    if turbo.get("installed"):
+        t_status = "healthy" if turbo.get("healthy") else ("running" if turbo.get("running") else "stopped")
+        t_cache = f"K={turbo.get('cache_type_k', '?')} V={turbo.get('cache_type_v', '?')}"
+        t_ctx = turbo.get("context_length", 0)
+        print(f"- turbo: {t_status} ({t_cache}, ctx={t_ctx})")
+    else:
+        print(f"- turbo: not installed (run: bash scripts/setup_turboquant.sh)")
     print(f"Models: {', '.join(report['models']) if report['models'] else 'none'}")
     print(
         "Registry: "

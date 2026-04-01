@@ -27,6 +27,8 @@ class RuntimeProfile:
     timeouts: dict[str, float]
     retry_timeouts: dict[str, float]
     render_preferences: dict[str, Any]
+    # TurboQuant: server-level args for llama-server KV cache compression
+    turbo_server_args: dict[str, Any] | None = None
 
 
 def _env(name: str, default: str) -> str:
@@ -128,6 +130,84 @@ def _default_profiles() -> dict[str, RuntimeProfile]:
                 "prefer_native_still": True,
                 "prefer_native_video": True,
                 "variant_count": 5,
+            },
+        ),
+        # ---------------------------------------------------------------
+        # TurboQuant profiles — use llama-server with KV cache compression
+        # Enables larger models + longer context on Apple Silicon
+        # ---------------------------------------------------------------
+        "turbo": RuntimeProfile(
+            name="turbo",
+            provider="turbo",
+            description=(
+                "TurboQuant turbo4 (3.8x KV compression). "
+                "Bumps fast 4B→14B, plan 7B→14B. 32K context on Apple Silicon."
+            ),
+            model_roles={
+                ROLE_FAST_PLAN: _env("AIOX_TURBO_FAST_MODEL", "qwen2.5:14b-instruct-q4_K_M"),
+                ROLE_PLAN: _env("AIOX_TURBO_PLAN_MODEL", "qwen2.5:14b-instruct-q4_K_M"),
+                ROLE_QUALITY_PLAN: _env("AIOX_TURBO_QUALITY_MODEL", "qwen2.5:14b-instruct-q4_K_M"),
+                ROLE_VISION_PLAN: _env("OLLAMA_VISION_MODEL", "qwen3-vl:4b-instruct-q4_K_M"),
+                ROLE_COPY_REFINER: _env("AIOX_TURBO_PLAN_MODEL", "qwen2.5:14b-instruct-q4_K_M"),
+                ROLE_VARIANT_RANKER: _env("AIOX_TURBO_FAST_MODEL", "qwen2.5:14b-instruct-q4_K_M"),
+            },
+            timeouts=_profile_timeout_map(
+                plan=30.0, retry=50.0,
+                fast=20.0, quality=60.0, vision=36.0, copy=40.0, variant=20.0,
+            ),
+            retry_timeouts=_profile_retry_map(
+                plan=30.0, retry=50.0,
+                fast=30.0, quality=90.0, vision=50.0, copy=60.0, variant=30.0,
+            ),
+            render_preferences={
+                "max_parallel_renders": 1,
+                "hero_target": "linkedin_feed_4_5",
+                "prefer_native_still": True,
+                "prefer_native_video": True,
+                "variant_count": 4,
+            },
+            turbo_server_args={
+                "cache_type_k": "q8_0",
+                "cache_type_v": "turbo4",
+                "flash_attention": True,
+                "context_length": 32768,
+            },
+        ),
+        "turbo_max": RuntimeProfile(
+            name="turbo_max",
+            provider="turbo",
+            description=(
+                "TurboQuant turbo3 (4.9x KV compression). "
+                "Maximum: 32B quality model with 32K context. Slowest but best quality."
+            ),
+            model_roles={
+                ROLE_FAST_PLAN: _env("AIOX_TURBO_FAST_MODEL", "qwen2.5:14b-instruct-q4_K_M"),
+                ROLE_PLAN: _env("AIOX_TURBO_PLAN_MODEL", "qwen2.5:14b-instruct-q4_K_M"),
+                ROLE_QUALITY_PLAN: _env("AIOX_TURBO_MAX_QUALITY_MODEL", "qwen2.5:32b-instruct-q4_K_M"),
+                ROLE_VISION_PLAN: _env("OLLAMA_VISION_MODEL", "qwen3-vl:4b-instruct-q4_K_M"),
+                ROLE_COPY_REFINER: _env("AIOX_TURBO_MAX_QUALITY_MODEL", "qwen2.5:32b-instruct-q4_K_M"),
+                ROLE_VARIANT_RANKER: _env("AIOX_TURBO_PLAN_MODEL", "qwen2.5:14b-instruct-q4_K_M"),
+            },
+            timeouts=_profile_timeout_map(
+                plan=45.0, retry=80.0,
+                fast=25.0, quality=90.0, vision=45.0, copy=60.0, variant=25.0,
+            ),
+            retry_timeouts=_profile_retry_map(
+                plan=45.0, retry=80.0,
+                fast=40.0, quality=120.0, vision=60.0, copy=80.0, variant=40.0,
+            ),
+            render_preferences={
+                "max_parallel_renders": 1,
+                "hero_target": "linkedin_feed_4_5",
+                "prefer_native_still": True,
+                "prefer_native_video": True,
+                "variant_count": 5,
+            },
+            turbo_server_args={
+                "cache_type_k": "q8_0",
+                "cache_type_v": "turbo3",
+                "flash_attention": True,
+                "context_length": 32768,
             },
         ),
     }

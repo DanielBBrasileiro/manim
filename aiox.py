@@ -46,6 +46,14 @@ def main():
     benchmark_parser.add_argument("--json", action="store_true")
     audit_parser = subparsers.add_parser("audit", help="Audita paridade entre artifact_plan e outputs")
     audit_parser.add_argument("--json", action="store_true")
+
+    # Comando AGENT: Agentic Runtime (v5.0)
+    agent_parser = subparsers.add_parser("agent", help="Agentic Runtime — executa prompt com tool routing automático")
+    agent_parser.add_argument("prompt", nargs="?", help="Prompt para o runtime agentico")
+    agent_parser.add_argument("--list-tools", action="store_true", help="Lista todas as tools registradas")
+    agent_parser.add_argument("--tool", help="Executar uma tool específica pelo nome")
+    agent_parser.add_argument("--mode", default="interactive", choices=["interactive", "autonomous", "read_only"], help="Modo de execução")
+    agent_parser.add_argument("--json", dest="agent_json", action="store_true", help="Output em JSON")
     
     # Comando SYNC: Apenas sincroniza o DNA visual (útil para testes)
     sync_parser = subparsers.add_parser("sync", help="Atualiza o theme.json com a identidade solicitada")
@@ -110,6 +118,42 @@ def main():
         from core.cli.audit import cli as audit_cli
         audit_args = ["--json"] if args.json else []
         audit_cli(audit_args)
+        return
+
+    elif args.command == "agent":
+        import asyncio as _asyncio
+        from core.harness.tool_registry import get_registry
+        from core.harness.session_runtime import SessionRuntime
+
+        registry = get_registry(auto_discover=True)
+
+        if args.list_tools:
+            if getattr(args, "agent_json", False):
+                import json as _json
+                print(_json.dumps(registry.list_schemas(), indent=2))
+            else:
+                print(registry.as_markdown())
+            return
+
+        if not args.prompt:
+            print("❌ Forneça um prompt ou use --list-tools")
+            return
+
+        runtime = SessionRuntime(registry=registry, mode=args.mode)
+        report = _asyncio.run(runtime.run(args.prompt))
+
+        if getattr(args, "agent_json", False):
+            import json as _json
+            print(_json.dumps({
+                "session_id": report.session_id,
+                "prompt": report.prompt,
+                "tools_matched": [m.tool.name for m in report.routed_tools],
+                "tool_results": [r.to_dict() for r in report.tool_results],
+                "turn": report.turn_result.to_dict(),
+                "duration_ms": round(report.total_duration_ms, 2),
+            }, indent=2))
+        else:
+            print(report.as_markdown())
         return
         
     elif args.command == "sync":

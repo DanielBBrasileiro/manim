@@ -36,6 +36,103 @@ OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434/api/generate")
 OLLAMA_TIMEOUT = float(os.environ.get("OLLAMA_TIMEOUT_SECONDS", "8.0"))
 
 
+# ---------------------------------------------------------------------------
+# TurboQuant routing helpers
+# ---------------------------------------------------------------------------
+
+def _is_turbo_profile() -> bool:
+    """Check if the active model profile uses TurboQuant."""
+    try:
+        from core.intelligence.model_profiles import get_active_profile
+        return get_active_profile().provider == "turbo"
+    except Exception:
+        return False
+
+
+def _turbo_generate_scene_plan(
+    prompt: str,
+    asset_registry: dict[str, Any],
+    route,
+    strict: bool = False,
+) -> tuple[ScenePlan | None, dict[str, Any]]:
+    """Attempt scene plan generation via TurboQuant server."""
+    from core.intelligence.turbo_server import (
+        is_turbo_available,
+        turbo_generate,
+        turbo_extract_text,
+    )
+
+    start = time.time()
+    metadata = {
+        "task_type": route.task_type,
+        "model": route.model,
+        "fallback_used": False,
+        "from_cache": False,
+        "confidence": None,
+        "error": None,
+        "latency_ms": None,
+        "route_model": route.model,
+        "retry_count": 0,
+        "retry_reason": None,
+        "provider": "turbo",
+    }
+
+    if not is_turbo_available():
+        metadata["error"] = "TurboQuant server not available"
+        metadata["latency_ms"] = _latency_ms(start)
+        return None, metadata
+
+    system_prompt = _build_prompt(prompt, asset_registry, strict=strict)
+    schema = ScenePlan.json_schema()
+
+    response = turbo_generate(
+        prompt=system_prompt,
+        temperature=0.05 if strict else 0.2,
+        max_tokens=2048,
+        response_format={"type": "json_object", "schema": schema} if schema else None,
+        timeout=route.timeout_seconds,
+    )
+
+    if "error" in response and response["error"]:
+        metadata["error"] = response["error"]
+        metadata["latency_ms"] = _latency_ms(start)
+        _debug(f"turbo request failed -> {metadata['error']}")
+        return None, metadata
+
+    text = turbo_extract_text(response)
+    if not text.strip():
+        metadata["error"] = "Empty turbo response"
+        metadata["latency_ms"] = _latency_ms(start)
+        return None, metadata
+
+    try:
+        parsed = json.loads(text)
+        plan = ScenePlan.from_dict(parsed)
+        metadata["confidence"] = plan.confidence
+        metadata["latency_ms"] = _latency_ms(start)
+        record_model_observation(
+            route.model, success=True,
+            latency_ms=metadata["latency_ms"],
+            task_type=route.task_type,
+        )
+        return plan, metadata
+    except (json.JSONDecodeError, Exception) as exc:
+        metadata["error"] = f"TurboQuant parse error: {exc}"
+        metadata["latency_ms"] = _latency_ms(start)
+        return None, metadata
+
+
+def check_turbo_health() -> dict[str, Any]:
+    """Return turbo server status for the doctor CLI."""
+    try:
+        from core.intelligence.turbo_server import check_health, load_config
+        cfg = load_config()
+        status = check_health(cfg)
+        return status.to_dict()
+    except Exception as exc:
+        return {"installed": False, "error": str(exc)}
+
+
 def check_ollama_health(url: str | None = None, timeout: float | None = None) -> dict[str, Any]:
     target_url = _base_url(url or OLLAMA_URL) + "/api/tags"
     try:
@@ -100,6 +197,15 @@ def generate_scene_plan(
             return _return(plan, metadata, return_metadata)
         except Exception:
             pass
+
+    # TurboQuant routing: try turbo server first if profile is turbo
+    if _is_turbo_profile():
+        turbo_plan, turbo_meta = _turbo_generate_scene_plan(prompt, asset_registry or {}, route)
+        if turbo_plan is not None and _is_good_plan(turbo_plan, turbo_meta):
+            turbo_plan.llm_metadata = turbo_meta
+            save_cached_scene_plan(cache_key, turbo_plan.to_dict(), turbo_meta.get("model", route.model), turbo_plan.confidence)
+            return _return(turbo_plan, turbo_meta, return_metadata)
+        _debug(f"turbo route failed ({turbo_meta.get('error')}), falling back to Ollama")
 
     plan, metadata = _generate_with_fallback(prompt, asset_registry or {}, route)
     if plan is not None:
