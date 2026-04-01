@@ -8,6 +8,9 @@ import {
 } from 'remotion';
 import {tokens} from '../theme';
 import {Theme} from '../utils/theme';
+import type {TypographySystemContract} from '../utils/typographySystems';
+import {resolveNarrativeTypography} from '../utils/typographyEngine';
+import type {CueMotionSpec} from '../utils/motionSequence';
 
 export type NarrativeZone = 'top' | 'bottom' | 'center';
 export type NarrativeRole = 'whisper' | 'statement' | 'climax' | 'resolve' | 'brand';
@@ -23,6 +26,8 @@ type NarrativeTextProps = {
 	align?: 'left' | 'center' | 'right';
 	maxWidth?: string | number;
 	accent?: boolean;
+	typographySystem?: string | Partial<TypographySystemContract> | null;
+	motionSpec?: CueMotionSpec | null;
 };
 
 const layout = tokens.layout.formats.vertical_9_16;
@@ -117,31 +122,58 @@ export const NarrativeText: React.FC<NarrativeTextProps> = ({
 	align,
 	maxWidth = '78%',
 	accent = false,
+	typographySystem,
+	motionSpec,
 }) => {
 	const frame = useCurrentFrame();
 	const {fps} = useVideoConfig();
 	const zoneStyle = zoneStyles[zone];
-	const resolvedAlign = align ?? roleAlign[role];
-	const motionFrame = Math.max(0, frame - delay);
+	const typography = resolveNarrativeTypography({
+		text,
+		role,
+		align,
+		typographySystem,
+	});
+	const resolvedAlign = typography?.containerAlign ?? align ?? roleAlign[role];
+	const motionDelay = delay + (motionSpec?.staggerDelayFrames ?? 0);
+	const motionFrame = Math.max(0, frame - motionDelay);
+	const fallbackSpring =
+		role === 'resolve'
+			? {damping: 16, mass: 0.95, stiffness: 110}
+			: role === 'climax'
+				? {damping: 14, mass: 0.85, stiffness: 120}
+				: {damping: 20, mass: 1.0, stiffness: 70};
+	const activeFrame = motionSpec
+		? Math.max(0, motionFrame - motionSpec.anticipationFrames)
+		: motionFrame;
 
 	const entrance = spring({
 		fps,
-		frame: motionFrame,
-		config:
-			role === 'resolve'
-				? {damping: 16, mass: 0.95, stiffness: 110}
-				: role === 'climax'
-					? {damping: 14, mass: 0.85, stiffness: 120}
-					: {damping: 20, mass: 1.0, stiffness: 70},
+		frame: activeFrame,
+		config: motionSpec?.spring ?? fallbackSpring,
 	});
 
-	const opacity = interpolate(motionFrame, [0, 4, 12], [0, 0.82, 1], {
+	const actionEnd = motionSpec?.actionFrames ?? 12;
+	const opacity = interpolate(activeFrame, [0, Math.max(2, Math.round(actionEnd * 0.35)), Math.max(4, actionEnd)], [0, 0.82, 1], {
 		extrapolateLeft: 'clamp',
 		extrapolateRight: 'clamp',
 	});
-	const scale = interpolate(entrance, [0, 1], roleScaleIn[role]);
-	const translateY = interpolate(entrance, [0, 1], roleOffsetY[role]);
-	const blur = interpolate(entrance, [0, 1], roleBlur[role]);
+	const emphasisFactor = motionSpec?.emphasis === 'high' ? 1.14 : motionSpec?.emphasis === 'low' ? 0.9 : 1;
+	const scaleFrom = motionSpec ? roleScaleIn[role][0] - ((emphasisFactor - 1) * 0.02) : roleScaleIn[role][0];
+	const scale = interpolate(entrance, [0, 1], [scaleFrom, roleScaleIn[role][1]]);
+	const translateYBase = interpolate(entrance, [0, 1], [roleOffsetY[role][0] * emphasisFactor, roleOffsetY[role][1]]);
+	const blurBase = motionSpec?.emphasis === 'low' ? roleBlur[role][0] * 0.82 : motionSpec?.emphasis === 'high' ? roleBlur[role][0] * 1.15 : roleBlur[role][0];
+	const blur = interpolate(entrance, [0, 1], [blurBase, roleBlur[role][1]]);
+	const translateY = typography
+		? Math.round((translateYBase + typography.opticalShiftPx) / typography.baselineUnit) * typography.baselineUnit
+		: translateYBase;
+	const textContent = typography?.text ?? text;
+	const fontSize = typography ? `${typography.fontSizePx}px` : size ?? (role === 'resolve' ? 'clamp(3.8rem, 12vw, 7.2rem)' : narrativeSize);
+	const fontWeight = weight ?? roleWeight[role];
+	const letterSpacing = typography?.letterSpacing ?? roleLetterSpacing[role];
+	const lineHeight = typography?.lineHeight ?? (role === 'resolve' ? 0.88 : 1);
+	const blockWidth = typography?.maxWidth ?? maxWidth;
+	const textAlign = typography?.textAlign ?? resolvedAlign;
 
 	return (
 		<AbsoluteFill
@@ -156,17 +188,17 @@ export const NarrativeText: React.FC<NarrativeTextProps> = ({
 		>
 			<div
 				style={{
-					maxWidth,
-					textAlign: resolvedAlign,
+					maxWidth: blockWidth,
+					textAlign,
+					width: typography ? 'fit-content' : undefined,
 				}}
 			>
 				<div
 					style={{
 						fontFamily: role === 'resolve' ? brandFont : narrativeFont,
-						fontSize:
-							size ?? (role === 'resolve' ? 'clamp(3.8rem, 12vw, 7.2rem)' : narrativeSize),
-						fontWeight: weight ?? roleWeight[role],
-						letterSpacing: roleLetterSpacing[role],
+						fontSize,
+						fontWeight,
+						letterSpacing,
 						color:
 							color ??
 							(accent ? Theme.colors.accent : role === 'brand' ? Theme.colors.textSecondary : Theme.colors.textPrimary),
@@ -174,12 +206,12 @@ export const NarrativeText: React.FC<NarrativeTextProps> = ({
 						transform: `translateY(${translateY}px) scale(${scale})`,
 						filter: `blur(${blur}px)`,
 						margin: 0,
-						lineHeight: role === 'resolve' ? 0.88 : 1,
+						lineHeight,
 						textTransform: role === 'resolve' ? 'uppercase' : 'none',
-						whiteSpace: 'pre-wrap',
+						whiteSpace: typography ? 'pre-line' : 'pre-wrap',
 					}}
 				>
-					{text}
+					{textContent}
 				</div>
 			</div>
 		</AbsoluteFill>

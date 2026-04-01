@@ -1,6 +1,7 @@
 import React from 'react';
 import { registerRoot, Composition } from 'remotion';
 import { TargetedCinematicNarrative } from './compositions/TargetedCinematicNarrative';
+import { TargetedStillComposition } from './compositions/TargetedStillComposition';
 import { REMOTION_TARGET_ORDER, getTargetDurationInFrames, type RemotionTargetConfig } from './targets';
 
 const Root: React.FC = () => {
@@ -35,7 +36,11 @@ const Root: React.FC = () => {
           <Composition
             key={target.compositionId}
             id={target.compositionId}
-            component={TargetedCinematicNarrative}
+            component={
+              target.id === 'linkedin_feed_4_5' || target.id === 'youtube_thumbnail_16_9'
+                ? TargetedStillComposition
+                : TargetedCinematicNarrative
+            }
             durationInFrames={getTargetDurationInFrames(target, requestedDuration)}
             fps={target.fps}
             width={target.width}

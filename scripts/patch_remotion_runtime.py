@@ -176,6 +176,25 @@ def patch_open_browser_js(path: Path) -> None:
             path=path,
             already_applied_markers=markers,
         )
+    trace_helper = """
+const traceOpenBrowser = (message) => {
+    const traceFile = process.env.AIOX_REMOTION_TRACE_FILE;
+    if (!traceFile) {
+        return;
+    }
+    try {
+        require("node:fs").appendFileSync(traceFile, `${new Date().toISOString()} ${message}\\n`);
+    }
+    catch (_error) {}
+};
+"""
+    if "const traceOpenBrowser = (message) => {" not in text:
+        anchor = 'const logger_1 = require("./logger");\n'
+        if anchor not in text:
+            raise RuntimeError(
+                f"[patch_remotion_runtime] anchor not found for open-browser trace helper in {path}"
+            )
+        text = text.replace(anchor, anchor + trace_helper, 1)
     text = text.replace(
         "await (0, ensure_browser_1.internalEnsureBrowser)({",
         "await internalEnsureBrowser({",
@@ -192,6 +211,47 @@ def patch_open_browser_js(path: Path) -> None:
         '            `--video-threads=${(0, get_video_threads_flag_1.getIdealVideoThreadsFlag)(logLevel)}`,\n',
         '            `--video-threads=${getIdealVideoThreadsFlag(logLevel)}`,\n',
     )
+    trace_replacements = (
+        (
+            "const internalOpenBrowser = async ({ browser, browserExecutable, chromiumOptions, forceDeviceScaleFactor, indent, viewport, logLevel, onBrowserDownload, chromeMode, }) => {\n",
+            "const internalOpenBrowser = async ({ browser, browserExecutable, chromiumOptions, forceDeviceScaleFactor, indent, viewport, logLevel, onBrowserDownload, chromeMode, }) => {\n    traceOpenBrowser(`openBrowser:enter chromeMode=${chromeMode ?? 'unknown'} browserExecutable=${browserExecutable ?? 'auto'}`);\n",
+        ),
+        (
+            "    await internalEnsureBrowser({\n",
+            "    traceOpenBrowser(\"openBrowser:before ensureBrowser\");\n    await internalEnsureBrowser({\n",
+        ),
+        (
+            "    logger_1.Log.verbose({ indent, logLevel }, 'Ensured browser is available.');\n",
+            "    logger_1.Log.verbose({ indent, logLevel }, 'Ensured browser is available.');\n    traceOpenBrowser(\"openBrowser:after ensureBrowser\");\n",
+        ),
+        (
+            "    const executablePath = getLocalBrowserExecutable({\n",
+            "    traceOpenBrowser(\"openBrowser:before getLocalBrowserExecutable\");\n    const executablePath = getLocalBrowserExecutable({\n",
+        ),
+        (
+            "    const customGlRenderer = getOpenGlRenderer((_b = chromiumOptions.gl) !== null && _b !== void 0 ? _b : null);\n",
+            "    traceOpenBrowser(`openBrowser:resolved executable=${executablePath}`);\n    const customGlRenderer = getOpenGlRenderer((_b = chromiumOptions.gl) !== null && _b !== void 0 ? _b : null);\n",
+        ),
+        (
+            "    const browserInstance = await launchChrome({\n",
+            "    traceOpenBrowser(\"openBrowser:before launchChrome\");\n    const browserInstance = await launchChrome({\n",
+        ),
+        (
+            "    const pages = await browserInstance.pages();\n",
+            "    traceOpenBrowser(\"openBrowser:after launchChrome\");\n    const pages = await browserInstance.pages();\n",
+        ),
+        (
+            "    await ((_a = pages[0]) === null || _a === void 0 ? void 0 : _a.close());\n",
+            "    traceOpenBrowser(`openBrowser:pages=${pages.length}`);\n    await ((_a = pages[0]) === null || _a === void 0 ? void 0 : _a.close());\n",
+        ),
+        (
+            "    return browserInstance;\n",
+            "    traceOpenBrowser(\"openBrowser:return browserInstance\");\n    return browserInstance;\n",
+        ),
+    )
+    for old, new in trace_replacements:
+        if old in text and new not in text:
+            text = text.replace(old, new, 1)
     path.write_text(text)
 
 
@@ -305,6 +365,179 @@ def patch_get_compositions_js(path: Path) -> None:
     )
     for old, new in replacements:
         text = text.replace(old, new)
+    trace_helper = """
+const traceGetCompositions = (message) => {
+    const traceFile = process.env.AIOX_REMOTION_TRACE_FILE;
+    if (!traceFile) {
+        return;
+    }
+    try {
+        require("node:fs").appendFileSync(traceFile, `${new Date().toISOString()} ${message}\\n`);
+    }
+    catch (_error) {}
+};
+"""
+    if "const traceGetCompositions = (message) => {" not in text:
+        anchor = 'const wrapWithErrorHandling = (...args) => require("./wrap-with-error-handling").wrapWithErrorHandling(...args);\n'
+        if anchor not in text:
+            raise RuntimeError(
+                f"[patch_remotion_runtime] anchor not found for get-compositions trace helper in {path}"
+            )
+        text = text.replace(anchor, anchor + trace_helper, 1)
+    trace_replacements = (
+        (
+            "const internalGetCompositionsRaw = async ({ browserExecutable, chromiumOptions, envVariables, indent, serializedInputPropsWithCustomSchema, onBrowserLog, port, puppeteerInstance, serveUrlOrWebpackUrl, server, timeoutInMilliseconds, logLevel, offthreadVideoCacheSizeInBytes, binariesDirectory, onBrowserDownload, chromeMode, offthreadVideoThreads, mediaCacheSizeInBytes, onLog, }) => {\n",
+            "const internalGetCompositionsRaw = async ({ browserExecutable, chromiumOptions, envVariables, indent, serializedInputPropsWithCustomSchema, onBrowserLog, port, puppeteerInstance, serveUrlOrWebpackUrl, server, timeoutInMilliseconds, logLevel, offthreadVideoCacheSizeInBytes, binariesDirectory, onBrowserDownload, chromeMode, offthreadVideoThreads, mediaCacheSizeInBytes, onLog, }) => {\n    traceGetCompositions(\"getCompositions:entered internalGetCompositionsRaw\");\n",
+        ),
+        (
+            "    const { page, cleanupPage } = await getPageAndCleanupFn({\n",
+            "    traceGetCompositions(\"getCompositions:before getPageAndCleanupFn\");\n    const { page, cleanupPage } = await getPageAndCleanupFn({\n",
+        ),
+        (
+            "    const cleanup = [cleanupPage];\n",
+            "    traceGetCompositions(\"getCompositions:after getPageAndCleanupFn\");\n    const cleanup = [cleanupPage];\n",
+        ),
+        (
+            "        makeOrReuseServer(server, {\n",
+            "        traceGetCompositions(\"getCompositions:before makeOrReuseServer\");\n        makeOrReuseServer(server, {\n",
+        ),
+        (
+            "            page.setBrowserSourceMapGetter(sourceMap);\n",
+            "            traceGetCompositions(\"getCompositions:after makeOrReuseServer\");\n            page.setBrowserSourceMapGetter(sourceMap);\n",
+        ),
+        (
+            "            return innerGetCompositions({\n",
+            "            traceGetCompositions(\"getCompositions:before innerGetCompositions\");\n            return innerGetCompositions({\n",
+        ),
+        (
+            "            return resolve(comp);\n",
+            "            traceGetCompositions(\"getCompositions:after innerGetCompositions\");\n            return resolve(comp);\n",
+        ),
+    )
+    for old, new in trace_replacements:
+        if old in text and new not in text:
+            text = text.replace(old, new, 1)
+    path.write_text(text)
+
+
+def patch_browser_runner_js(path: Path) -> None:
+    text = path.read_text()
+    trace_helper = """
+const traceBrowserRunner = (message) => {
+    const traceFile = process.env.AIOX_REMOTION_TRACE_FILE;
+    if (!traceFile) {
+        return;
+    }
+    try {
+        require("node:fs").appendFileSync(traceFile, `${new Date().toISOString()} ${message}\\n`);
+    }
+    catch (_error) {}
+};
+"""
+    if "const traceBrowserRunner = (message) => {" not in text:
+        anchor = 'const util_1 = require("./util");\n'
+        if anchor not in text:
+            raise RuntimeError(
+                f"[patch_remotion_runtime] anchor not found for BrowserRunner trace helper in {path}"
+            )
+        text = text.replace(anchor, anchor + trace_helper, 1)
+    trace_replacements = (
+        (
+            "const makeBrowserRunner = async ({ executablePath, processArguments, userDataDir, logLevel, indent, timeout, }) => {\n",
+            "const makeBrowserRunner = async ({ executablePath, processArguments, userDataDir, logLevel, indent, timeout, }) => {\n    traceBrowserRunner(`BrowserRunner:make start executable=${executablePath}`);\n",
+        ),
+        (
+            "    const proc = childProcess.spawn(executablePath, processArguments, {\n",
+            "    traceBrowserRunner(\"BrowserRunner:before spawn\");\n    const proc = childProcess.spawn(executablePath, processArguments, {\n",
+        ),
+        (
+            "    const browserWSEndpoint = await waitForWSEndpoint({\n",
+            "    traceBrowserRunner(`BrowserRunner:spawned pid=${proc.pid ?? 'unknown'}`);\n    const browserWSEndpoint = await waitForWSEndpoint({\n",
+        ),
+        (
+            "    const transport = await NodeWebSocketTransport_1.NodeWebSocketTransport.create(browserWSEndpoint);\n",
+            "    traceBrowserRunner(`BrowserRunner:ws endpoint=${browserWSEndpoint}`);\n    const transport = await NodeWebSocketTransport_1.NodeWebSocketTransport.create(browserWSEndpoint);\n",
+        ),
+        (
+            "    const connection = new Connection_1.Connection(transport);\n",
+            "    traceBrowserRunner(\"BrowserRunner:transport connected\");\n    const connection = new Connection_1.Connection(transport);\n",
+        ),
+        (
+            "        browserStderr.addListener('data', onStdIoData);\n",
+            "        traceBrowserRunner(\"BrowserRunner:waitForWSEndpoint begin\");\n        browserStderr.addListener('data', onStdIoData);\n",
+        ),
+        (
+            "        function onClose(error) {\n",
+            "        function onClose(error) {\n            traceBrowserRunner(`BrowserRunner:onClose ${error ? error.message : 'no-error'}`);\n",
+        ),
+        (
+            "        function onTimeout() {\n",
+            "        function onTimeout() {\n            traceBrowserRunner(`BrowserRunner:onTimeout timeout=${timeout}`);\n",
+        ),
+        (
+            "        function onStdIoData(data) {\n",
+            "        function onStdIoData(data) {\n            traceBrowserRunner(`BrowserRunner:stdio ${String(data).slice(0, 200).replace(/\\s+/g, ' ')}`);\n",
+        ),
+        (
+            "            resolve(match[1]);\n",
+            "            traceBrowserRunner(`BrowserRunner:resolved ws=${match[1]}`);\n            resolve(match[1]);\n",
+        ),
+    )
+    for old, new in trace_replacements:
+        if old in text and new not in text:
+            text = text.replace(old, new, 1)
+    path.write_text(text)
+
+
+def patch_launcher_js(path: Path) -> None:
+    text = path.read_text()
+    trace_helper = """
+const traceLauncher = (message) => {
+    const traceFile = process.env.AIOX_REMOTION_TRACE_FILE;
+    if (!traceFile) {
+        return;
+    }
+    try {
+        require("node:fs").appendFileSync(traceFile, `${new Date().toISOString()} ${message}\\n`);
+    }
+    catch (_error) {}
+};
+"""
+    if "const traceLauncher = (message) => {" not in text:
+        anchor = 'const Browser_1 = require("./Browser");\n'
+        if anchor not in text:
+            raise RuntimeError(
+                f"[patch_remotion_runtime] anchor not found for Launcher trace helper in {path}"
+            )
+        text = text.replace(anchor, anchor + trace_helper, 1)
+    bad_recursive = '    traceLauncher("Launcher:after HeadlessBrowser.create");\n'
+    if bad_recursive in text:
+        text = text.replace(bad_recursive, "", 1)
+    trace_replacements = (
+        (
+            "const launchChrome = async ({ args, executablePath, defaultViewport, indent, logLevel, userDataDir, timeout, }) => {\n",
+            "const launchChrome = async ({ args, executablePath, defaultViewport, indent, logLevel, userDataDir, timeout, }) => {\n    traceLauncher(`Launcher:enter executable=${executablePath}`);\n",
+        ),
+        (
+            "    const browser = await Browser_1.HeadlessBrowser.create({\n",
+            "    traceLauncher(\"Launcher:before HeadlessBrowser.create\");\n    const browser = await Browser_1.HeadlessBrowser.create({\n",
+        ),
+        (
+            "    });\n    try {\n",
+            "    });\n    traceLauncher(\"Launcher:after HeadlessBrowser.create\");\n    try {\n",
+        ),
+        (
+            "        await browser.waitForTarget((t) => {\n",
+            "        traceLauncher(\"Launcher:before waitForTarget(page)\");\n        await browser.waitForTarget((t) => {\n",
+        ),
+        (
+            "    return browser;\n",
+            "    traceLauncher(\"Launcher:return browser\");\n    return browser;\n",
+        ),
+    )
+    for old, new in trace_replacements:
+        if old in text and new not in text:
+            text = text.replace(old, new, 1)
     path.write_text(text)
 
 
@@ -318,6 +551,8 @@ def main() -> int:
         REMOTION_ROOT / "node_modules" / "@remotion" / "renderer" / "dist" / "open-browser.js": patch_open_browser_js,
         REMOTION_ROOT / "node_modules" / "@remotion" / "renderer" / "dist" / "get-browser-instance.js": patch_get_browser_instance_js,
         REMOTION_ROOT / "node_modules" / "@remotion" / "renderer" / "dist" / "get-compositions.js": patch_get_compositions_js,
+        REMOTION_ROOT / "node_modules" / "@remotion" / "renderer" / "dist" / "browser" / "BrowserRunner.js": patch_browser_runner_js,
+        REMOTION_ROOT / "node_modules" / "@remotion" / "renderer" / "dist" / "browser" / "Launcher.js": patch_launcher_js,
     }
 
     for path, patcher in targets.items():
