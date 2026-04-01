@@ -4,7 +4,7 @@ from .rule_engine import apply_rules
 from .mutation_engine import mutate_entropy, mutate_motion
 from .scoring_engine import novelty_score, coherence_score
 from .signature_simulator import simulate_signature
-from core.agents import zara
+from core.agents import aria, kael, zara
 from core.intelligence.model_router import TASK_PLAN
 
 import copy
@@ -91,10 +91,11 @@ def _tension_from_scene(primitives: list, effects: list) -> str:
     return "medium"
 
 
-def enrich_with_entropy(plan: dict) -> dict:
+def enrich_with_entropy(plan: dict, intent_text: str = "") -> dict:
     """Invoca as personas físicas reais (Zara/Kael) com o arquétipo já escolhido pela Rule Engine."""
     archetype = plan.get("archetype", "emergence")
-    
+    total_duration = float(plan.get("duration", 12) or 12.0)
+
     # Define entropia numérica bruta via regra ZARA
     entropy_base = zara.define_entropy(archetype)
     plan["entropy"] = entropy_base
@@ -107,8 +108,16 @@ def enrich_with_entropy(plan: dict) -> dict:
     bias = zara.resolve_motion_bias(archetype)
     if bias:
         interpretation["motion_signature"] = bias
-        
+
     plan["interpretation"] = interpretation
+    plan["entropy_profile"] = entropy_base
+    plan["pacing_profile"] = kael.define_pacing(intent_text, archetype, total_duration_sec=total_duration)
+    poster_warnings = aria.poster_test(archetype)
+    plan["poster_test"] = {
+        "passed": not poster_warnings,
+        "warnings": poster_warnings,
+    }
+    plan["quality_mode"] = "absolute"
     
     # ---------------------------------------------
     # FASE 1 (ELITE): A Linguagem Temporal (Timeline)
@@ -192,7 +201,7 @@ def compile_seed(
 
     intent = parse_intent(seed, asset_registry=asset_registry, task_type=task_type)
     plan = apply_rules(intent, identity)
-    plan = enrich_with_entropy(plan)
+    plan = enrich_with_entropy(plan, intent_text=str(intent))
 
     if getattr(intent, "scene_plan", None):
         plan["llm_scene_plan"] = intent.scene_plan

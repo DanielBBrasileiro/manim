@@ -1,0 +1,18 @@
+id: editorial_minimal
+description: "Apple Keynote inspired. Maximum restraint."
+scale:
+  base_px: 18
+  ratio: 1.618
+  display_step: 5
+  title_step: 3
+  body_step: 1
+  caption_step: 0
+density: light
+max_words_per_block: 3
+measure_chars: 20
+tracking_at_display: -0.06em
+tracking_at_body: -0.02em
+leading_display: 0.88
+leading_body: 1.35
+break_strategy: semantic
+alignment_default: optical_left

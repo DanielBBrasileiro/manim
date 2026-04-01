@@ -42,6 +42,7 @@ def save_decision_record(
     runtime_profile: str | None = None,
     review_session_id: str | None = None,
     benchmark_metrics: dict[str, Any] | None = None,
+    quality_report: dict[str, Any] | None = None,
     path: str | None = None,
 ) -> bool:
     if not approved:
@@ -60,6 +61,7 @@ def save_decision_record(
         "runtime_profile": runtime_profile,
         "review_session_id": review_session_id,
         "benchmark_metrics": benchmark_metrics or {},
+        "quality_report": quality_report or {},
     }
     with target.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(row, ensure_ascii=True) + "\n")

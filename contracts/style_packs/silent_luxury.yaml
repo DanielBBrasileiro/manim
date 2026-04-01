@@ -1,0 +1,8 @@
+id: silent_luxury
+typography_system: editorial_minimal
+motion_grammar: cinematic_restrained
+still_family: poster_minimal
+color_mode: monochrome_pure
+grain: 0.04
+accent_intensity: 0.1
+negative_space_target: 0.65

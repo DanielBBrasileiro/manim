@@ -3,18 +3,18 @@
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const {createRequire} = require("node:module");
 
 const ROOT = path.resolve(__dirname, "..");
 const REMOTION_ROOT = path.join(ROOT, "engines", "remotion");
 const ENTRY_POINT = path.join(REMOTION_ROOT, "src", "index.tsx");
 const PUBLIC_DIR = path.join(REMOTION_ROOT, "public");
-const PUBLIC_VIDEO = path.join(PUBLIC_DIR, "manim_base.mp4");
 const BUNDLE_CACHE_DIR = path.join(REMOTION_ROOT, ".bundle-cache");
 const BUNDLE_CACHE_MANIFEST = path.join(BUNDLE_CACHE_DIR, "bundle-manifest.json");
 const DEFAULT_COMPOSITION = "short-cinematic-vertical";
 const DEFAULT_TIMEOUT_MS = Number(process.env.REMOTION_RENDER_TIMEOUT_MS || "120000");
+const USE_RSPACK = process.env.AIOX_REMOTION_USE_RSPACK === "1";
 const SYSTEM_CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const PLAYWRIGHT_CACHE_DIR = path.join(os.homedir(), "Library", "Caches", "ms-playwright");
 const DEFAULT_STILL_EXTENSION = ".png";
 const TARGET_ALIASES = {
   cinematicnarrative: "short-cinematic-vertical",
@@ -52,7 +52,6 @@ const TARGET_ALIASES = {
   "youtube-thumbnail-16-9": "youtube-thumbnail-16-9",
 };
 
-const requireFromRemotion = createRequire(path.join(REMOTION_ROOT, "package.json"));
 const BUNDLER_DIST = path.join(REMOTION_ROOT, "node_modules", "@remotion", "bundler", "dist");
 const RENDERER_DIST = path.join(REMOTION_ROOT, "node_modules", "@remotion", "renderer", "dist");
 
@@ -91,6 +90,31 @@ const resolveBrowserExecutable = () => {
   if (fromEnv && fs.existsSync(fromEnv)) {
     return fromEnv;
   }
+
+  try {
+    if (fs.existsSync(PLAYWRIGHT_CACHE_DIR)) {
+      const candidates = fs
+        .readdirSync(PLAYWRIGHT_CACHE_DIR, {withFileTypes: true})
+        .filter((entry) => entry.isDirectory() && entry.name.startsWith("chromium-"))
+        .map((entry) =>
+          path.join(
+            PLAYWRIGHT_CACHE_DIR,
+            entry.name,
+            "chrome-mac-arm64",
+            "Google Chrome for Testing.app",
+            "Contents",
+            "MacOS",
+            "Google Chrome for Testing",
+          ),
+        )
+        .filter((candidate) => fs.existsSync(candidate))
+        .sort()
+        .reverse();
+      if (candidates.length > 0) {
+        return candidates[0];
+      }
+    }
+  } catch (_) {}
 
   if (fs.existsSync(SYSTEM_CHROME)) {
     return SYSTEM_CHROME;
@@ -136,11 +160,59 @@ const latestMtimeInTree = (rootPath) => {
   return latest;
 };
 
+const syncDirectoryContents = (sourceDir, destinationDir) => {
+  fs.mkdirSync(destinationDir, {recursive: true});
+
+  const seenEntries = new Set();
+  for (const entry of fs.readdirSync(sourceDir, {withFileTypes: true})) {
+    seenEntries.add(entry.name);
+    const sourcePath = path.join(sourceDir, entry.name);
+    const destinationPath = path.join(destinationDir, entry.name);
+
+    if (entry.isDirectory()) {
+      syncDirectoryContents(sourcePath, destinationPath);
+      continue;
+    }
+
+    if (entry.isSymbolicLink()) {
+      const target = fs.readlinkSync(sourcePath);
+      try {
+        if (fs.existsSync(destinationPath)) {
+          fs.rmSync(destinationPath, {recursive: true, force: true});
+        }
+      } catch (_) {}
+      fs.symlinkSync(target, destinationPath);
+      continue;
+    }
+
+    const sourceStat = fs.statSync(sourcePath);
+    const destinationExists = fs.existsSync(destinationPath);
+    const destinationStat = destinationExists ? fs.statSync(destinationPath) : null;
+    const destinationIsStale =
+      !destinationStat ||
+      destinationStat.size !== sourceStat.size ||
+      destinationStat.mtimeMs < sourceStat.mtimeMs;
+
+    if (destinationIsStale) {
+      fs.mkdirSync(path.dirname(destinationPath), {recursive: true});
+      fs.copyFileSync(sourcePath, destinationPath);
+      fs.utimesSync(destinationPath, sourceStat.atime, sourceStat.mtime);
+    }
+  }
+
+  for (const entry of fs.readdirSync(destinationDir, {withFileTypes: true})) {
+    if (seenEntries.has(entry.name)) {
+      continue;
+    }
+    fs.rmSync(path.join(destinationDir, entry.name), {recursive: true, force: true});
+  }
+};
+
 const syncPublicAssets = (bundlePath) => {
   const bundlePublicDir = path.join(bundlePath, "public");
   console.log(`Sincronizando assets publicos em ${bundlePublicDir}...`);
   fs.mkdirSync(bundlePublicDir, {recursive: true});
-  fs.cpSync(PUBLIC_DIR, bundlePublicDir, {recursive: true, force: true});
+  syncDirectoryContents(PUBLIC_DIR, bundlePublicDir);
   console.log("Assets publicos sincronizados.");
 };
 
@@ -228,17 +300,41 @@ const loadRenderer = () => {
 
   console.log("Carregando renderer Remotion...");
   const startedAt = Date.now();
+  console.log(" - require get-compositions.js");
   const {getCompositions} = require(path.join(RENDERER_DIST, "get-compositions.js"));
-  const {renderMedia} = require(path.join(RENDERER_DIST, "render-media.js"));
-  let renderStill = null;
-  try {
-    ({renderStill} = require(path.join(RENDERER_DIST, "render-still.js")));
-  } catch (_error) {
-    renderStill = null;
-  }
-  rendererApi = {getCompositions, renderMedia, renderStill};
+  console.log(`   ok em ${Date.now() - startedAt}ms`);
+  rendererApi = {
+    getCompositions,
+    renderMedia: null,
+    renderStill: null,
+    startedAt,
+  };
   console.log(`Renderer Remotion pronto em ${Date.now() - startedAt}ms`);
   return rendererApi;
+};
+
+const ensureRenderMedia = () => {
+  const renderer = loadRenderer();
+  if (!renderer.renderMedia) {
+    console.log(" - require render-media.js");
+    ({renderMedia: renderer.renderMedia} = require(path.join(RENDERER_DIST, "render-media.js")));
+    console.log(`   ok em ${Date.now() - renderer.startedAt}ms`);
+  }
+  return renderer.renderMedia;
+};
+
+const ensureRenderStill = () => {
+  const renderer = loadRenderer();
+  if (renderer.renderStill === null) {
+    try {
+      console.log(" - require render-still.js");
+      ({renderStill: renderer.renderStill} = require(path.join(RENDERER_DIST, "render-still.js")));
+      console.log(`   ok em ${Date.now() - renderer.startedAt}ms`);
+    } catch (_error) {
+      renderer.renderStill = false;
+    }
+  }
+  return renderer.renderStill || null;
 };
 
 const makeRendererOptions = () => ({
@@ -246,6 +342,16 @@ const makeRendererOptions = () => ({
   chromiumOptions: {
     headless: true,
     ignoreCertificateErrors: true,
+    gl: "angle",
+    disableWebSecurity: true,
+    args: [
+      "--no-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+      "--disable-software-rasterizer",
+      "--disable-background-networking",
+      "--disable-background-timer-throttling",
+    ],
   },
   logLevel: "info",
   timeoutInMilliseconds: DEFAULT_TIMEOUT_MS,
@@ -282,7 +388,7 @@ const makeBundle = async () => {
     keyboardShortcutsEnabled: false,
     publicDir: PUBLIC_DIR,
     rootDir: REMOTION_ROOT,
-    rspack: true,
+    rspack: USE_RSPACK,
     webpackOverride: (config) => {
       config.resolve = config.resolve || {};
       config.resolve.fallback = {
@@ -365,7 +471,7 @@ const renderComposition = async () => {
   console.log(`Renderizando ${compositionId} para ${outputLocation}...`);
   const startedAt = Date.now();
   let lastLoggedProgress = -1;
-  const {renderMedia} = loadRenderer();
+  const renderMedia = ensureRenderMedia();
 
   const concurrency = Number(process.env.REMOTION_CONCURRENCY || "1") || 1;
   await renderMedia({
@@ -427,7 +533,7 @@ const renderStill = async () => {
     );
   }
 
-  const {renderStill: renderStillApi} = loadRenderer();
+  const renderStillApi = ensureRenderStill();
   if (!renderStillApi) {
     throw new Error("renderStill nao esta disponivel na versao local do Remotion.");
   }

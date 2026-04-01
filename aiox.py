@@ -46,10 +46,56 @@ def main():
     benchmark_parser.add_argument("--json", action="store_true")
     audit_parser = subparsers.add_parser("audit", help="Audita paridade entre artifact_plan e outputs")
     audit_parser.add_argument("--json", action="store_true")
+    judge_parser = subparsers.add_parser("judge", help="Julga um artefato visual via quality runtime")
+    judge_parser.add_argument("path")
+    judge_parser.add_argument("--target", default="linkedin_feed_4_5")
+    judge_parser.add_argument("--briefing")
+    judge_parser.add_argument("--archetype", default="emergence")
+    judge_parser.add_argument("--fallback", action="store_true")
+    judge_parser.add_argument("--json", action="store_true")
+
+    references_parent = subparsers.add_parser("references", help="Ferramentas de ingestao de referencias")
+    references_subparsers = references_parent.add_subparsers(dest="references_command", required=True)
+    references_ingest = references_subparsers.add_parser("ingest", help="Ingesta referencias em style packs")
+    references_ingest.add_argument("urls", nargs="+")
+    references_ingest.add_argument("--output-dir", default="contracts/references")
+
+    style_parent = subparsers.add_parser("style", help="Ferramentas de busca de style packs")
+    style_subparsers = style_parent.add_subparsers(dest="style_command", required=True)
+    style_search = style_subparsers.add_parser("search", help="Busca style packs")
+    style_search.add_argument("query")
+    style_search.add_argument("--limit", type=int, default=5)
+    style_search.add_argument("--json", action="store_true")
+
+    variants_parent = subparsers.add_parser("variants", help="Ferramentas de ranqueamento de variantes")
+    variants_subparsers = variants_parent.add_subparsers(dest="variants_command", required=True)
+    variants_rank = variants_subparsers.add_parser("rank", help="Ranqueia variantes de um briefing")
+    variants_rank.add_argument("briefing")
+    variants_rank.add_argument("--json", action="store_true")
+    variants_rank.add_argument("--heuristic", action="store_true")
+    variants_rank.add_argument("--timeout-seconds", type=float)
+
+    # Comando AGENT: Agentic Runtime (v5.0)
+    agent_parser = subparsers.add_parser("agent", help="Agentic Runtime — executa prompt com tool routing automático")
+    agent_parser.add_argument("prompt", nargs="?", help="Prompt para o runtime agentico")
+    agent_parser.add_argument("--list-tools", action="store_true", help="Lista todas as tools registradas")
+    agent_parser.add_argument("--tool", help="Executar uma tool específica pelo nome")
+    agent_parser.add_argument("--mode", default="interactive", choices=["interactive", "autonomous", "read_only"], help="Modo de execução")
+    agent_parser.add_argument("--json", dest="agent_json", action="store_true", help="Output em JSON")
+
+    # Comando COORDINATE: Multi-agent creative coordinator (v5.0)
+    coord_parser = subparsers.add_parser("coordinate", help="Coordena workers criativos em paralelo para uma produção autônoma")
+    coord_parser.add_argument("intent", nargs="?", help="Intenção criativa para coordenar")
+    coord_parser.add_argument("--list-workers", action="store_true", help="Lista workers disponíveis")
+    coord_parser.add_argument("--briefing", help="Path para briefing YAML (ativa render)")
+    coord_parser.add_argument("--json", dest="coord_json", action="store_true", help="Output em JSON")
     
     # Comando SYNC: Apenas sincroniza o DNA visual (útil para testes)
     sync_parser = subparsers.add_parser("sync", help="Atualiza o theme.json com a identidade solicitada")
     sync_parser.add_argument("identity", help="Ex: aiox_default", nargs="?", default="aiox_default")
+
+    # Comando MCP: Model Context Protocol Server
+    mcp_parser = subparsers.add_parser("mcp", help="Inicia o servidor MCP (Model Context Protocol) via stdio")
 
     args = parser.parse_args()
     
@@ -84,6 +130,12 @@ def main():
         reference_cli(reference_args)
         return
 
+    elif args.command == "references":
+        if args.references_command == "ingest":
+            from core.cli.reference import cli as reference_cli
+            reference_cli([*args.urls, "--output-dir", args.output_dir])
+            return
+
     elif args.command == "doctor":
         from core.cli.doctor import cli as doctor_cli
         doctor_cli(["--json"] if args.json else [])
@@ -111,9 +163,115 @@ def main():
         audit_args = ["--json"] if args.json else []
         audit_cli(audit_args)
         return
-        
+
+    elif args.command == "judge":
+        from core.cli.judge import cli as judge_cli
+        judge_args = [args.path, "--target", args.target, "--archetype", args.archetype]
+        if args.briefing:
+            judge_args.extend(["--briefing", args.briefing])
+        if args.fallback:
+            judge_args.append("--fallback")
+        if args.json:
+            judge_args.append("--json")
+        judge_cli(judge_args)
+        return
+
+    elif args.command == "style":
+        if args.style_command == "search":
+            from core.cli.style_search import cli as style_search_cli
+            style_args = [args.query, "--limit", str(args.limit)]
+            if args.json:
+                style_args.append("--json")
+            style_search_cli(style_args)
+            return
+
+    elif args.command == "variants":
+        if args.variants_command == "rank":
+            from core.cli.variants_rank import cli as variants_rank_cli
+            variant_args = [args.briefing]
+            if args.json:
+                variant_args.append("--json")
+            if args.heuristic:
+                variant_args.append("--heuristic")
+            if args.timeout_seconds is not None:
+                variant_args.extend(["--timeout-seconds", str(args.timeout_seconds)])
+            variants_rank_cli(variant_args)
+            return
+
+    elif args.command == "agent":
+        import asyncio as _asyncio
+        from core.harness.tool_registry import get_registry
+        from core.harness.session_runtime import SessionRuntime
+
+        registry = get_registry(auto_discover=True)
+
+        if args.list_tools:
+            if getattr(args, "agent_json", False):
+                import json as _json
+                print(_json.dumps(registry.list_schemas(), indent=2))
+            else:
+                print(registry.as_markdown())
+            return
+
+        if not args.prompt:
+            print("❌ Forneça um prompt ou use --list-tools")
+            return
+
+        runtime = SessionRuntime(registry=registry, mode=args.mode)
+        report = _asyncio.run(runtime.run(args.prompt))
+
+        if getattr(args, "agent_json", False):
+            import json as _json
+            print(_json.dumps({
+                "session_id": report.session_id,
+                "prompt": report.prompt,
+                "tools_matched": [m.tool.name for m in report.routed_tools],
+                "tool_results": [r.to_dict() for r in report.tool_results],
+                "turn": report.turn_result.to_dict(),
+                "duration_ms": round(report.total_duration_ms, 2),
+            }, indent=2))
+        else:
+            print(report.as_markdown())
+        return
+
+    elif args.command == "coordinate":
+        import asyncio as _asyncio
+        from core.coordinator.coordinator import CreativeCoordinator
+        from core.coordinator.workers import list_workers
+
+        if args.list_workers:
+            workers = list_workers()
+            print(f"Workers disponíveis ({len(workers)}):")
+            from core.coordinator.workers import WORKERS
+            for name, w in WORKERS.items():
+                print(f"  - {name}: {w.persona}")
+            return
+
+        if not args.intent:
+            print("❌ Forneça uma intenção criativa ou use --list-workers")
+            return
+
+        context = {}
+        if getattr(args, "briefing", None):
+            context["briefing_path"] = args.briefing
+
+        coordinator = CreativeCoordinator(context=context)
+        report = _asyncio.run(coordinator.run(args.intent))
+
+        if getattr(args, "coord_json", False):
+            import json as _json
+            print(_json.dumps(report.to_dict(), indent=2))
+        else:
+            print(report.as_markdown())
+        return
+
     elif args.command == "sync":
         subprocess.run(["python3", "core/cli/brand.py", args.identity], check=True)
+
+    elif args.command == "mcp":
+        from core.mcp.server import serve
+        serve()
+        return
 
 if __name__ == "__main__":
     main()

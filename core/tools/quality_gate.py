@@ -23,8 +23,9 @@ def evaluate_artifact_plan(artifact_plan: dict[str, Any]) -> dict[str, Any]:
     quality_constraints = artifact_plan.get("quality_constraints", {}) if isinstance(artifact_plan, dict) else {}
     variants = artifact_plan.get("variants", []) if isinstance(artifact_plan, dict) else []
     renderer_contracts = artifact_plan.get("renderer_contracts", {}) if isinstance(artifact_plan, dict) else {}
+    premium_targets = artifact_plan.get("premium_targets", []) if isinstance(artifact_plan, dict) else []
 
-    if int(artifact_plan.get("schema_version", 1) or 1) < 2:
+    if int(artifact_plan.get("schema_version", 1) or 1) < 3:
         report["warnings"].append("artifact_plan_schema_legacy")
 
     for key in REQUIRED_STORY_ATOMS:
@@ -57,11 +58,25 @@ def evaluate_artifact_plan(artifact_plan: dict[str, Any]) -> dict[str, Any]:
     if chosen_variant and not any(isinstance(variant, dict) and variant.get("id") == chosen_variant for variant in variants):
         report["errors"].append("chosen_variant_missing")
 
+    if str(artifact_plan.get("quality_mode", "")).strip() != "absolute":
+        report["warnings"].append("quality_mode_not_absolute")
+
+    if not isinstance(premium_targets, list) or not premium_targets:
+        report["warnings"].append("premium_targets_missing")
+
+    for key in ("qa_frames", "auto_iterate_max", "brand_veto_policy"):
+        if key not in artifact_plan:
+            report["warnings"].append(f"quality_field_missing:{key}")
+    for key in ("judge_stack", "quality_tier", "family_spec", "motion_system", "copy_budget"):
+        if key not in artifact_plan:
+            report["warnings"].append(f"lab_field_missing:{key}")
+
     report["stats"] = {
         "target_count": len(targets) if isinstance(targets, list) else 0,
         "variant_count": len(variants) if isinstance(variants, list) else 0,
         "max_words_per_screen": max_words,
         "negative_space_target": negative_space_target,
+        "premium_target_count": len(premium_targets) if isinstance(premium_targets, list) else 0,
     }
     report["ok"] = not report["errors"]
     return report
@@ -126,3 +141,10 @@ def _check_target(target: dict[str, Any], report: dict[str, Any]) -> None:
         slides = target.get("slides", [])
         if not isinstance(slides, list) or not (5 <= len(slides) <= 9):
             report["errors"].append(f"carousel_slide_count_out_of_range:{target_id}")
+
+    if not str(target.get("family_spec", "")).strip():
+        report["warnings"].append(f"target_missing_family_spec:{target_id}")
+
+    for key in ("act_quality_profile", "post_fx_profile", "qa_sampling_frames", "poster_test_frames"):
+        if key not in target:
+            report["warnings"].append(f"target_quality_contract_missing:{target_id}:{key}")

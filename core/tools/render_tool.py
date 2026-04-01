@@ -42,6 +42,11 @@ def run_manim(scene_name: str, script_path: str) -> None:
     cmd = ["manim", "-f", "-qh", script_path, scene_name]
     subprocess.run(cmd, check=True, cwd=str(ROOT / "engines" / "manim"), env=env)
 
+def run_manim_hero_still(scene_name: str = "HeroStillGeometry", script_path: str = "scenes/hero_still.py") -> None:
+    print(f"🖼️  [Manim Tool] Renderizando geometria MASTER em 1080x1350 para {scene_name}...")
+    env = dict(os.environ, PYTHONPATH=str(ROOT))
+    cmd = ["manim", "-f", "-qh", "-s", "-r", "1080,1350", script_path, scene_name]
+    subprocess.run(cmd, check=True, cwd=str(ROOT / "engines" / "manim"), env=env)
 
 def bridge_engines(scene_name: str, script_path: str) -> None:
     script_name = Path(script_path).stem
@@ -57,10 +62,28 @@ def bridge_engines(scene_name: str, script_path: str) -> None:
     )
     remotion_public = ROOT / "engines" / "remotion" / "public" / "manim_base.mp4"
     if manim_output.exists():
-        print(f"🌉 [Bridge Tool] Injetando {scene_name} no React...")
+        print(f"🌉 [Bridge Tool] Injetando {scene_name}.mp4 no React...")
         os.makedirs(remotion_public.parent, exist_ok=True)
         shutil.copy(manim_output, remotion_public)
 
+def bridge_manim_hero_still(scene_name: str = "HeroStillGeometry", script_path: str = "scenes/hero_still.py") -> bool:
+    script_name = Path(script_path).stem
+    manim_output = (
+        ROOT
+        / "engines"
+        / "manim"
+        / "media"
+        / "images"
+        / script_name
+        / f"{scene_name}.png"
+    )
+    remotion_public = ROOT / "engines" / "remotion" / "public" / "manim_hero_bg.png"
+    if manim_output.exists():
+        print(f"🌉 [Bridge Tool] Transportando {scene_name}.png para {remotion_public.name}...")
+        os.makedirs(remotion_public.parent, exist_ok=True)
+        shutil.copy(manim_output, remotion_public)
+        return True
+    return False
 
 def _load_remotion_runner() -> str:
     return str(ROOT / "scripts" / "run_remotion_node.sh")
@@ -99,6 +122,27 @@ def _prewarm_remotion_bundle(timeout_seconds: int = DEFAULT_BUNDLE_WARM_TIMEOUT)
     subprocess.run(warm_cmd, check=True, cwd=str(ROOT), env=env, timeout=timeout_seconds)
 
 
+def _run_remotion_via_daemon(command: str, composition: str, output_path: Path, remotion_props: dict[str, Any] | None, timeout_seconds: int) -> bool:
+    import urllib.request
+    import json
+    try:
+        data = json.dumps({
+            "command": command,
+            "requestedCompositionId": composition,
+            "outputLocation": str(output_path),
+            "inputProps": remotion_props or {}
+        }).encode('utf-8')
+        req = urllib.request.Request("http://127.0.0.1:3333/render", data=data, headers={'Content-Type': 'application/json'})
+        with urllib.request.urlopen(req, timeout=timeout_seconds) as response:
+            res = json.loads(response.read().decode('utf-8'))
+            if not res.get("ok"):
+                print(f"⚠️ [Daemon] Ocorreu erro interno: {res.get('error')}")
+                return False
+            return True
+    except Exception:
+        # Silencioso. Se falhar, o daemon nao esta on. Fallback para CLI.
+        return False
+
 def _run_remotion_command(
     command: str,
     composition: str,
@@ -118,6 +162,12 @@ def _run_remotion_command(
         os.getenv("AIOX_REMOTION_DIRECT_TIMEOUT_SECONDS", str(DEFAULT_DIRECT_TIMEOUT))
     )
     effective_timeout = max(cli_timeout, direct_timeout)
+    
+    # ⚡️ THE AIOX 5.0 TURBO MECHANISM: DEMON OPPORTUNISTIC ROUTING
+    if render_mode in ("auto", "daemon"):
+        if _run_remotion_via_daemon(command, composition, output_path, remotion_props, effective_timeout):
+            return
+
     env = _load_remotion_env(remotion_props, timeout_seconds=effective_timeout, concurrency=concurrency)
 
     cli_cmd = [
@@ -445,13 +495,40 @@ def _build_target_props(target: dict[str, Any], artifact_plan: dict[str, Any], r
         "style_packs": style_packs,
         "story_atoms": story_atoms,
         "variants": variants,
+        "variant_scores": artifact_plan.get("variant_scores", {}),
         "chosen_variant": chosen_variant_id,
+        "chosen_variant_reason": artifact_plan.get("chosen_variant_reason"),
         "active_variant": active_variant,
         "quality_constraints": artifact_plan.get("quality_constraints", {}),
+        "quality_tier": artifact_plan.get("quality_tier", "lab_absolute"),
+        "judge_stack": artifact_plan.get("judge_stack", []),
+        "reference_evidence": artifact_plan.get("reference_evidence", []),
+        "style_retrieval_results": artifact_plan.get("style_retrieval_results", []),
+        "objective_metrics": artifact_plan.get("objective_metrics", {}),
+        "family_spec": target.get("family_spec"),
+        "motion_system": artifact_plan.get("motion_system", {}),
+        "copy_budget": artifact_plan.get("copy_budget", {}),
+        "quality_mode": target.get("quality_mode", artifact_plan.get("quality_mode", "absolute")),
+        "premium_targets": artifact_plan.get("premium_targets", []),
+        "qaFrames": artifact_plan.get("qa_frames"),
+        "autoIterateMax": artifact_plan.get("auto_iterate_max"),
+        "brandVetoPolicy": artifact_plan.get("brand_veto_policy", {}),
         "summary": target.get("summary"),
         "beats": target.get("beats", []),
         "slides": target.get("slides", []),
         "chapters": target.get("chapters", []),
+        "actQualityProfile": target.get("act_quality_profile", {}),
+        "postFxProfile": target.get("post_fx_profile"),
+        "qaSamplingFrames": target.get("qa_sampling_frames", []),
+        "posterTestFrames": target.get("poster_test_frames", []),
+        "bgSrc": target.get("bg_src"),
+        "bg_src": target.get("bg_src"),
+        "masterAssetSrc": target.get("master_asset_src"),
+        "master_asset_src": target.get("master_asset_src"),
+        "editorialLayout": target.get("editorial_layout", {}),
+        "editorial_layout": target.get("editorial_layout", {}),
+        "masterAssetStrategy": target.get("master_asset_strategy", {}),
+        "master_asset_strategy": target.get("master_asset_strategy", {}),
         "narrative": {
             "acts": acts,
             "resolveWord": story_atoms.get("resolve_word"),
@@ -475,6 +552,12 @@ def _build_target_props(target: dict[str, Any], artifact_plan: dict[str, Any], r
         "targetKind": target_kind,
         "frameOverride": target.get("still_frame") if target_kind == "still" else None,
         "resolveWord": story_atoms.get("resolve_word"),
+        "postFxProfile": target.get("post_fx_profile"),
+        "qaSamplingFrames": target.get("qa_sampling_frames", []),
+        "posterTestFrames": target.get("poster_test_frames", []),
+        "masterAssetSrc": target.get("master_asset_src"),
+        "editorialLayout": target.get("editorial_layout", {}),
+        "masterAssetStrategy": target.get("master_asset_strategy", {}),
         "renderManifest": manifest,
     }
 
@@ -482,11 +565,14 @@ def _build_target_props(target: dict[str, Any], artifact_plan: dict[str, Any], r
 def _target_output_path(target: dict[str, Any]) -> Path:
     render_mode = str(target.get("render_mode", "video")).strip().lower()
     target_id = str(target.get("id", "target")).strip() or "target"
+    output_ext = str(target.get("output_ext", "")).strip().lower()
     if render_mode == "still":
         return ROOT / "output" / "stills" / f"{target_id}.png"
     if render_mode == "carousel":
         return ROOT / "output" / "carousel" / target_id
-    return ROOT / "output" / "renders" / f"{target_id}.mp4"
+    suffix = output_ext if output_ext.startswith(".") else ".mp4"
+    suffix = suffix or ".mp4"
+    return ROOT / "output" / "renders" / f"{target_id}{suffix}"
 
 
 def _alias_output_path(target: dict[str, Any], canonical_output: Path) -> Path | None:
@@ -505,7 +591,7 @@ def _alias_output_path(target: dict[str, Any], canonical_output: Path) -> Path |
         return canonical_output.with_name(f"{legacy_name}.png")
     if canonical_output.is_dir():
         return canonical_output.parent / legacy_name
-    return canonical_output.with_name(f"{legacy_name}.mp4")
+    return canonical_output.with_name(f"{legacy_name}{canonical_output.suffix or '.mp4'}")
 
 
 def _copy_alias_output(canonical_output: Path, alias_output: Path | None) -> None:
@@ -665,6 +751,38 @@ def render_pipeline(
     else:
         print("🪶 [Render Tool] Nenhum target exige base de video. Pulando Manim.")
 
+    hero_target_present = any(
+        str(target.get("id")).strip()
+        in (
+            "linkedin_feed_4_5",
+            "youtube_thumbnail_16_9",
+            "linkedin_carousel_square",
+            "loop_gif_square",
+            "loop_gif_vertical",
+            "motion_preview_webm",
+        )
+        for target in targets
+        if isinstance(target, dict)
+    )
+    if hero_target_present:
+        try:
+            run_manim_hero_still()
+            success = bridge_manim_hero_still()
+            # Injeta prop dinamicamente
+            for target in targets:
+                if str(target.get("id")).strip() in (
+                    "linkedin_feed_4_5",
+                    "youtube_thumbnail_16_9",
+                    "linkedin_carousel_square",
+                    "loop_gif_square",
+                    "loop_gif_vertical",
+                    "motion_preview_webm",
+                ):
+                    target["bg_src"] = "manim_hero_bg.png" if success else None
+                target["master_asset_src"] = "manim_hero_bg.png" if success else None
+        except Exception as error:
+            print(f"⚠️ [Render Tool] Sem pre-render avançado do Hero Still: {error}. Usando fallback.")
+
     outputs: list[dict[str, Any]] = []
     remotion_unavailable_reason: str | None = None
 
@@ -685,6 +803,19 @@ def render_pipeline(
 
         canonical_output = _target_output_path(target)
         alias_output = _alias_output_path(target, canonical_output)
+
+        if not bool(target.get("native_support", True)):
+            print(f"🧪 [Render Tool] Target '{target_id}' ainda usa fallback canônico ({canonical_output.suffix}).")
+            try:
+                fallback_output = _fallback_target_render(target, artifact_plan, canonical_output)
+                _copy_alias_output(canonical_output, alias_output)
+                fallback_output["alias_output"] = str(alias_output) if alias_output else None
+                fallback_output["remotion_skipped"] = True
+                outputs.append(fallback_output)
+                continue
+            except Exception as fallback_error:
+                print(f"❌ [Render Tool] Falha ao renderizar target '{target_id}': {fallback_error}")
+                return {"ok": False, "errors": [str(fallback_error)], "outputs": outputs}
 
         if remotion_unavailable_reason is not None:
             print(

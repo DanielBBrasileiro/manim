@@ -159,6 +159,148 @@ def scanlines(
     return result.clip(0, 255).astype(np.uint8)
 
 
+def halation(
+    frame: np.ndarray,
+    radius: int = 15,
+    intensity: float = 0.35,
+    threshold: float = 0.65,
+) -> np.ndarray:
+    """
+    Bloom óptico com difusão avermelhada sutil nos highlights.
+    Simula dispersão luminosa em película real.
+    """
+    try:
+        from PIL import Image, ImageFilter
+    except ImportError:
+        return frame
+
+    img = Image.fromarray(frame)
+    lum = img.convert("L")
+    mask = (np.array(lum) > (threshold * 255)).astype(np.float32)
+    
+    # Extract highlights
+    bright_arr = frame.astype(np.float32) * mask[:, :, np.newaxis]
+    
+    # Red shift for halation (red spreads further than G/B)
+    halation_red = Image.fromarray(bright_arr[:, :, 0].astype(np.uint8))
+    halation_red = halation_red.filter(ImageFilter.GaussianBlur(radius=radius * 1.2))
+    
+    halation_full = Image.fromarray(bright_arr.astype(np.uint8))
+    halation_full = halation_full.filter(ImageFilter.GaussianBlur(radius=radius))
+    
+    h_red_arr = np.array(halation_red).astype(np.float32)
+    h_full_arr = np.array(halation_full).astype(np.float32)
+    
+    # Merge: red is prioritized in the spill
+    result = frame.astype(np.float32)
+    result[:, :, 0] += h_red_arr * intensity
+    result[:, :, 1] += h_full_arr[:, :] * intensity * 0.4
+    result[:, :, 2] += h_full_arr[:, :] * intensity * 0.3
+    
+    return result.clip(0, 255).astype(np.uint8)
+
+
+def breath_exposure(
+    frame: np.ndarray,
+    time: float = 0.0,
+    amplitude: float = 0.04,
+    frequency: float = 0.25,
+) -> np.ndarray:
+    """
+    Variação sinusoidal sutil da exposição — simula câmera real respirando.
+    """
+    shift = 1.0 + np.sin(time * 2 * np.pi * frequency) * amplitude
+    return (frame.astype(np.float32) * shift).clip(0, 255).astype(np.uint8)
+
+
+def color_grade(
+    frame: np.ndarray,
+    emotion: str = "mastery",
+) -> np.ndarray:
+    """
+    Aplica shift tonal simplificado baseado na emoção do ato.
+    """
+    _GRADES = {
+        "curiosity": [0.95, 1.0, 1.05], # Cool/Cyan tones
+        "tension":   [1.1, 0.95, 0.9], # High contrast, Warm highlights
+        "mastery":   [1.02, 1.02, 0.98], # Balanced, slight gold
+    }
+    multipliers = _GRADES.get(emotion, [1.0, 1.0, 1.0])
+    result = frame.astype(np.float32)
+    for i in range(3):
+        result[:, :, i] *= multipliers[i]
+    return result.clip(0, 255).astype(np.uint8)
+
+
+def depth_of_field(
+    frame: np.ndarray,
+    blur_radius: int = 8,
+    focus_radius: float = 0.32,
+    focus_center: tuple[float, float] = (0.38, 0.62),
+) -> np.ndarray:
+    """
+    Simula depth of field analitico usando uma mascara radial de foco.
+    O foreground central fica mais nitido; o entorno cai suavemente em blur.
+    """
+    try:
+        from PIL import Image, ImageFilter
+    except ImportError:
+        return frame
+
+    h, w = frame.shape[:2]
+    y = np.linspace(0, 1, h)
+    x = np.linspace(0, 1, w)
+    xx, yy = np.meshgrid(x, y)
+    cx, cy = focus_center
+    dist = np.sqrt((xx - cx) ** 2 + (yy - cy) ** 2)
+    mask = np.clip((dist - focus_radius) / max(1e-4, 0.75 - focus_radius), 0, 1)
+    mask = np.power(mask, 1.35)[:, :, np.newaxis]
+
+    img = Image.fromarray(frame)
+    blurred = img.filter(ImageFilter.GaussianBlur(radius=blur_radius))
+    sharp = np.array(img).astype(np.float32)
+    soft = np.array(blurred).astype(np.float32)
+    result = sharp * (1.0 - mask) + soft * mask
+    return result.clip(0, 255).astype(np.uint8)
+
+
+def anamorphic_flare(
+    frame: np.ndarray,
+    intensity: float = 0.18,
+    streak_length: int = 55,
+    threshold: float = 0.78,
+) -> np.ndarray:
+    """
+    Cria um flare horizontal frio em highlights usando convolucao 1D via FFT.
+    Nao substitui lente real, mas entrega um comportamento mais optico que blur basico.
+    """
+    gray = frame.mean(axis=2) / 255.0
+    highlights = np.clip((gray - threshold) / max(1e-4, 1.0 - threshold), 0, 1)
+    if highlights.max() <= 0:
+        return frame
+
+    kernel_size = max(9, int(streak_length) | 1)
+    half = kernel_size // 2
+    x = np.arange(-half, half + 1, dtype=np.float32)
+    kernel = np.exp(-np.abs(x) / max(1.0, kernel_size / 7.5)).astype(np.float32)
+    kernel /= max(kernel.sum(), 1e-6)
+
+    flare_lines = np.zeros_like(highlights, dtype=np.float32)
+    fft_size = highlights.shape[1] + kernel_size - 1
+    kernel_fft = np.fft.rfft(kernel, n=fft_size)
+    for row_index in range(highlights.shape[0]):
+        row_fft = np.fft.rfft(highlights[row_index], n=fft_size)
+        convolved = np.fft.irfft(row_fft * kernel_fft, n=fft_size)
+        flare_lines[row_index] = convolved[half:half + highlights.shape[1]]
+
+    flare_lines = np.clip(flare_lines * (intensity * 255.0), 0, 255)
+    result = frame.astype(np.float32)
+    result[:, :, 1] += flare_lines * 0.45
+    result[:, :, 2] += flare_lines * 0.85
+    result[:, :, 0] += flare_lines * 0.15
+    return result.clip(0, 255).astype(np.uint8)
+
+
 # ── PostProcessor ─────────────────────────────────────────────────────────────
 
 EFFECT_FNS = {
@@ -167,6 +309,11 @@ EFFECT_FNS = {
     "vignette": vignette,
     "glow": glow,
     "scanlines": scanlines,
+    "halation": halation,
+    "breath_exposure": breath_exposure,
+    "color_grade": color_grade,
+    "depth_of_field": depth_of_field,
+    "anamorphic_flare": anamorphic_flare,
 }
 
 # Presets narrativos
@@ -175,26 +322,35 @@ PRESETS: Dict[str, List[Dict]] = {
         {"name": "chromatic_aberration", "strength": 0.005},
         {"name": "film_grain", "intensity": 0.035},
         {"name": "vignette", "strength": 0.4},
+        {"name": "breath_exposure", "amplitude": 0.02},
     ],
     "genesis": [
         {"name": "vignette", "strength": 0.55, "softness": 0.5},
         {"name": "film_grain", "intensity": 0.025},
+        {"name": "color_grade", "emotion": "curiosity"},
     ],
     "turbulence": [
         {"name": "chromatic_aberration", "strength": 0.009},
         {"name": "film_grain", "intensity": 0.055},
-        {"name": "glow", "intensity": 0.2, "threshold": 0.8},
+        {"name": "halation", "intensity": 0.4, "threshold": 0.6},
+        {"name": "anamorphic_flare", "intensity": 0.12, "streak_length": 51, "threshold": 0.8},
+        {"name": "color_grade", "emotion": "tension"},
     ],
     "resolution": [
         {"name": "vignette", "strength": 0.3},
-        {"name": "glow", "intensity": 0.15, "threshold": 0.82},
+        {"name": "halation", "intensity": 0.25, "threshold": 0.7},
         {"name": "film_grain", "intensity": 0.02},
+        {"name": "depth_of_field", "blur_radius": 6, "focus_radius": 0.3},
+        {"name": "color_grade", "emotion": "mastery"},
     ],
     "premium": [
         {"name": "chromatic_aberration", "strength": 0.004},
         {"name": "vignette", "strength": 0.35},
-        {"name": "glow", "radius": 10, "intensity": 0.18, "threshold": 0.78},
+        {"name": "halation", "radius": 12, "intensity": 0.3, "threshold": 0.72},
         {"name": "film_grain", "intensity": 0.03},
+        {"name": "depth_of_field", "blur_radius": 6, "focus_radius": 0.28},
+        {"name": "anamorphic_flare", "intensity": 0.14, "streak_length": 61, "threshold": 0.84},
+        {"name": "breath_exposure", "amplitude": 0.03},
     ],
 }
 
@@ -273,6 +429,27 @@ class PostProcessor:
 
         print(f"✅ {len(processed)} frames gradeados → {out_dir}")
         return processed
+
+    def process_image(
+        self,
+        input_path: str,
+        output_path: str | None = None,
+        time: float = 0.0,
+    ) -> str:
+        """Aplica efeitos cinematográficos em uma imagem única."""
+        try:
+            from PIL import Image
+        except ImportError:
+            raise ImportError("pip install Pillow")
+
+        source = Path(input_path)
+        target = Path(output_path) if output_path else source
+        target.parent.mkdir(parents=True, exist_ok=True)
+
+        frame = np.array(Image.open(source).convert("RGB"))
+        graded = self.apply_frame(frame, time=time)
+        Image.fromarray(graded).save(str(target))
+        return str(target)
 
     def process_video(
         self,

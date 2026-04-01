@@ -9,6 +9,13 @@ from core.intelligence.model_profiles import (
     ROLE_FAST_PLAN,
     ROLE_PLAN,
     ROLE_QUALITY_PLAN,
+    ROLE_REFERENCE_PARSER,
+    ROLE_VISUAL_JUDGE_FAST,
+    ROLE_VISUAL_JUDGE_HEAVY,
+    ROLE_TEXT_RERANKER,
+    ROLE_STYLE_RETRIEVER,
+    ROLE_CONCEPT_ARTIST,
+    ROLE_THUMBNAIL_REFINER,
     ROLE_VARIANT_RANKER,
     ROLE_VISION_PLAN,
     get_active_profile,
@@ -23,6 +30,13 @@ TASK_QUALITY_PLAN = ROLE_QUALITY_PLAN
 TASK_VISION_PLAN = ROLE_VISION_PLAN
 TASK_COPY_REFINER = ROLE_COPY_REFINER
 TASK_VARIANT_RANKER = ROLE_VARIANT_RANKER
+TASK_REFERENCE_PARSER = ROLE_REFERENCE_PARSER
+TASK_VISUAL_JUDGE_FAST = ROLE_VISUAL_JUDGE_FAST
+TASK_VISUAL_JUDGE_HEAVY = ROLE_VISUAL_JUDGE_HEAVY
+TASK_TEXT_RERANKER = ROLE_TEXT_RERANKER
+TASK_STYLE_RETRIEVER = ROLE_STYLE_RETRIEVER
+TASK_CONCEPT_ARTIST = ROLE_CONCEPT_ARTIST
+TASK_THUMBNAIL_REFINER = ROLE_THUMBNAIL_REFINER
 
 
 @dataclass(frozen=True)
@@ -97,6 +111,32 @@ def get_route(task_type: str = TASK_PLAN, prefer_quality: bool = False) -> Model
             timeout_seconds=timeout,
             retry_timeout_seconds=retry_timeout,
             quality_fallback_model=profile.model_roles.get(TASK_QUALITY_PLAN, _quality_model()),
+        )
+
+    if task_type in {
+        TASK_REFERENCE_PARSER,
+        TASK_VISUAL_JUDGE_FAST,
+        TASK_VISUAL_JUDGE_HEAVY,
+        TASK_CONCEPT_ARTIST,
+        TASK_THUMBNAIL_REFINER,
+    }:
+        return ModelRoute(
+            task_type=task_type,
+            model=profile.model_roles.get(task_type, os.environ.get("OLLAMA_VISION_MODEL", "qwen3-vl:4b-instruct-q4_K_M")),
+            keep_alive=os.environ.get("OLLAMA_KEEP_ALIVE_VISION", "0"),
+            timeout_seconds=retry_timeout,
+            retry_timeout_seconds=retry_timeout,
+            quality_fallback_model=None,
+        )
+
+    if task_type in {TASK_TEXT_RERANKER, TASK_STYLE_RETRIEVER}:
+        return ModelRoute(
+            task_type=task_type,
+            model=profile.model_roles.get(task_type, _quality_model()),
+            keep_alive=os.environ.get("OLLAMA_KEEP_ALIVE_QUALITY", "0"),
+            timeout_seconds=retry_timeout,
+            retry_timeout_seconds=retry_timeout,
+            quality_fallback_model=None,
         )
 
     if task_type == TASK_VARIANT_RANKER:

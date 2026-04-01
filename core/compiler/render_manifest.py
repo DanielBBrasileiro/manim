@@ -87,8 +87,21 @@ def build_render_manifest(plan: dict, seed: dict | str) -> dict:
         "targets": artifact_plan.get("targets", []),
         "artifact_plan": artifact_plan,
         "story_atoms": artifact_plan.get("story_atoms", {}),
+        "style_pack": artifact_plan.get("style_pack"),
         "style_pack_ids": artifact_plan.get("style_pack_ids", []),
+        "motion_grammar": artifact_plan.get("motion_grammar"),
+        "typography_system": artifact_plan.get("typography_system"),
+        "still_family": artifact_plan.get("still_family"),
+        "color_mode": artifact_plan.get("color_mode"),
+        "negative_space_target": artifact_plan.get("negative_space_target"),
+        "accent_intensity": artifact_plan.get("accent_intensity"),
+        "grain": artifact_plan.get("grain"),
         "quality_constraints": artifact_plan.get("quality_constraints", {}),
+        "quality_mode": artifact_plan.get("quality_mode", "absolute"),
+        "premium_targets": artifact_plan.get("premium_targets", []),
+        "qa_frames": artifact_plan.get("qa_frames"),
+        "auto_iterate_max": artifact_plan.get("auto_iterate_max"),
+        "brand_veto_policy": artifact_plan.get("brand_veto_policy", {}),
         "render_inputs": render_inputs,
         "title": brief.get("title") or "AIOX v4.0",
         "tagline": brief.get("tagline") or "Invisible Architecture",
@@ -111,6 +124,7 @@ def build_artifact_plan(plan: dict, seed: dict | str) -> dict:
     narrative_contract = _load_contract("contracts/narrative.yaml")
     layout_contract = _load_contract("contracts/layout.yaml")
     global_laws = _load_contract("contracts/global_laws.yaml")
+    design_canon = _load_contract("contracts/design_canon.yaml")
     formats = layout_contract.get("formats", {}) if isinstance(layout_contract.get("formats", {}), dict) else {}
     target_catalog = _build_target_catalog(layout_contract, formats)
     requested_output_tokens = _extract_requested_output_tokens(seed, brief)
@@ -125,8 +139,9 @@ def build_artifact_plan(plan: dict, seed: dict | str) -> dict:
     acts = _build_act_windows(duration, plan, narrative_contract)
     text_beats = _collect_text_beats(brief, acts, duration, plan)
     story_atoms = _build_story_atoms(plan, brief)
-    quality_constraints = _build_quality_constraints(narrative_contract, global_laws)
-    style_pack_ids = _resolve_style_pack_ids(seed)
+    quality_constraints = _build_quality_constraints(narrative_contract, global_laws, design_canon, plan)
+    style_pack_ids = _resolve_style_pack_ids(seed, brief=brief, plan=plan)
+    style_retrieval_results = _build_style_retrieval_results(brief, style_pack_ids)
     variants = _build_variants(plan, story_atoms, style_pack_ids)
 
     selected_targets: list[dict[str, Any]] = []
@@ -141,6 +156,7 @@ def build_artifact_plan(plan: dict, seed: dict | str) -> dict:
                     acts=acts,
                     text_beats=text_beats,
                     duration=duration,
+                    design_canon=design_canon,
                 )
             )
 
@@ -156,24 +172,78 @@ def build_artifact_plan(plan: dict, seed: dict | str) -> dict:
                     acts=acts,
                     text_beats=text_beats,
                     duration=duration,
+                    design_canon=design_canon,
                 )
             ]
 
     primary_target = selected_targets[0] if selected_targets else {}
+    primary_style_pack_id = str(
+        primary_target.get("style_pack")
+        or (style_pack_ids[0] if style_pack_ids else "silent_luxury")
+    ).strip() or "silent_luxury"
+    primary_style_pack = _style_pack_contract(primary_style_pack_id)
     chosen_variant = variants[0]["id"] if variants else "variant_01"
+    premium_targets = _build_premium_targets(selected_targets)
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "primary_target_id": primary_target.get("id", DEFAULT_OUTPUT_TARGET),
         "primary_target": primary_target,
         "targets": selected_targets,
         "requested_targets": requested_ids,
         "format": primary_target.get("format_id", "vertical_9_16"),
         "story_atoms": story_atoms,
+        "style_pack": primary_style_pack_id,
         "style_pack_ids": style_pack_ids,
+        "motion_grammar": primary_style_pack.get("motion_grammar"),
+        "typography_system": primary_style_pack.get("typography_system"),
+        "still_family": primary_style_pack.get("still_family"),
+        "color_mode": primary_style_pack.get("color_mode"),
+        "negative_space_target": primary_style_pack.get("negative_space_target"),
+        "accent_intensity": primary_style_pack.get("accent_intensity"),
+        "grain": primary_style_pack.get("grain"),
         "quality_constraints": quality_constraints,
+        "quality_tier": "lab_absolute",
+        "quality_mode": "absolute",
+        "premium_targets": premium_targets,
+        "qa_frames": int(quality_constraints.get("qa_frames", 5) or 5),
+        "auto_iterate_max": int(quality_constraints.get("auto_iterate_max", 1) or 1),
+        "judge_stack": [
+            "brand_precheck",
+            "structural_gate",
+            "visual_judge_fast",
+            "objective_metrics",
+            "visual_judge_heavy",
+            "variant_ranker",
+        ],
+        "brand_veto_policy": {
+            "hero_target": "strict",
+            "video_targets": "degrade_to_fallback_pass",
+            "fallback_never_premium": True,
+        },
         "variants": variants,
+        "variant_scores": {},
         "chosen_variant": chosen_variant,
+        "chosen_variant_reason": "initial_priority_seed",
         "review_session_id": None,
+        "reference_evidence": [],
+        "style_retrieval_results": style_retrieval_results,
+        "objective_metrics": {
+            "still_aesthetic_model": "hpsv2_optional",
+            "video_benchmark": "vbench_subset_optional",
+        },
+        "family_spec": {
+            target.get("id", f"target_{index}"): target.get("family_spec", "short_cinematic")
+            for index, target in enumerate(selected_targets)
+        },
+        "motion_system": {
+            "cadence_profile": "premium_lab",
+            "negative_space_regime": "strict",
+            "resolve_hold_sec": 1.5,
+        },
+        "copy_budget": {
+            "max_words_per_frame": int(quality_constraints.get("max_words_per_screen", 5) or 5),
+            "target_silence_ratio": float(quality_constraints.get("silence_ratio", 0.3) or 0.3),
+        },
         "renderer_contracts": _build_renderer_contracts(selected_targets),
         "fallback_policy": _build_fallback_policy(selected_targets),
         "metrics_hooks": [
@@ -182,6 +252,8 @@ def build_artifact_plan(plan: dict, seed: dict | str) -> dict:
             "fallback_rate",
             "artifact_updated",
             "negative_space_target",
+            "judge_disagreement_rate",
+            "premium_success_rate",
         ],
         "beat_map": {
             target.get("id", f"target_{index}"): [
@@ -202,6 +274,35 @@ def build_artifact_plan(plan: dict, seed: dict | str) -> dict:
             "output_targets": requested_output_tokens,
         },
     }
+
+
+def _build_style_retrieval_results(brief: dict[str, Any], style_pack_ids: list[str]) -> list[dict[str, Any]]:
+    try:
+        from core.runtime.style_retriever import search_style_packs
+    except Exception:
+        return [{"pack_id": pack_id, "score": 1.0, "matched_terms": []} for pack_id in style_pack_ids]
+
+    query = " ".join(
+        part
+        for part in [
+            str(brief.get("title", "")).strip(),
+            str(brief.get("thesis", "")).strip(),
+            str(brief.get("visual_metaphor", "")).strip(),
+            str(brief.get("emotional_target", "")).strip(),
+        ]
+        if part
+    ).strip()
+    if not query:
+        return [{"pack_id": pack_id, "score": 1.0, "matched_terms": []} for pack_id in style_pack_ids]
+
+    results = search_style_packs(query, limit=5)
+    if style_pack_ids:
+        requested = {pack_id: {"pack_id": pack_id, "score": 1.0, "matched_terms": []} for pack_id in style_pack_ids}
+        for item in results:
+            if item.get("pack_id") in requested:
+                requested[item["pack_id"]] = item
+        return list(requested.values()) + [item for item in results if item.get("pack_id") not in requested]
+    return results
 
 
 def _coerce_brief(seed: dict | str) -> dict:
@@ -285,6 +386,8 @@ def _build_target_catalog(layout_contract: dict, formats: dict[str, dict]) -> di
             "composition": str(target.get("composition", "")).strip(),
             "legacy_composition": str(target.get("legacy_composition", "")).strip(),
             "label": str(target.get("label", target_id)).strip() or target_id,
+            "native_support": bool(target.get("native_support", True)),
+            "output_ext": str(target.get("output_ext", "")).strip(),
             "min_slides": int(target.get("min_slides", 5) or 5),
             "max_slides": int(target.get("max_slides", 9) or 9),
         }
@@ -300,21 +403,31 @@ def _resolve_requested_target_ids(
     requested_output_tokens: list[str] | None = None,
 ) -> list[str]:
     requested: list[str] = []
-    sources = [
+    explicit_sources = [
         requested_output_tokens or [],
         plan.get("targets"),
         plan.get("llm_scene_plan", {}).get("targets", []),
         brief.get("target"),
+    ]
+    fallback_sources = [
         brief.get("platform"),
         brief.get("format"),
     ]
 
-    for source in sources:
+    for source in explicit_sources:
         if isinstance(source, list):
             for item in source:
                 requested.extend(_map_target_token(str(item), target_catalog, formats))
         elif isinstance(source, str):
             requested.extend(_map_target_token(source, target_catalog, formats))
+
+    if not requested:
+        for source in fallback_sources:
+            if isinstance(source, list):
+                for item in source:
+                    requested.extend(_map_target_token(str(item), target_catalog, formats))
+            elif isinstance(source, str):
+                requested.extend(_map_target_token(source, target_catalog, formats))
 
     deduped: list[str] = []
     for target_id in requested:
@@ -369,16 +482,60 @@ def _default_output_target(layout_contract: dict, target_catalog: dict[str, dict
     return next(iter(target_catalog.keys()), DEFAULT_OUTPUT_TARGET)
 
 
-def _resolve_style_pack_ids(seed: dict | str) -> list[str]:
-    if not isinstance(seed, dict):
-        return []
+def _resolve_style_pack_ids(seed: dict | str, brief: dict | None = None, plan: dict | None = None) -> list[str]:
+    candidates: list[str] = []
 
-    references = seed.get("references", {})
-    if isinstance(references, dict):
-        style_packs = references.get("style_packs", [])
-        if isinstance(style_packs, list):
-            return [str(item).strip() for item in style_packs if str(item).strip()]
-    return []
+    def _append_style_pack_values(source: Any) -> None:
+        if not isinstance(source, dict):
+            return
+        for key in ("style_pack", "style_pack_id"):
+            value = str(source.get(key, "")).strip()
+            if value:
+                candidates.append(value)
+        values = source.get("style_pack_ids") or source.get("style_packs")
+        if isinstance(values, list):
+            candidates.extend(str(item).strip() for item in values if str(item).strip())
+
+    if isinstance(seed, dict):
+        _append_style_pack_values(seed)
+        references = seed.get("references", {})
+        if isinstance(references, dict):
+            _append_style_pack_values(references)
+
+    _append_style_pack_values(brief)
+    _append_style_pack_values(plan)
+
+    deduped: list[str] = []
+    for candidate in candidates:
+        if candidate and candidate not in deduped:
+            deduped.append(candidate)
+    return deduped
+
+
+def _style_pack_contract(style_pack_id: str | None) -> dict[str, Any]:
+    from core.quality.contract_loader import load_quality_contract
+
+    contract = load_quality_contract()
+    requested = str(style_pack_id or "").strip()
+    if requested:
+        style_pack = contract.get_style_pack(requested)
+        if isinstance(style_pack, dict) and style_pack:
+            return style_pack
+
+    fallback = contract.get_style_pack("silent_luxury")
+    if isinstance(fallback, dict) and fallback:
+        return fallback
+
+    return {
+        "id": "silent_luxury",
+        "typography_system": "editorial_minimal",
+        "motion_grammar": "cinematic_restrained",
+        "still_family": "poster_minimal",
+        "color_mode": "monochrome_pure",
+        "negative_space_target": 0.65,
+        "accent_intensity": 0.1,
+        "grain": 0.04,
+    }
 
 
 def _build_story_atoms(plan: dict, brief: dict) -> dict[str, Any]:
@@ -398,17 +555,28 @@ def _build_story_atoms(plan: dict, brief: dict) -> dict[str, Any]:
     }
 
 
-def _build_quality_constraints(narrative_contract: dict, global_laws: dict) -> dict[str, Any]:
+def _build_quality_constraints(
+    narrative_contract: dict,
+    global_laws: dict,
+    design_canon: dict,
+    plan: dict,
+) -> dict[str, Any]:
     pacing = narrative_contract.get("pacing", {}) if isinstance(narrative_contract.get("pacing", {}), dict) else {}
     constraints = global_laws.get("constraints", {}) if isinstance(global_laws.get("constraints", {}), dict) else {}
+    canon_typography = design_canon.get("typography", {}) if isinstance(design_canon.get("typography", {}), dict) else {}
+    canon_sizing = canon_typography.get("sizing", {}) if isinstance(canon_typography.get("sizing", {}), dict) else {}
+    canon_math = design_canon.get("mathematical_precision", {}) if isinstance(design_canon.get("mathematical_precision", {}), dict) else {}
+    pacing_profile = plan.get("pacing_profile", {}) if isinstance(plan.get("pacing_profile", {}), dict) else {}
     return {
-        "text_minimum_gap": pacing.get("text_minimum_gap", "1.5s"),
-        "max_words_per_screen": int(pacing.get("max_text_words_per_screen", TEXT_WORD_LIMIT) or TEXT_WORD_LIMIT),
-        "silence_ratio": float(pacing.get("silence_ratio", 0.3) or 0.3),
-        "negative_space_target": float(constraints.get("min_negative_space", 0.4) or 0.4),
+        "text_minimum_gap": pacing_profile.get("text_minimum_gap_sec", pacing.get("text_minimum_gap", "1.5s")),
+        "max_words_per_screen": int(canon_sizing.get("max_words_per_screen", pacing.get("max_text_words_per_screen", TEXT_WORD_LIMIT)) or TEXT_WORD_LIMIT),
+        "silence_ratio": float(pacing_profile.get("silence_ratio", pacing.get("silence_ratio", 0.3)) or 0.3),
+        "negative_space_target": float(canon_math.get("min_negative_space", constraints.get("min_negative_space", 0.4)) or 0.4),
         "max_colors": int(constraints.get("max_colors", 2) or 2),
         "contrast_floor": 4.5,
         "typography_conformance": "strict",
+        "qa_frames": 5,
+        "auto_iterate_max": 1,
     }
 
 
@@ -441,6 +609,21 @@ def _build_variants(plan: dict, story_atoms: dict[str, Any], style_pack_ids: lis
     return variants
 
 
+def _build_premium_targets(selected_targets: list[dict[str, Any]]) -> list[str]:
+    ordered = ["linkedin_feed_4_5", "short_cinematic_vertical"]
+    requested = {
+        str(target.get("id", "")).strip()
+        for target in selected_targets
+        if isinstance(target, dict) and str(target.get("id", "")).strip()
+    }
+    premium_targets = [target_id for target_id in ordered if target_id in requested]
+    if not premium_targets and selected_targets:
+        first_target = str(selected_targets[0].get("id", "")).strip()
+        if first_target:
+            premium_targets.append(first_target)
+    return premium_targets
+
+
 def _build_renderer_contracts(selected_targets: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     contracts: dict[str, dict[str, Any]] = {}
     for target in selected_targets:
@@ -452,10 +635,13 @@ def _build_renderer_contracts(selected_targets: list[dict[str, Any]]) -> dict[st
             "target_id": target_id,
             "composition": target.get("composition"),
             "render_mode": render_mode,
+            "style_pack": target.get("style_pack"),
+            "motion_grammar": target.get("motion_grammar"),
+            "color_mode": target.get("color_mode"),
             "native_engine": "remotion",
             "fallback_engine": "fallback_artifact_renderer",
             "requires_base_video": render_mode == "video" and target_id == "short_cinematic_vertical",
-            "native_support": True,
+            "native_support": bool(target.get("native_support", True)),
         }
     return contracts
 
@@ -478,8 +664,19 @@ def _expand_target(
     acts: list[dict],
     text_beats: list[dict],
     duration: float,
+    design_canon: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     target = copy.deepcopy(target_spec)
+    target["style_pack"] = _target_style_pack_id(plan, target)
+    target_style_pack = _style_pack_contract(target["style_pack"])
+    target["typography_system"] = _target_typography_system(plan, target)
+    target["still_family"] = _target_still_family(plan, target)
+    target["motion_grammar"] = str(target_style_pack.get("motion_grammar", "")).strip() or plan.get("motion_grammar")
+    target["color_mode"] = str(target_style_pack.get("color_mode", "")).strip() or "monochrome_pure"
+    target["negative_space_target"] = float(target_style_pack.get("negative_space_target", 0.65) or 0.65)
+    target["accent_intensity"] = float(target_style_pack.get("accent_intensity", 0.1) or 0.1)
+    target["grain"] = float(target_style_pack.get("grain", 0.04) or 0.04)
+    target["judge_profile"] = _target_judge_profile(target)
     target["summary"] = _target_summary(target, story_atoms)
     target["duration_sec"] = _target_duration(target, duration)
     target["beats"] = _build_target_beats(target, story_atoms, acts, text_beats)
@@ -488,7 +685,308 @@ def _expand_target(
     target["story_atoms"] = story_atoms
     target["still_frame"] = _target_still_frame(target, duration)
     target["plan_archetype"] = plan.get("archetype")
+    target["quality_mode"] = "absolute" if str(target.get("id", "")).strip() == "linkedin_feed_4_5" else plan.get("quality_mode", "absolute")
+    target["family_spec"] = _target_family_spec(target)
+    target["act_quality_profile"] = _build_act_quality_profile(plan, acts)
+    target["post_fx_profile"] = _target_post_fx_profile(target)
+    target["qa_sampling_frames"] = _build_qa_sampling_frames(target, acts, duration)
+    target["poster_test_frames"] = _build_poster_test_frames(target, acts, duration)
+    target["editorial_layout"] = _build_editorial_layout(target, design_canon or {})
+    target["master_asset_strategy"] = _build_master_asset_strategy(target)
+    target["still_base_strategy"] = _build_still_base_strategy(target)
     return target
+
+
+def _target_style_pack_id(plan: dict[str, Any], target: dict[str, Any]) -> str:
+    explicit_style_pack = str(plan.get("style_pack", "")).strip()
+    if explicit_style_pack:
+        return explicit_style_pack
+
+    style_pack_ids = [str(item).strip() for item in plan.get("style_pack_ids", []) if str(item).strip()]
+    render_mode = str(target.get("render_mode", "video")).strip().lower()
+    family = _target_family_spec(target)
+
+    if render_mode == "still" or family in {"hero_poster", "thumbnail"}:
+        preferred = "silent_luxury"
+    else:
+        preferred = "kinetic_editorial"
+
+    if preferred in style_pack_ids:
+        return preferred
+    if style_pack_ids:
+        return style_pack_ids[0]
+    return preferred
+
+
+def _target_typography_system(plan: dict[str, Any], target: dict[str, Any]) -> str:
+    style_pack = _style_pack_contract(_target_style_pack_id(plan, target))
+    typography_system = str(style_pack.get("typography_system", "")).strip()
+    if typography_system:
+        return typography_system
+
+    family = _target_family_spec(target)
+    if family in {"hero_poster", "thumbnail"}:
+        return "editorial_minimal"
+    return "editorial_dense"
+
+
+def _target_still_family(plan: dict[str, Any], target: dict[str, Any]) -> str | None:
+    render_mode = str(target.get("render_mode", "video")).strip().lower()
+    if render_mode not in {"still", "carousel"}:
+        return None
+
+    style_pack = _style_pack_contract(_target_style_pack_id(plan, target))
+    still_family = str(style_pack.get("still_family", "")).strip()
+    if still_family:
+        return still_family
+
+    family = _target_family_spec(target)
+    if family in {"hero_poster", "thumbnail"}:
+        return "poster_minimal"
+    return "editorial_portrait"
+
+
+def _target_judge_profile(target: dict[str, Any]) -> str:
+    render_mode = str(target.get("render_mode", "video")).strip().lower()
+    if render_mode == "still":
+        return "premium_still"
+    return "motion_frame"
+
+
+def _build_editorial_layout(target: dict[str, Any], design_canon: dict[str, Any]) -> dict[str, Any]:
+    math_precision = (
+        design_canon.get("mathematical_precision", {})
+        if isinstance(design_canon.get("mathematical_precision", {}), dict)
+        else {}
+    )
+    phi = float(math_precision.get("golden_ratio", 1.618) or 1.618)
+    fibonacci = math_precision.get("fibonacci_spacing", [8, 13, 21, 34, 55, 89])
+    baseline_step = int(fibonacci[2] if isinstance(fibonacci, list) and len(fibonacci) > 2 else 21)
+    width = int(target.get("width", 1080) or 1080)
+    height = int(target.get("height", 1350) or 1350)
+    safe_margin_px = max(int(math_precision.get("safe_zone_margin_px", 64) or 64), int(min(width, height) * 0.06))
+    family = _target_family_spec(target)
+    still_family = str(target.get("still_family", "")).strip()
+
+    base_layout = {
+        "family": family,
+        "golden_ratio": phi,
+        "baseline_step_px": baseline_step,
+        "safe_margin_px": safe_margin_px,
+        "hero_zone": {"x": 0.11, "y": 0.68, "w": 0.32, "h": 0.16},
+        "support_zone": {"x": 0.11, "y": 0.14, "w": 0.26, "h": 0.05},
+        "empty_zone": {"x": 0.50, "y": 0.08, "w": 0.36, "h": 0.48},
+        "focal_zone": {"x": 0.08, "y": 0.08, "w": 0.84, "h": 0.80},
+        "curve_box": {"x": 0.08, "y": 0.08, "w": 0.84, "h": 0.80},
+        "eyebrow_box": {"x": 0.11, "y": 0.14, "w": 0.26, "h": 0.05},
+        "title_box": {"x": 0.11, "y": 0.68, "w": 0.32, "h": 0.16},
+        "accent_anchor": {"x": 0.90, "y": 0.14},
+        "asset_crop": {"object_position": "58% 46%", "veil_opacity": 0.34, "grayscale": 1.0, "contrast": 1.18},
+    }
+
+    if still_family == "poster_minimal":
+        return {
+            **base_layout,
+            "hero_zone": {"x": 0.10, "y": 0.62, "w": 0.28, "h": 0.18},
+            "support_zone": {"x": 0.10, "y": 0.14, "w": 0.22, "h": 0.05},
+            "empty_zone": {"x": 0.48, "y": 0.08, "w": 0.42, "h": 0.52},
+            "focal_zone": {"x": 0.08, "y": 0.08, "w": 0.84, "h": 0.80},
+            "curve_box": {"x": 0.08, "y": 0.08, "w": 0.84, "h": 0.80},
+            "eyebrow_box": {"x": 0.10, "y": 0.14, "w": 0.22, "h": 0.05},
+            "title_box": {"x": 0.10, "y": 0.62, "w": 0.28, "h": 0.18},
+            "accent_anchor": {"x": 0.90, "y": 0.14},
+            "asset_crop": {"object_position": "58% 46%", "veil_opacity": 0.52, "grayscale": 1.0, "contrast": 1.12},
+        }
+    if still_family == "editorial_portrait":
+        return {
+            **base_layout,
+            "hero_zone": {"x": 0.08, "y": 0.50, "w": 0.42, "h": 0.24},
+            "support_zone": {"x": 0.08, "y": 0.12, "w": 0.30, "h": 0.12},
+            "empty_zone": {"x": 0.56, "y": 0.10, "w": 0.28, "h": 0.46},
+            "focal_zone": {"x": 0.06, "y": 0.08, "w": 0.88, "h": 0.82},
+            "curve_box": {"x": 0.06, "y": 0.08, "w": 0.88, "h": 0.78},
+            "eyebrow_box": {"x": 0.08, "y": 0.12, "w": 0.30, "h": 0.06},
+            "title_box": {"x": 0.08, "y": 0.52, "w": 0.40, "h": 0.22},
+            "accent_anchor": {"x": 0.90, "y": 0.16},
+            "asset_crop": {"object_position": "56% 42%", "veil_opacity": 0.36, "grayscale": 1.0, "contrast": 1.16},
+        }
+
+    if family == "thumbnail":
+        return {
+            **base_layout,
+            "hero_zone": {"x": 0.08, "y": 0.64, "w": 0.30, "h": 0.18},
+            "support_zone": {"x": 0.08, "y": 0.14, "w": 0.22, "h": 0.05},
+            "empty_zone": {"x": 0.54, "y": 0.08, "w": 0.34, "h": 0.42},
+            "focal_zone": {"x": 0.08, "y": 0.10, "w": 0.86, "h": 0.74},
+            "curve_box": {"x": 0.08, "y": 0.10, "w": 0.86, "h": 0.74},
+            "eyebrow_box": {"x": 0.08, "y": 0.14, "w": 0.22, "h": 0.05},
+            "title_box": {"x": 0.08, "y": 0.64, "w": 0.30, "h": 0.18},
+            "accent_anchor": {"x": 0.92, "y": 0.16},
+            "asset_crop": {"object_position": "64% 44%", "veil_opacity": 0.28, "grayscale": 1.0, "contrast": 1.2},
+        }
+    if family == "carousel":
+        return {
+            **base_layout,
+            "hero_zone": {"x": 0.10, "y": 0.62, "w": 0.42, "h": 0.20},
+            "support_zone": {"x": 0.10, "y": 0.12, "w": 0.28, "h": 0.06},
+            "empty_zone": {"x": 0.54, "y": 0.12, "w": 0.28, "h": 0.40},
+            "focal_zone": {"x": 0.08, "y": 0.10, "w": 0.84, "h": 0.72},
+            "curve_box": {"x": 0.08, "y": 0.10, "w": 0.84, "h": 0.72},
+            "eyebrow_box": {"x": 0.10, "y": 0.12, "w": 0.28, "h": 0.06},
+            "title_box": {"x": 0.10, "y": 0.62, "w": 0.42, "h": 0.20},
+            "accent_anchor": {"x": 0.88, "y": 0.16},
+            "asset_crop": {"object_position": "55% 42%", "veil_opacity": 0.24, "grayscale": 1.0, "contrast": 1.14},
+        }
+    if family == "loop_gif":
+        return {
+            **base_layout,
+            "hero_zone": {"x": 0.09, "y": 0.70, "w": 0.28, "h": 0.14},
+            "support_zone": {"x": 0.09, "y": 0.12, "w": 0.22, "h": 0.05},
+            "empty_zone": {"x": 0.56, "y": 0.10, "w": 0.24, "h": 0.40},
+            "focal_zone": {"x": 0.06, "y": 0.08, "w": 0.88, "h": 0.78},
+            "curve_box": {"x": 0.06, "y": 0.08, "w": 0.88, "h": 0.78},
+            "eyebrow_box": {"x": 0.09, "y": 0.12, "w": 0.22, "h": 0.05},
+            "title_box": {"x": 0.09, "y": 0.70, "w": 0.28, "h": 0.14},
+            "accent_anchor": {"x": 0.90, "y": 0.16},
+            "asset_crop": {"object_position": "60% 45%", "veil_opacity": 0.22, "grayscale": 1.0, "contrast": 1.12},
+        }
+    return base_layout
+
+
+def _build_master_asset_strategy(target: dict[str, Any]) -> dict[str, Any]:
+    family = _target_family_spec(target)
+    if family in {"hero_poster", "thumbnail", "carousel", "loop_gif"}:
+        return {
+            "role": "hero_anchor",
+            "source": "manim_hero_bg.png",
+            "inherit_visual_dna": True,
+            "crop_mode": "cover",
+        }
+    return {
+        "role": "supporting_anchor",
+        "source": "manim_hero_bg.png",
+        "inherit_visual_dna": family in {"short_cinematic", "essay_video", "motion_preview"},
+        "crop_mode": "cover",
+    }
+
+
+def _build_still_base_strategy(target: dict[str, Any]) -> dict[str, Any]:
+    from core.quality.contract_loader import load_quality_contract
+
+    still_family_id = str(target.get("still_family", "")).strip()
+    if not still_family_id:
+        return {
+            "base": None,
+            "background": "solid_dark",
+            "requires_manim": False,
+            "allow_manim_bypass": True,
+            "use_asset_if_available": True,
+        }
+
+    contract = load_quality_contract()
+    still_family = contract.get_still_family(still_family_id)
+    base = still_family.get("base")
+    background = str(still_family.get("background", "solid_dark") or "solid_dark")
+    requires_manim = str(base).strip().lower() == "manim_geometry"
+    use_asset_if_available = background in {"photo_with_veil", "dark_with_geometry_base"} or base not in {None, "null", ""}
+    return {
+        "base": base,
+        "background": background,
+        "requires_manim": requires_manim,
+        "allow_manim_bypass": not requires_manim,
+        "use_asset_if_available": use_asset_if_available,
+    }
+
+
+def _target_family_spec(target: dict[str, Any]) -> str:
+    target_id = str(target.get("id", "")).strip()
+    if target_id == "linkedin_feed_4_5":
+        return "hero_poster"
+    if target_id == "short_cinematic_vertical":
+        return "short_cinematic"
+    if target_id == "linkedin_carousel_square":
+        return "carousel"
+    if target_id in {"loop_gif_square", "loop_gif_vertical"}:
+        return "loop_gif"
+    if target_id == "motion_preview_webm":
+        return "motion_preview"
+    if target_id == "youtube_essay_16_9":
+        return "essay_video"
+    if target_id == "youtube_thumbnail_16_9":
+        return "thumbnail"
+    if target_id in {"loop_gif_square", "loop_gif_vertical"}:
+        return "loop_gif"
+    if target_id == "motion_preview_webm":
+        return "motion_preview"
+    return "short_cinematic"
+
+
+def _build_act_quality_profile(plan: dict, acts: list[dict]) -> dict[str, dict[str, Any]]:
+    pacing_profile = plan.get("pacing_profile", {}) if isinstance(plan.get("pacing_profile", {}), dict) else {}
+    pacing_acts = {
+        str(act.get("act_id", "")).strip(): act
+        for act in pacing_profile.get("acts", [])
+        if isinstance(act, dict) and str(act.get("act_id", "")).strip()
+    }
+    profile: dict[str, dict[str, Any]] = {}
+    for act in acts:
+        act_id = str(act.get("id", "")).strip()
+        pacing_act = pacing_acts.get(act_id, {})
+        profile[act_id] = {
+            "emotion": act.get("emotion"),
+            "tension": act.get("tension"),
+            "breath_points": list(pacing_act.get("breath_points", [])) if isinstance(pacing_act.get("breath_points", []), list) else [],
+            "silence_ratio": float(pacing_act.get("silence_ratio", pacing_profile.get("silence_ratio", 0.3)) or 0.3),
+            "poster_test": True,
+        }
+    return profile
+
+
+def _target_post_fx_profile(target: dict[str, Any]) -> str:
+    target_id = str(target.get("id", "")).strip()
+    render_mode = str(target.get("render_mode", "video")).strip().lower()
+    if target_id in {"linkedin_feed_4_5", "youtube_thumbnail_16_9"}:
+        return "premium"
+    if render_mode == "carousel":
+        return "premium"
+    if target_id == "short_cinematic_vertical":
+        return "premium"
+    if target_id == "youtube_essay_16_9":
+        return "cinematic"
+    return "cinematic"
+
+
+def _build_qa_sampling_frames(target: dict[str, Any], acts: list[dict], duration: float) -> list[float]:
+    render_mode = str(target.get("render_mode", "video")).strip().lower()
+    if render_mode == "still":
+        return [float(target.get("still_frame", 0) or 0)]
+    if render_mode == "carousel":
+        slides = target.get("slides", []) if isinstance(target.get("slides", []), list) else []
+        return [float(index) for index in range(min(len(slides), 6))]
+
+    samples: list[float] = []
+    for act in acts:
+        start = float(act.get("start_sec", 0.0) or 0.0)
+        end = float(act.get("end_sec", duration) or duration)
+        midpoint = round((start + end) / 2.0, 2)
+        samples.append(midpoint)
+    if not samples:
+        samples = [round(duration * ratio, 2) for ratio in (0.2, 0.5, 0.8)]
+    return samples
+
+
+def _build_poster_test_frames(target: dict[str, Any], acts: list[dict], duration: float) -> list[float]:
+    render_mode = str(target.get("render_mode", "video")).strip().lower()
+    if render_mode == "still":
+        return [float(target.get("still_frame", 0) or 0)]
+    if render_mode == "carousel":
+        slides = target.get("slides", []) if isinstance(target.get("slides", []), list) else []
+        if len(slides) >= 5:
+            return [0.0, 4.0, float(len(slides) - 1)]
+        return [float(index) for index in range(len(slides))]
+    if acts:
+        return [round((float(act.get("start_sec", 0.0) or 0.0) + float(act.get("end_sec", duration) or duration)) / 2.0, 2) for act in acts]
+    return [round(duration * ratio, 2) for ratio in (0.25, 0.55, 0.85)]
 
 
 def _target_duration(target: dict[str, Any], base_duration: float) -> float:
@@ -638,8 +1136,25 @@ def _build_render_inputs(
             "slides": target.get("slides", []),
             "chapters": target.get("chapters", []),
             "story_atoms": artifact_plan.get("story_atoms", {}),
+            "style_pack": target.get("style_pack", artifact_plan.get("style_pack")),
             "style_pack_ids": artifact_plan.get("style_pack_ids", []),
+            "motion_grammar": target.get("motion_grammar", artifact_plan.get("motion_grammar")),
+            "typography_system": target.get("typography_system", artifact_plan.get("typography_system")),
+            "still_family": target.get("still_family", artifact_plan.get("still_family")),
+            "color_mode": target.get("color_mode", artifact_plan.get("color_mode")),
+            "negative_space_target": target.get("negative_space_target", artifact_plan.get("negative_space_target")),
+            "accent_intensity": target.get("accent_intensity", artifact_plan.get("accent_intensity")),
+            "grain": target.get("grain", artifact_plan.get("grain")),
             "quality_constraints": artifact_plan.get("quality_constraints", {}),
+            "quality_mode": target.get("quality_mode", artifact_plan.get("quality_mode", "absolute")),
+            "premium_targets": artifact_plan.get("premium_targets", []),
+            "qa_frames": artifact_plan.get("qa_frames"),
+            "auto_iterate_max": artifact_plan.get("auto_iterate_max"),
+            "brand_veto_policy": artifact_plan.get("brand_veto_policy", {}),
+            "act_quality_profile": target.get("act_quality_profile", {}),
+            "post_fx_profile": target.get("post_fx_profile"),
+            "qa_sampling_frames": target.get("qa_sampling_frames", []),
+            "poster_test_frames": target.get("poster_test_frames", []),
             "brief": {
                 "title": brief.get("title"),
                 "tagline": brief.get("tagline"),

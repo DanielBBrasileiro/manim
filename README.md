@@ -106,6 +106,8 @@ Para priorizar o still hero em Remotion nativo, voce pode ajustar timeouts separ
 
 O renderer direto agora tenta reaproveitar bundles por padrao (`AIOX_REMOTION_REUSE_BUNDLE=1`) e faz um prewarm antes do primeiro target nativo. Isso evita que cada artefato pague novamente o cold start pesado do Remotion local.
 
+No ambiente local deste repo, o caminho estavel do Remotion usa webpack classico por padrao. O modo `rspack` fica desativado, e os patches de runtime sao reaplicados automaticamente no `npm install` de `engines/remotion` via `scripts/patch_remotion_runtime.py`. Para experimentar `rspack` manualmente, use `AIOX_REMOTION_USE_RSPACK=1`.
+
 ### 6.2 Extrair DNA de Design
 Para capturar as cores, fontes e espaçamento de qualquer site:
 ```bash
@@ -113,7 +115,29 @@ python3 aiox.py reference https://stripe.com
 ```
 Isso gera um style pack reutilizavel em `contracts/references/stripe_com.yaml` e `contracts/references/stripe_com.json`, que pode ser usado em qualquer briefing futuro.
 
-### 6.3 Sincronizar Marca
+Para a trilha lab de referencias e busca de linguagem visual:
+```bash
+python3 aiox.py references ingest https://stripe.com
+python3 aiox.py style search "poster curve minimal"
+```
+
+### 6.3 Julgar qualidade e ranquear variantes
+Para rodar o juiz visual/brand sobre um artefato especifico:
+```bash
+python3 aiox.py judge output/stills/linkedin_feed_4_5.png --target linkedin_feed_4_5 --json
+```
+
+Para ranquear variantes do artifact plan:
+```bash
+python3 aiox.py variants rank briefings/seu_projeto.yaml --json
+```
+
+Se quiser uma execucao local mais previsivel, sem esperar pelo rankeamento via LLM:
+```bash
+python3 aiox.py variants rank briefings/seu_projeto.yaml --heuristic --json
+```
+
+### 6.4 Sincronizar Marca
 Para atualizar os tokens de design sem renderizar:
 ```bash
 python3 aiox.py sync briefings/projeto.yaml

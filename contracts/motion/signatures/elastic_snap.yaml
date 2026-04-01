@@ -1,2 +1,32 @@
-pattern: stretch_release
-rhythm: fast_peak
+# contracts/motion/signatures/elastic_snap.yaml
+pattern: overshoot_settle
+rhythm: fast
+stability: high
+
+spring:
+  stiffness: 200
+  damping: 12
+  mass: 0.8
+
+easing:
+  name: "spring"
+  curve: "cubic-bezier(0.16, 1, 0.3, 1)"
+  description: "Fast approach with slight overshoot, confident settle"
+
+temporal_signature:
+  acceleration_profile: "spring_overshoot"
+  overshoot_pct: 8
+  settle_oscillations: 1.5
+  total_duration_ms: 380
+
+narrative_acts:
+  primary: "turbulence"
+  secondary: "genesis"
+  avoid: "none"
+  reason: "Versatile — works in all acts at different intensities"
+
+use_cases:
+  - "Primary element entrance"
+  - "Data point arrival"
+  - "Statement typography entry"
+  - "Linear App-inspired UI interactions"
