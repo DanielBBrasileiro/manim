@@ -16,6 +16,8 @@ const USE_RSPACK = process.env.AIOX_REMOTION_USE_RSPACK === "1";
 const SYSTEM_CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const PLAYWRIGHT_CACHE_DIR = path.join(os.homedir(), "Library", "Caches", "ms-playwright");
 const DEFAULT_STILL_EXTENSION = ".png";
+const DEFAULT_LOG_LEVEL = process.env.REMOTION_LOG_LEVEL || "info";
+const TRACE_FILE = process.env.AIOX_REMOTION_TRACE_FILE || "";
 const TARGET_ALIASES = {
   cinematicnarrative: "short-cinematic-vertical",
   cinematic_narrative: "short-cinematic-vertical",
@@ -124,15 +126,76 @@ const resolveBrowserExecutable = () => {
 };
 
 const browserExecutable = resolveBrowserExecutable();
+const browserChromeMode = (() => {
+  const forced = process.env.REMOTION_CHROME_MODE;
+  if (forced) {
+    return forced;
+  }
+  if (browserExecutable && browserExecutable.includes("Google Chrome for Testing")) {
+    return "chrome-for-testing";
+  }
+  return "headless-shell";
+})();
 const nodeMajor = Number(process.versions.node.split(".")[0] || "0");
 let bundlerApi = null;
 let rendererApi = null;
 
-if (nodeMajor >= 22) {
-  throw new Error(
-    `Remotion direto exige Node 20.x neste repo. Node atual: ${process.version}. ` +
-    `Use 'source ~/.nvm/nvm.sh && nvm use 20.19.5' ou rode via scripts/run_remotion_node.sh.`,
-  );
+const readVersionMarker = (...candidatePaths) => {
+  for (const candidate of candidatePaths) {
+    try {
+      if (!candidate || !fs.existsSync(candidate)) {
+        continue;
+      }
+      const value = fs.readFileSync(candidate, "utf-8").trim();
+      if (value) {
+        return value;
+      }
+    } catch (_) {}
+  }
+  return null;
+};
+
+const TARGET_VERSION =
+  process.env.REMOTION_NODE_VERSION ||
+  readVersionMarker(
+    path.join(ROOT, ".node-version"),
+    path.join(ROOT, ".nvmrc"),
+    path.join(REMOTION_ROOT, ".node-version"),
+    path.join(REMOTION_ROOT, ".nvmrc"),
+  ) ||
+  "20.19.5";
+
+const isCompatibleRemotionNode = (version, targetVersion) => {
+  const current = String(version || "").trim().replace(/^v/, "");
+  const target = String(targetVersion || "").trim().replace(/^v/, "");
+  return Boolean(current) && Boolean(target) && current === target;
+};
+
+if (!isCompatibleRemotionNode(process.versions.node, TARGET_VERSION) && !process.env.__AIOX_NODE_REEXEC) {
+  const wrapperScript = path.join(ROOT, "scripts", "run_remotion_node.sh");
+  const {execFileSync} = require("node:child_process");
+  const env = {...process.env, __AIOX_NODE_REEXEC: "1", REMOTION_NODE_VERSION: TARGET_VERSION};
+  try {
+    execFileSync("bash", [wrapperScript, ...process.argv.slice(1)], {
+      stdio: "inherit",
+      cwd: process.cwd(),
+      env,
+    });
+  } catch (error) {
+    if (typeof error?.status === "number") {
+      process.exit(error.status);
+    }
+    console.error(
+      `[AIOX] FATAL: Remotion requires Node ${TARGET_VERSION} (major ${TARGET_VERSION.split(".")[0]}), ` +
+      `but running ${process.version}.\n` +
+      `  Wrapper re-exec failed via:\n` +
+      `    ${wrapperScript}\n` +
+      `  You can also force the binary explicitly:\n` +
+      `    REMOTION_NODE_BIN=/absolute/path/to/node bash scripts/run_remotion_node.sh scripts/remotion_direct.js [args...]`,
+    );
+    process.exit(error.status ?? 1);
+  }
+  process.exit(0);
 }
 
 const statMtime = (filePath) => {
@@ -206,6 +269,15 @@ const syncDirectoryContents = (sourceDir, destinationDir) => {
     }
     fs.rmSync(path.join(destinationDir, entry.name), {recursive: true, force: true});
   }
+};
+
+const trace = (message) => {
+  if (!TRACE_FILE) {
+    return;
+  }
+  try {
+    fs.appendFileSync(TRACE_FILE, `${new Date().toISOString()} ${message}\n`);
+  } catch (_error) {}
 };
 
 const syncPublicAssets = (bundlePath) => {
@@ -301,7 +373,9 @@ const loadRenderer = () => {
   console.log("Carregando renderer Remotion...");
   const startedAt = Date.now();
   console.log(" - require get-compositions.js");
+  trace("before require get-compositions.js");
   const {getCompositions} = require(path.join(RENDERER_DIST, "get-compositions.js"));
+  trace("after require get-compositions.js");
   console.log(`   ok em ${Date.now() - startedAt}ms`);
   rendererApi = {
     getCompositions,
@@ -317,7 +391,9 @@ const ensureRenderMedia = () => {
   const renderer = loadRenderer();
   if (!renderer.renderMedia) {
     console.log(" - require render-media.js");
+    trace("before require render-media.js");
     ({renderMedia: renderer.renderMedia} = require(path.join(RENDERER_DIST, "render-media.js")));
+    trace("after require render-media.js");
     console.log(`   ok em ${Date.now() - renderer.startedAt}ms`);
   }
   return renderer.renderMedia;
@@ -328,7 +404,9 @@ const ensureRenderStill = () => {
   if (renderer.renderStill === null) {
     try {
       console.log(" - require render-still.js");
+      trace("before require render-still.js");
       ({renderStill: renderer.renderStill} = require(path.join(RENDERER_DIST, "render-still.js")));
+      trace("after require render-still.js");
       console.log(`   ok em ${Date.now() - renderer.startedAt}ms`);
     } catch (_error) {
       renderer.renderStill = false;
@@ -353,7 +431,8 @@ const makeRendererOptions = () => ({
       "--disable-background-timer-throttling",
     ],
   },
-  logLevel: "info",
+  chromeMode: browserChromeMode,
+  logLevel: DEFAULT_LOG_LEVEL,
   timeoutInMilliseconds: DEFAULT_TIMEOUT_MS,
 });
 
@@ -417,10 +496,29 @@ const loadCompositions = async (serveUrl) => {
   console.log("Carregando composicoes...");
   const startedAt = Date.now();
   const {getCompositions} = loadRenderer();
+  trace("before getCompositions()");
+  console.log(
+    JSON.stringify({
+      stage: "getCompositions:start",
+      serveUrl,
+      browserExecutable,
+      chromeMode: browserChromeMode,
+      logLevel: DEFAULT_LOG_LEVEL,
+      timeoutMs: DEFAULT_TIMEOUT_MS,
+    }),
+  );
   const compositions = await getCompositions(serveUrl, {
     ...makeRendererOptions(),
     inputProps,
   });
+  trace("after getCompositions()");
+  console.log(
+    JSON.stringify({
+      stage: "getCompositions:done",
+      count: compositions.length,
+      elapsedMs: Date.now() - startedAt,
+    }),
+  );
   console.log(`Composicoes carregadas em ${Date.now() - startedAt}ms`);
   return compositions;
 };
@@ -534,6 +632,7 @@ const renderStill = async () => {
   }
 
   const renderStillApi = ensureRenderStill();
+  trace("after ensureRenderStill()");
   if (!renderStillApi) {
     throw new Error("renderStill nao esta disponivel na versao local do Remotion.");
   }

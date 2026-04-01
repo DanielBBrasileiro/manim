@@ -108,6 +108,26 @@ O renderer direto agora tenta reaproveitar bundles por padrao (`AIOX_REMOTION_RE
 
 No ambiente local deste repo, o caminho estavel do Remotion usa webpack classico por padrao. O modo `rspack` fica desativado, e os patches de runtime sao reaplicados automaticamente no `npm install` de `engines/remotion` via `scripts/patch_remotion_runtime.py`. Para experimentar `rspack` manualmente, use `AIOX_REMOTION_USE_RSPACK=1`.
 
+### Runtime Node do Remotion
+O runtime suportado para o Remotion neste repo e `Node 20.19.5`.
+
+Esse requisito agora aparece tanto no root do repo quanto em `engines/remotion/`:
+- `.node-version`
+- `.nvmrc`
+
+Para execucao manual, prefira:
+```bash
+bash scripts/run_remotion_node.sh scripts/remotion_direct.js [args...]
+```
+
+O wrapper tenta, nesta ordem:
+- `REMOTION_NODE_BIN`, se voce quiser apontar um binario explicitamente
+- o `node` atual no `PATH`, se ele ja for o runtime esperado
+- a instalacao local correspondente ao version marker
+- `nvm use`, se `nvm` estiver disponivel
+
+Se `scripts/remotion_direct.js` for chamado diretamente sob um Node incompativel, ele delega para `scripts/run_remotion_node.sh` em vez de depender de um caminho fixo de `nvm`.
+
 ### 6.2 Extrair DNA de Design
 Para capturar as cores, fontes e espaçamento de qualquer site:
 ```bash
