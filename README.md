@@ -106,6 +106,8 @@ Para priorizar o still hero em Remotion nativo, voce pode ajustar timeouts separ
 
 O renderer direto agora tenta reaproveitar bundles por padrao (`AIOX_REMOTION_REUSE_BUNDLE=1`) e faz um prewarm antes do primeiro target nativo. Isso evita que cada artefato pague novamente o cold start pesado do Remotion local.
 
+No ambiente local deste repo, o caminho estavel do Remotion usa webpack classico por padrao. O modo `rspack` fica desativado, e os patches de runtime sao reaplicados automaticamente no `npm install` de `engines/remotion` via `scripts/patch_remotion_runtime.py`. Para experimentar `rspack` manualmente, use `AIOX_REMOTION_USE_RSPACK=1`.
+
 ### 6.2 Extrair DNA de Design
 Para capturar as cores, fontes e espaçamento de qualquer site:
 ```bash

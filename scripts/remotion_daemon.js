@@ -3,7 +3,6 @@
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const { createRequire } = require("node:module");
 const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
@@ -16,9 +15,12 @@ const BUNDLE_CACHE_DIR = path.join(REMOTION_ROOT, ".bundle-cache");
 const BUNDLE_CACHE_MANIFEST = path.join(BUNDLE_CACHE_DIR, "bundle-manifest.json");
 const DEFAULT_COMPOSITION = "short-cinematic-vertical";
 const DEFAULT_TIMEOUT_MS = Number(process.env.REMOTION_RENDER_TIMEOUT_MS || "60000");
+const USE_RSPACK = process.env.AIOX_REMOTION_USE_RSPACK === "1";
 const SYSTEM_CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const PLAYWRIGHT_CACHE_DIR = path.join(os.homedir(), "Library", "Caches", "ms-playwright");
 const DEFAULT_STILL_EXTENSION = ".png";
+const BUNDLER_DIST = path.join(REMOTION_ROOT, "node_modules", "@remotion", "bundler", "dist");
+const RENDERER_DIST = path.join(REMOTION_ROOT, "node_modules", "@remotion", "renderer", "dist");
 
 const TARGET_ALIASES = {
   cinematicnarrative: "short-cinematic-vertical",
@@ -54,9 +56,6 @@ const TARGET_ALIASES = {
   youtube_thumbnail_16_9: "youtube-thumbnail-16-9",
   "youtube-thumbnail-16-9": "youtube-thumbnail-16-9",
 };
-
-const BUNDLER_DIST = path.join(REMOTION_ROOT, "node_modules", "@remotion", "bundler", "dist");
-const RENDERER_DIST = path.join(REMOTION_ROOT, "node_modules", "@remotion", "renderer", "dist");
 
 const normalizeCompositionId = (value) => {
   const normalized = String(value || "")
@@ -258,7 +257,7 @@ const ensureBundle = async () => {
       keyboardShortcutsEnabled: false,
       publicDir: PUBLIC_DIR,
       rootDir: REMOTION_ROOT,
-      rspack: true,
+      rspack: USE_RSPACK,
       webpackOverride: (config) => {
         config.resolve = config.resolve || {};
         config.resolve.fallback = { ...(config.resolve.fallback || {}), fs: false, path: false };

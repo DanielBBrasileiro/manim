@@ -3,17 +3,16 @@
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const {createRequire} = require("node:module");
 
 const ROOT = path.resolve(__dirname, "..");
 const REMOTION_ROOT = path.join(ROOT, "engines", "remotion");
 const ENTRY_POINT = path.join(REMOTION_ROOT, "src", "index.tsx");
 const PUBLIC_DIR = path.join(REMOTION_ROOT, "public");
-const PUBLIC_VIDEO = path.join(PUBLIC_DIR, "manim_base.mp4");
 const BUNDLE_CACHE_DIR = path.join(REMOTION_ROOT, ".bundle-cache");
 const BUNDLE_CACHE_MANIFEST = path.join(BUNDLE_CACHE_DIR, "bundle-manifest.json");
 const DEFAULT_COMPOSITION = "short-cinematic-vertical";
 const DEFAULT_TIMEOUT_MS = Number(process.env.REMOTION_RENDER_TIMEOUT_MS || "120000");
+const USE_RSPACK = process.env.AIOX_REMOTION_USE_RSPACK === "1";
 const SYSTEM_CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const PLAYWRIGHT_CACHE_DIR = path.join(os.homedir(), "Library", "Caches", "ms-playwright");
 const DEFAULT_STILL_EXTENSION = ".png";
@@ -372,7 +371,7 @@ const makeBundle = async () => {
     keyboardShortcutsEnabled: false,
     publicDir: PUBLIC_DIR,
     rootDir: REMOTION_ROOT,
-    rspack: true,
+    rspack: USE_RSPACK,
     webpackOverride: (config) => {
       config.resolve = config.resolve || {};
       config.resolve.fallback = {
