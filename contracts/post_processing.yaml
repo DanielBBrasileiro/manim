@@ -1,0 +1,64 @@
+# contracts/post_processing.yaml
+# AIOX Post-Processing Contract — Cinematic Quality Standards
+
+version: "1.0"
+description: "Mapeamento rigoroso de arquetipos para pipelines de efeitos post-render."
+
+# ── Global Safety Limits (Hard Constraints) ───────────────────────────────
+constraints:
+  chromatic_aberration:
+    max_strength: 0.010
+    min_strength: 0.002
+  film_grain:
+    max_intensity: 0.12
+    min_intensity: 0.02
+  halation:
+    max_intensity: 0.50
+    threshold_range: [0.55, 0.85]
+  breath_exposure:
+    max_amplitude: 0.06
+    freq_range: [0.1, 0.5]
+
+# ── Archetype Mapping ──────────────────────────────────────────────────────
+archetypes:
+  emergence:
+    preset: "genesis"
+    mandatory: ["vignette", "film_grain"]
+    optional: ["breath_exposure"]
+    emotion_default: "curiosity"
+    
+  chaos_to_order:
+    preset: "cinematic"
+    mandatory: ["chromatic_aberration", "vignette"]
+    optional: ["halation", "breath_exposure"]
+    emotion_default: "mastery"
+    
+  fragmented_reveal:
+    preset: "turbulence"
+    mandatory: ["chromatic_aberration", "film_grain", "halation"]
+    optional: ["scanlines"]
+    emotion_default: "tension"
+    
+  gravitational_collapse:
+    preset: "turbulence"
+    mandatory: ["vignette", "halation", "chromatic_aberration"]
+    optional: ["glow"]
+    emotion_default: "tension"
+    
+  resolution:
+    preset: "resolution"
+    mandatory: ["vignette", "halation"]
+    optional: ["color_grade"]
+    emotion_default: "mastery"
+
+# ── Render Mode Specifics ──────────────────────────────────────────────────
+modes:
+  still:
+    upscale_multiplier: 2.0
+    grain_temporal: false
+    breath_enabled: false
+  video:
+    fps: 60
+    grain_temporal: true
+    breath_enabled: true
+    crf: 18
