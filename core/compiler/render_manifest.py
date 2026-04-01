@@ -87,7 +87,15 @@ def build_render_manifest(plan: dict, seed: dict | str) -> dict:
         "targets": artifact_plan.get("targets", []),
         "artifact_plan": artifact_plan,
         "story_atoms": artifact_plan.get("story_atoms", {}),
+        "style_pack": artifact_plan.get("style_pack"),
         "style_pack_ids": artifact_plan.get("style_pack_ids", []),
+        "motion_grammar": artifact_plan.get("motion_grammar"),
+        "typography_system": artifact_plan.get("typography_system"),
+        "still_family": artifact_plan.get("still_family"),
+        "color_mode": artifact_plan.get("color_mode"),
+        "negative_space_target": artifact_plan.get("negative_space_target"),
+        "accent_intensity": artifact_plan.get("accent_intensity"),
+        "grain": artifact_plan.get("grain"),
         "quality_constraints": artifact_plan.get("quality_constraints", {}),
         "quality_mode": artifact_plan.get("quality_mode", "absolute"),
         "premium_targets": artifact_plan.get("premium_targets", []),
@@ -132,7 +140,7 @@ def build_artifact_plan(plan: dict, seed: dict | str) -> dict:
     text_beats = _collect_text_beats(brief, acts, duration, plan)
     story_atoms = _build_story_atoms(plan, brief)
     quality_constraints = _build_quality_constraints(narrative_contract, global_laws, design_canon, plan)
-    style_pack_ids = _resolve_style_pack_ids(seed)
+    style_pack_ids = _resolve_style_pack_ids(seed, brief=brief, plan=plan)
     style_retrieval_results = _build_style_retrieval_results(brief, style_pack_ids)
     variants = _build_variants(plan, story_atoms, style_pack_ids)
 
@@ -169,6 +177,11 @@ def build_artifact_plan(plan: dict, seed: dict | str) -> dict:
             ]
 
     primary_target = selected_targets[0] if selected_targets else {}
+    primary_style_pack_id = str(
+        primary_target.get("style_pack")
+        or (style_pack_ids[0] if style_pack_ids else "silent_luxury")
+    ).strip() or "silent_luxury"
+    primary_style_pack = _style_pack_contract(primary_style_pack_id)
     chosen_variant = variants[0]["id"] if variants else "variant_01"
     premium_targets = _build_premium_targets(selected_targets)
     return {
@@ -179,7 +192,15 @@ def build_artifact_plan(plan: dict, seed: dict | str) -> dict:
         "requested_targets": requested_ids,
         "format": primary_target.get("format_id", "vertical_9_16"),
         "story_atoms": story_atoms,
+        "style_pack": primary_style_pack_id,
         "style_pack_ids": style_pack_ids,
+        "motion_grammar": primary_style_pack.get("motion_grammar"),
+        "typography_system": primary_style_pack.get("typography_system"),
+        "still_family": primary_style_pack.get("still_family"),
+        "color_mode": primary_style_pack.get("color_mode"),
+        "negative_space_target": primary_style_pack.get("negative_space_target"),
+        "accent_intensity": primary_style_pack.get("accent_intensity"),
+        "grain": primary_style_pack.get("grain"),
         "quality_constraints": quality_constraints,
         "quality_tier": "lab_absolute",
         "quality_mode": "absolute",
@@ -461,16 +482,60 @@ def _default_output_target(layout_contract: dict, target_catalog: dict[str, dict
     return next(iter(target_catalog.keys()), DEFAULT_OUTPUT_TARGET)
 
 
-def _resolve_style_pack_ids(seed: dict | str) -> list[str]:
-    if not isinstance(seed, dict):
-        return []
+def _resolve_style_pack_ids(seed: dict | str, brief: dict | None = None, plan: dict | None = None) -> list[str]:
+    candidates: list[str] = []
 
-    references = seed.get("references", {})
-    if isinstance(references, dict):
-        style_packs = references.get("style_packs", [])
-        if isinstance(style_packs, list):
-            return [str(item).strip() for item in style_packs if str(item).strip()]
-    return []
+    def _append_style_pack_values(source: Any) -> None:
+        if not isinstance(source, dict):
+            return
+        for key in ("style_pack", "style_pack_id"):
+            value = str(source.get(key, "")).strip()
+            if value:
+                candidates.append(value)
+        values = source.get("style_pack_ids") or source.get("style_packs")
+        if isinstance(values, list):
+            candidates.extend(str(item).strip() for item in values if str(item).strip())
+
+    if isinstance(seed, dict):
+        _append_style_pack_values(seed)
+        references = seed.get("references", {})
+        if isinstance(references, dict):
+            _append_style_pack_values(references)
+
+    _append_style_pack_values(brief)
+    _append_style_pack_values(plan)
+
+    deduped: list[str] = []
+    for candidate in candidates:
+        if candidate and candidate not in deduped:
+            deduped.append(candidate)
+    return deduped
+
+
+def _style_pack_contract(style_pack_id: str | None) -> dict[str, Any]:
+    from core.quality.contract_loader import load_quality_contract
+
+    contract = load_quality_contract()
+    requested = str(style_pack_id or "").strip()
+    if requested:
+        style_pack = contract.get_style_pack(requested)
+        if isinstance(style_pack, dict) and style_pack:
+            return style_pack
+
+    fallback = contract.get_style_pack("silent_luxury")
+    if isinstance(fallback, dict) and fallback:
+        return fallback
+
+    return {
+        "id": "silent_luxury",
+        "typography_system": "editorial_minimal",
+        "motion_grammar": "cinematic_restrained",
+        "still_family": "poster_minimal",
+        "color_mode": "monochrome_pure",
+        "negative_space_target": 0.65,
+        "accent_intensity": 0.1,
+        "grain": 0.04,
+    }
 
 
 def _build_story_atoms(plan: dict, brief: dict) -> dict[str, Any]:
@@ -570,6 +635,9 @@ def _build_renderer_contracts(selected_targets: list[dict[str, Any]]) -> dict[st
             "target_id": target_id,
             "composition": target.get("composition"),
             "render_mode": render_mode,
+            "style_pack": target.get("style_pack"),
+            "motion_grammar": target.get("motion_grammar"),
+            "color_mode": target.get("color_mode"),
             "native_engine": "remotion",
             "fallback_engine": "fallback_artifact_renderer",
             "requires_base_video": render_mode == "video" and target_id == "short_cinematic_vertical",
@@ -600,8 +668,14 @@ def _expand_target(
 ) -> dict[str, Any]:
     target = copy.deepcopy(target_spec)
     target["style_pack"] = _target_style_pack_id(plan, target)
+    target_style_pack = _style_pack_contract(target["style_pack"])
     target["typography_system"] = _target_typography_system(plan, target)
     target["still_family"] = _target_still_family(plan, target)
+    target["motion_grammar"] = str(target_style_pack.get("motion_grammar", "")).strip() or plan.get("motion_grammar")
+    target["color_mode"] = str(target_style_pack.get("color_mode", "")).strip() or "monochrome_pure"
+    target["negative_space_target"] = float(target_style_pack.get("negative_space_target", 0.65) or 0.65)
+    target["accent_intensity"] = float(target_style_pack.get("accent_intensity", 0.1) or 0.1)
+    target["grain"] = float(target_style_pack.get("grain", 0.04) or 0.04)
     target["judge_profile"] = _target_judge_profile(target)
     target["summary"] = _target_summary(target, story_atoms)
     target["duration_sec"] = _target_duration(target, duration)
@@ -619,10 +693,15 @@ def _expand_target(
     target["poster_test_frames"] = _build_poster_test_frames(target, acts, duration)
     target["editorial_layout"] = _build_editorial_layout(target, design_canon or {})
     target["master_asset_strategy"] = _build_master_asset_strategy(target)
+    target["still_base_strategy"] = _build_still_base_strategy(target)
     return target
 
 
 def _target_style_pack_id(plan: dict[str, Any], target: dict[str, Any]) -> str:
+    explicit_style_pack = str(plan.get("style_pack", "")).strip()
+    if explicit_style_pack:
+        return explicit_style_pack
+
     style_pack_ids = [str(item).strip() for item in plan.get("style_pack_ids", []) if str(item).strip()]
     render_mode = str(target.get("render_mode", "video")).strip().lower()
     family = _target_family_spec(target)
@@ -640,10 +719,7 @@ def _target_style_pack_id(plan: dict[str, Any], target: dict[str, Any]) -> str:
 
 
 def _target_typography_system(plan: dict[str, Any], target: dict[str, Any]) -> str:
-    from core.quality.contract_loader import load_quality_contract
-
-    contract = load_quality_contract()
-    style_pack = contract.get_style_pack(_target_style_pack_id(plan, target))
+    style_pack = _style_pack_contract(_target_style_pack_id(plan, target))
     typography_system = str(style_pack.get("typography_system", "")).strip()
     if typography_system:
         return typography_system
@@ -655,14 +731,11 @@ def _target_typography_system(plan: dict[str, Any], target: dict[str, Any]) -> s
 
 
 def _target_still_family(plan: dict[str, Any], target: dict[str, Any]) -> str | None:
-    from core.quality.contract_loader import load_quality_contract
-
     render_mode = str(target.get("render_mode", "video")).strip().lower()
     if render_mode not in {"still", "carousel"}:
         return None
 
-    contract = load_quality_contract()
-    style_pack = contract.get_style_pack(_target_style_pack_id(plan, target))
+    style_pack = _style_pack_contract(_target_style_pack_id(plan, target))
     still_family = str(style_pack.get("still_family", "")).strip()
     if still_family:
         return still_family
@@ -693,12 +766,17 @@ def _build_editorial_layout(target: dict[str, Any], design_canon: dict[str, Any]
     height = int(target.get("height", 1350) or 1350)
     safe_margin_px = max(int(math_precision.get("safe_zone_margin_px", 64) or 64), int(min(width, height) * 0.06))
     family = _target_family_spec(target)
+    still_family = str(target.get("still_family", "")).strip()
 
     base_layout = {
         "family": family,
         "golden_ratio": phi,
         "baseline_step_px": baseline_step,
         "safe_margin_px": safe_margin_px,
+        "hero_zone": {"x": 0.11, "y": 0.68, "w": 0.32, "h": 0.16},
+        "support_zone": {"x": 0.11, "y": 0.14, "w": 0.26, "h": 0.05},
+        "empty_zone": {"x": 0.50, "y": 0.08, "w": 0.36, "h": 0.48},
+        "focal_zone": {"x": 0.08, "y": 0.08, "w": 0.84, "h": 0.80},
         "curve_box": {"x": 0.08, "y": 0.08, "w": 0.84, "h": 0.80},
         "eyebrow_box": {"x": 0.11, "y": 0.14, "w": 0.26, "h": 0.05},
         "title_box": {"x": 0.11, "y": 0.68, "w": 0.32, "h": 0.16},
@@ -706,9 +784,40 @@ def _build_editorial_layout(target: dict[str, Any], design_canon: dict[str, Any]
         "asset_crop": {"object_position": "58% 46%", "veil_opacity": 0.34, "grayscale": 1.0, "contrast": 1.18},
     }
 
+    if still_family == "poster_minimal":
+        return {
+            **base_layout,
+            "hero_zone": {"x": 0.10, "y": 0.62, "w": 0.28, "h": 0.18},
+            "support_zone": {"x": 0.10, "y": 0.14, "w": 0.22, "h": 0.05},
+            "empty_zone": {"x": 0.48, "y": 0.08, "w": 0.42, "h": 0.52},
+            "focal_zone": {"x": 0.08, "y": 0.08, "w": 0.84, "h": 0.80},
+            "curve_box": {"x": 0.08, "y": 0.08, "w": 0.84, "h": 0.80},
+            "eyebrow_box": {"x": 0.10, "y": 0.14, "w": 0.22, "h": 0.05},
+            "title_box": {"x": 0.10, "y": 0.62, "w": 0.28, "h": 0.18},
+            "accent_anchor": {"x": 0.90, "y": 0.14},
+            "asset_crop": {"object_position": "58% 46%", "veil_opacity": 0.52, "grayscale": 1.0, "contrast": 1.12},
+        }
+    if still_family == "editorial_portrait":
+        return {
+            **base_layout,
+            "hero_zone": {"x": 0.08, "y": 0.50, "w": 0.42, "h": 0.24},
+            "support_zone": {"x": 0.08, "y": 0.12, "w": 0.30, "h": 0.12},
+            "empty_zone": {"x": 0.56, "y": 0.10, "w": 0.28, "h": 0.46},
+            "focal_zone": {"x": 0.06, "y": 0.08, "w": 0.88, "h": 0.82},
+            "curve_box": {"x": 0.06, "y": 0.08, "w": 0.88, "h": 0.78},
+            "eyebrow_box": {"x": 0.08, "y": 0.12, "w": 0.30, "h": 0.06},
+            "title_box": {"x": 0.08, "y": 0.52, "w": 0.40, "h": 0.22},
+            "accent_anchor": {"x": 0.90, "y": 0.16},
+            "asset_crop": {"object_position": "56% 42%", "veil_opacity": 0.36, "grayscale": 1.0, "contrast": 1.16},
+        }
+
     if family == "thumbnail":
         return {
             **base_layout,
+            "hero_zone": {"x": 0.08, "y": 0.64, "w": 0.30, "h": 0.18},
+            "support_zone": {"x": 0.08, "y": 0.14, "w": 0.22, "h": 0.05},
+            "empty_zone": {"x": 0.54, "y": 0.08, "w": 0.34, "h": 0.42},
+            "focal_zone": {"x": 0.08, "y": 0.10, "w": 0.86, "h": 0.74},
             "curve_box": {"x": 0.08, "y": 0.10, "w": 0.86, "h": 0.74},
             "eyebrow_box": {"x": 0.08, "y": 0.14, "w": 0.22, "h": 0.05},
             "title_box": {"x": 0.08, "y": 0.64, "w": 0.30, "h": 0.18},
@@ -718,6 +827,10 @@ def _build_editorial_layout(target: dict[str, Any], design_canon: dict[str, Any]
     if family == "carousel":
         return {
             **base_layout,
+            "hero_zone": {"x": 0.10, "y": 0.62, "w": 0.42, "h": 0.20},
+            "support_zone": {"x": 0.10, "y": 0.12, "w": 0.28, "h": 0.06},
+            "empty_zone": {"x": 0.54, "y": 0.12, "w": 0.28, "h": 0.40},
+            "focal_zone": {"x": 0.08, "y": 0.10, "w": 0.84, "h": 0.72},
             "curve_box": {"x": 0.08, "y": 0.10, "w": 0.84, "h": 0.72},
             "eyebrow_box": {"x": 0.10, "y": 0.12, "w": 0.28, "h": 0.06},
             "title_box": {"x": 0.10, "y": 0.62, "w": 0.42, "h": 0.20},
@@ -727,6 +840,10 @@ def _build_editorial_layout(target: dict[str, Any], design_canon: dict[str, Any]
     if family == "loop_gif":
         return {
             **base_layout,
+            "hero_zone": {"x": 0.09, "y": 0.70, "w": 0.28, "h": 0.14},
+            "support_zone": {"x": 0.09, "y": 0.12, "w": 0.22, "h": 0.05},
+            "empty_zone": {"x": 0.56, "y": 0.10, "w": 0.24, "h": 0.40},
+            "focal_zone": {"x": 0.06, "y": 0.08, "w": 0.88, "h": 0.78},
             "curve_box": {"x": 0.06, "y": 0.08, "w": 0.88, "h": 0.78},
             "eyebrow_box": {"x": 0.09, "y": 0.12, "w": 0.22, "h": 0.05},
             "title_box": {"x": 0.09, "y": 0.70, "w": 0.28, "h": 0.14},
@@ -750,6 +867,34 @@ def _build_master_asset_strategy(target: dict[str, Any]) -> dict[str, Any]:
         "source": "manim_hero_bg.png",
         "inherit_visual_dna": family in {"short_cinematic", "essay_video", "motion_preview"},
         "crop_mode": "cover",
+    }
+
+
+def _build_still_base_strategy(target: dict[str, Any]) -> dict[str, Any]:
+    from core.quality.contract_loader import load_quality_contract
+
+    still_family_id = str(target.get("still_family", "")).strip()
+    if not still_family_id:
+        return {
+            "base": None,
+            "background": "solid_dark",
+            "requires_manim": False,
+            "allow_manim_bypass": True,
+            "use_asset_if_available": True,
+        }
+
+    contract = load_quality_contract()
+    still_family = contract.get_still_family(still_family_id)
+    base = still_family.get("base")
+    background = str(still_family.get("background", "solid_dark") or "solid_dark")
+    requires_manim = str(base).strip().lower() == "manim_geometry"
+    use_asset_if_available = background in {"photo_with_veil", "dark_with_geometry_base"} or base not in {None, "null", ""}
+    return {
+        "base": base,
+        "background": background,
+        "requires_manim": requires_manim,
+        "allow_manim_bypass": not requires_manim,
+        "use_asset_if_available": use_asset_if_available,
     }
 
 
@@ -991,7 +1136,15 @@ def _build_render_inputs(
             "slides": target.get("slides", []),
             "chapters": target.get("chapters", []),
             "story_atoms": artifact_plan.get("story_atoms", {}),
+            "style_pack": target.get("style_pack", artifact_plan.get("style_pack")),
             "style_pack_ids": artifact_plan.get("style_pack_ids", []),
+            "motion_grammar": target.get("motion_grammar", artifact_plan.get("motion_grammar")),
+            "typography_system": target.get("typography_system", artifact_plan.get("typography_system")),
+            "still_family": target.get("still_family", artifact_plan.get("still_family")),
+            "color_mode": target.get("color_mode", artifact_plan.get("color_mode")),
+            "negative_space_target": target.get("negative_space_target", artifact_plan.get("negative_space_target")),
+            "accent_intensity": target.get("accent_intensity", artifact_plan.get("accent_intensity")),
+            "grain": target.get("grain", artifact_plan.get("grain")),
             "quality_constraints": artifact_plan.get("quality_constraints", {}),
             "quality_mode": target.get("quality_mode", artifact_plan.get("quality_mode", "absolute")),
             "premium_targets": artifact_plan.get("premium_targets", []),

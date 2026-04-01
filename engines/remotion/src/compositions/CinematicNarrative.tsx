@@ -12,6 +12,9 @@ import {
 import {NarrativeText, type NarrativeRole, type NarrativeZone} from '../components/NarrativeText';
 import {tokens} from '../theme';
 import {Theme} from '../utils/theme';
+import {buildMotionSequences, resolveCueMotionSpec, resolveSceneMotionState} from '../utils/motionSequence';
+import {resolveMotionGrammar} from '../utils/motionGrammar';
+import {applyStylePackToProfile, resolveStylePackFields, resolveStylePackPalette, type ResolvedStylePackFields} from '../utils/stylePack';
 
 type RawCue = {
 	at?: string | number;
@@ -106,6 +109,24 @@ export type CinematicNarrativeProps = {
 		bg_src?: string;
 		editorialLayout?: EditorialLayout;
 		editorial_layout?: EditorialLayout;
+		typography_system?: string;
+		style_pack?: string;
+		motion_grammar?: string;
+		color_mode?: string;
+		negative_space_target?: number;
+		accent_intensity?: number;
+		grain?: number;
+		act_quality_profile?: Record<string, {
+			emotion?: string;
+			tension?: string;
+			breath_points?: number[];
+			silence_ratio?: number;
+			motion_sequence?: Record<string, unknown>;
+			rhythm?: string;
+			stagger_profile?: number[];
+			transition_to?: string;
+			minimum_hold_ms?: number;
+		}>;
 		active_variant?: {
 			id?: string;
 			label?: string;
@@ -148,7 +169,8 @@ type TargetVisualProfile = {
 	heroLockupOffset: string;
 };
 
-const getTargetVisualProfile = (targetId?: string): TargetVisualProfile => {
+const getTargetVisualProfile = (targetId?: string, stylePack?: ResolvedStylePackFields): TargetVisualProfile => {
+	const baseProfile = (() => {
 	switch (targetId) {
 		case 'linkedin_feed_4_5':
 			return {
@@ -231,18 +253,9 @@ const getTargetVisualProfile = (targetId?: string): TargetVisualProfile => {
 				heroLockupOffset: '12%',
 			};
 	}
-};
+	})();
 
-const splitLockupTitle = (title?: string): string[] => {
-	const words = String(title || '').trim().split(/\s+/).filter(Boolean);
-	if (!words.length) {
-		return ['Invisible', 'Architecture'];
-	}
-	if (words.length === 1) {
-		return [words[0], ''];
-	}
-	const midpoint = Math.ceil(words.length / 2);
-	return [words.slice(0, midpoint).join(' '), words.slice(midpoint).join(' ')];
+	return stylePack ? applyStylePackToProfile(baseProfile, stylePack) : baseProfile;
 };
 
 const wordCap = (text?: string, maxWords = 2): string => {
@@ -254,15 +267,32 @@ const wordCap = (text?: string, maxWords = 2): string => {
 		.join(' ');
 };
 
-const StaticBackdrop: React.FC<{frame: number; targetKind?: string; profile: TargetVisualProfile; bgSrc?: string | null; editorialLayout?: EditorialLayout}> = ({
+const GrainOverlay: React.FC<{opacity: number}> = ({opacity}) => (
+	<div
+		style={{
+			position: 'absolute',
+			inset: 0,
+			opacity,
+			mixBlendMode: 'screen',
+			backgroundImage:
+				'radial-gradient(rgba(255,255,255,0.08) 0.6px, transparent 0.7px)',
+			backgroundSize: '10px 10px',
+			pointerEvents: 'none',
+		}}
+	/>
+);
+
+const StaticBackdrop: React.FC<{frame: number; targetKind?: string; profile: TargetVisualProfile; bgSrc?: string | null; editorialLayout?: EditorialLayout; stylePack: ResolvedStylePackFields}> = ({
 	frame,
 	targetKind,
 	profile,
 	bgSrc,
 	editorialLayout,
+	stylePack,
 }) => {
 	const drift = Math.sin(frame / 24) * profile.driftStrength;
 	const glow = Math.cos(frame / 38) * 0.06 + 0.18;
+	const palette = resolveStylePackPalette(stylePack);
 	const assetCrop = editorialLayout?.asset_crop ?? {};
 	const objectPosition = assetCrop.object_position ?? '55% 42%';
 	const veilOpacity = Number(assetCrop.veil_opacity ?? 0.2);
@@ -274,8 +304,8 @@ const StaticBackdrop: React.FC<{frame: number; targetKind?: string; profile: Tar
 			style={{
 				background:
 					targetKind === 'still'
-						? 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.01) 24%, rgba(0,0,0,0) 52%), linear-gradient(180deg, #040404 0%, #0b0b0d 55%, #050505 100%)'
-						: 'linear-gradient(180deg, #020202 0%, #090909 55%, #040404 100%)',
+						? `radial-gradient(circle at 30% 30%, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.01) 24%, rgba(0,0,0,0) 52%), ${palette.field}`
+						: palette.field,
 			}}
 		>
 			{bgSrc ? (
@@ -317,7 +347,7 @@ const StaticBackdrop: React.FC<{frame: number; targetKind?: string; profile: Tar
 							right: '12%',
 							top: profile.railTop,
 							height: 1,
-							background: profile.accentColor,
+							background: palette.rail,
 							opacity: 0.7,
 						}}
 					/>
@@ -340,6 +370,7 @@ const StaticBackdrop: React.FC<{frame: number; targetKind?: string; profile: Tar
 						/>
 					</svg>
 				</AbsoluteFill>
+			<GrainOverlay opacity={Math.min(0.06, stylePack.grain)} />
 			</AbsoluteFill>
 	);
 };
@@ -360,10 +391,12 @@ const PosterHeroBackdrop: React.FC<{
 	targetId?: string;
 	bgSrc?: string | null;
 	editorialLayout?: EditorialLayout;
-}> = ({frame, profile, storyAtoms, activeVariant, targetId, bgSrc, editorialLayout}) => {
+	stylePack: ResolvedStylePackFields;
+}> = ({frame, profile, storyAtoms, activeVariant, targetId, bgSrc, editorialLayout, stylePack}) => {
 	const drift = Math.sin(frame / 52) * 1.1;
 	const titleWord = wordCap(storyAtoms?.resolve_word ?? storyAtoms?.resolveWord ?? 'AIOX', 1) || 'AIOX';
 	const accentLabel = wordCap(storyAtoms?.tagline ?? activeVariant?.label ?? 'Signal', 2);
+	const palette = resolveStylePackPalette(stylePack);
 	const isWide = targetId === 'youtube_thumbnail_16_9';
 	const titleSize = isWide ? 'clamp(2rem, 5vw, 3.3rem)' : 'clamp(2.2rem, 6.2vw, 3.7rem)';
 	const layout = editorialLayout ?? {};
@@ -384,7 +417,7 @@ const PosterHeroBackdrop: React.FC<{
 	return (
 		<AbsoluteFill
 			style={{
-				background: '#000000',
+				background: palette.background,
 			}}
 		>
 			{bgSrc && (
@@ -402,7 +435,7 @@ const PosterHeroBackdrop: React.FC<{
 					}}
 				/>
 			)}
-			<div style={{position: 'absolute', inset: 0, background: '#000000', opacity: veilOpacity}} />
+			<div style={{position: 'absolute', inset: 0, background: palette.background, opacity: veilOpacity}} />
 			<AbsoluteFill
 				style={{
 					transform: `translate(${drift}px, ${drift * 0.25}px)`,
@@ -419,7 +452,7 @@ const PosterHeroBackdrop: React.FC<{
 					<path
 						d={isWide ? 'M 8 74 C 22 66, 42 52, 58 44 C 74 36, 83 28, 92 16' : 'M 10 78 C 21 70, 38 57, 52 46 C 66 35, 79 24, 90 14'}
 						fill="none"
-						stroke="#FFFFFF"
+						stroke={profile.curveStroke}
 						strokeWidth={isWide ? 1.45 : 1.55}
 						strokeLinecap="round"
 						vectorEffect="non-scaling-stroke"
@@ -429,13 +462,13 @@ const PosterHeroBackdrop: React.FC<{
 						cx={Number(((accentAnchor.x ?? (isWide ? 0.92 : 0.90)) as number) * 100).toFixed(2)}
 						cy={Number(((accentAnchor.y ?? (isWide ? 0.16 : 0.14)) as number) * 100).toFixed(2)}
 						r={dotRadius}
-						fill="#FF3366"
+						fill={palette.accent}
 					/>
 				</svg>
 				<div
 					style={{
 						...boxStyle(eyebrowBox),
-						color: '#FF3366',
+						color: palette.accent,
 						fontFamily: tokens.typography.fonts.narrative.family,
 						opacity: eyebrowOpacity,
 					}}
@@ -472,6 +505,7 @@ const PosterHeroBackdrop: React.FC<{
 					</div>
 				</div>
 			</AbsoluteFill>
+			<GrainOverlay opacity={Math.min(0.06, stylePack.grain)} />
 		</AbsoluteFill>
 	);
 };
@@ -697,38 +731,90 @@ const buildCues = (
 };
 
 export const CinematicNarrative: React.FC<CinematicNarrativeProps> = (props) => {
+	const manifest = props.renderManifest ?? {};
 	const currentFrame = useCurrentFrame();
 	const frame = props.frameOverride ?? currentFrame;
 	const {durationInFrames, fps} = useVideoConfig();
-	const targetId = props.target ?? props.targetId ?? props.renderManifest?.targetId;
-	const targetKind = props.targetKind ?? props.renderManifest?.targetKind;
-	const profile = useMemo(() => getTargetVisualProfile(targetId), [targetId]);
-	const storyAtoms = props.renderManifest?.story_atoms;
-	const bgSrc = props.renderManifest?.bgSrc ?? props.renderManifest?.bg_src;
-	const editorialLayout = props.renderManifest?.editorialLayout ?? props.renderManifest?.editorial_layout;
-	const activeVariant = props.renderManifest?.active_variant;
+	const targetId = props.target ?? props.targetId ?? manifest.targetId;
+	const targetKind = props.targetKind ?? manifest.targetKind;
+	const storyAtoms = manifest.story_atoms;
+	const bgSrc = manifest.bgSrc ?? manifest.bg_src;
+	const editorialLayout = manifest.editorialLayout ?? manifest.editorial_layout;
+	const activeVariant = manifest.active_variant;
+	const resolvedStylePack = useMemo(
+		() =>
+			resolveStylePackFields({
+				stylePackId: manifest.style_pack ?? activeVariant?.style_pack_id,
+				explicit: {
+					typography_system: manifest.typography_system,
+					still_family: undefined,
+					motion_grammar: manifest.motion_grammar,
+					color_mode: manifest.color_mode,
+					negative_space_target: manifest.negative_space_target,
+					accent_intensity: manifest.accent_intensity,
+					grain: manifest.grain,
+				},
+			}),
+		[
+			manifest.style_pack,
+			manifest.typography_system,
+			manifest.motion_grammar,
+			manifest.color_mode,
+			manifest.negative_space_target,
+			manifest.accent_intensity,
+			manifest.grain,
+			activeVariant?.style_pack_id,
+		],
+	);
+	const profile = useMemo(() => getTargetVisualProfile(targetId, resolvedStylePack), [targetId, resolvedStylePack]);
+	const motionGrammar = useMemo(
+		() =>
+			resolveMotionGrammar({
+				explicitId: manifest.motion_grammar,
+				stylePackId: resolvedStylePack.stylePackId,
+			}),
+		[manifest.motion_grammar, resolvedStylePack.stylePackId],
+	);
 	const cues = useMemo(() => buildCues(props, fps, durationInFrames), [props, fps, durationInFrames]);
-	const explicitVideoSrc = props.videoSrc ?? props.renderManifest?.videoSrc ?? props.renderManifest?.video_src;
+	const motionSequences = useMemo(
+		() =>
+			buildMotionSequences({
+				manifest,
+				grammar: motionGrammar,
+				fps,
+				durationInFrames,
+			}),
+		[manifest, motionGrammar, fps, durationInFrames],
+	);
+	const explicitVideoSrc = props.videoSrc ?? manifest.videoSrc ?? manifest.video_src;
 	const shouldUseBaseVideo =
 		targetId !== 'linkedin_feed_4_5' &&
 		targetKind !== 'still' &&
 		explicitVideoSrc !== null &&
 		explicitVideoSrc !== '';
 	const videoSrc = shouldUseBaseVideo ? explicitVideoSrc ?? staticFile('manim_base.mp4') : null;
-	const audioCfg = props.renderManifest?.audio;
+	const audioCfg = manifest.audio;
 
 	const turbulenceStart = Math.round(durationInFrames * 0.25);
 	const resolutionStart = Math.round(durationInFrames * 0.7);
 	const breathe = Math.sin((frame / fps) * (Math.PI / 2)) * 0.002;
-	const turbulenceDrift = frame >= turbulenceStart && frame < resolutionStart ? Math.sin(frame / 18) * 10 : 0;
-	const turbulenceScale = frame >= turbulenceStart && frame < resolutionStart ? 1.012 : 1;
-	const resolveSettle = frame >= resolutionStart ? 1 - Math.min(0.01, ((frame - resolutionStart) / (durationInFrames - resolutionStart || 1)) * 0.01) : 1;
+	const sceneMotion = resolveSceneMotionState({
+		frame,
+		sequences: motionSequences,
+		grammar: motionGrammar,
+	});
+	const turbulenceDrift = sceneMotion ? sceneMotion.translateY : frame >= turbulenceStart && frame < resolutionStart ? Math.sin(frame / 18) * 10 : 0;
+	const turbulenceScale = sceneMotion ? sceneMotion.scale : frame >= turbulenceStart && frame < resolutionStart ? 1.012 : 1;
+	const resolveSettle = sceneMotion ? sceneMotion.opacity : frame >= resolutionStart ? 1 - Math.min(0.01, ((frame - resolutionStart) / (durationInFrames - resolutionStart || 1)) * 0.01) : 1;
+	const translateX = sceneMotion?.translateX ?? 0;
+	const backgroundPalette = resolveStylePackPalette(resolvedStylePack);
 
 	return (
-		<AbsoluteFill style={{backgroundColor: Theme.colors.background}}>
+		<AbsoluteFill style={{backgroundColor: backgroundPalette.background}}>
 			<AbsoluteFill
 				style={{
-					transform: `translateY(${turbulenceDrift}px) scale(${(1 + breathe) * turbulenceScale * resolveSettle})`,
+					transform: `translate(${translateX}px, ${turbulenceDrift}px) scale(${(1 + breathe) * turbulenceScale})`,
+					opacity: resolveSettle,
 				}}
 			>
 				{videoSrc ? (
@@ -745,6 +831,7 @@ export const CinematicNarrative: React.FC<CinematicNarrativeProps> = (props) => 
 						targetId={targetId}
 						bgSrc={bgSrc}
 						editorialLayout={editorialLayout}
+						stylePack={resolvedStylePack}
 					/>
 				) : (
 					<StaticBackdrop
@@ -753,6 +840,7 @@ export const CinematicNarrative: React.FC<CinematicNarrativeProps> = (props) => 
 						profile={profile}
 						bgSrc={bgSrc}
 						editorialLayout={editorialLayout}
+						stylePack={resolvedStylePack}
 					/>
 				)}
 			</AbsoluteFill>
@@ -761,7 +849,7 @@ export const CinematicNarrative: React.FC<CinematicNarrativeProps> = (props) => 
 				<Audio src={staticFile(audioCfg.bed)} volume={audioCfg.gain ?? 0.18} />
 			) : null}
 
-			{cues.map((cue) => (
+			{cues.map((cue, cueIndex) => (
 				<Sequence key={cue.id} from={cue.from} durationInFrames={cue.durationInFrames}>
 					<NarrativeText
 						text={cue.text}
@@ -772,6 +860,8 @@ export const CinematicNarrative: React.FC<CinematicNarrativeProps> = (props) => 
 						color={cue.color}
 						align={cue.align}
 						maxWidth={cue.role === 'resolve' ? profile.resolveMaxWidth : profile.textMaxWidth}
+						typographySystem={resolvedStylePack.typographySystem}
+						motionSpec={resolveCueMotionSpec({cue, cueIndex, sequences: motionSequences, fps})}
 					/>
 				</Sequence>
 			))}
