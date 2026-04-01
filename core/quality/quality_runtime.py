@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from core.intelligence.model_capabilities import load_model_capabilities
+from core.intelligence.model_capabilities import load_model_capabilities, refresh_model_capabilities
 from core.quality.brand_validator import validate_frame
 from core.quality.frame_scorer import batch_summary, score_frames
 from core.quality.post_processor import apply_post_fx_to_target
@@ -191,6 +191,8 @@ def run_quality_pipeline(
 def _vision_available() -> bool:
     try:
         capabilities = load_model_capabilities()
+        if not capabilities:
+            capabilities = refresh_model_capabilities()
     except Exception:
         capabilities = []
     return any(bool(capability.supports_vision_plan) for capability in capabilities)

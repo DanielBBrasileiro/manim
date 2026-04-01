@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import platform
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Any
 
 from core.env_loader import load_repo_env
@@ -100,7 +101,7 @@ def _default_profiles() -> dict[str, RuntimeProfile]:
             model_roles={
                 **roles,
                 ROLE_COPY_REFINER: roles[ROLE_QUALITY_PLAN],
-                ROLE_VARIANT_RANKER: roles[ROLE_PLAN],
+                ROLE_VARIANT_RANKER: roles[ROLE_QUALITY_PLAN],
             },
             timeouts=_profile_timeout_map(plan=24.0, retry=36.0, fast=16.0, quality=55.0, vision=36.0, copy=40.0, variant=16.0),
             retry_timeouts=_profile_retry_map(plan=24.0, retry=36.0, fast=24.0, quality=80.0, vision=50.0, copy=56.0, variant=22.0),
@@ -217,10 +218,34 @@ def available_profiles() -> dict[str, RuntimeProfile]:
     return _default_profiles()
 
 
+@lru_cache(maxsize=1)
+def _detected_model_ids() -> set[str]:
+    try:
+        from core.intelligence.model_capabilities import load_model_capabilities, refresh_model_capabilities
+
+        capabilities = load_model_capabilities()
+        if not capabilities:
+            capabilities = refresh_model_capabilities()
+        return {entry.id for entry in capabilities}
+    except Exception:
+        return set()
+
+
+def _has_quality_stack() -> bool:
+    model_ids = _detected_model_ids()
+    return (
+        "qwen2.5:14b-instruct-q4_K_M" in model_ids
+        and "qwen2.5:7b-instruct-q4_K_M" in model_ids
+        and "qwen3-vl:4b-instruct-q4_K_M" in model_ids
+    )
+
+
 def detect_default_profile_name() -> str:
     system = platform.system().lower()
     machine = platform.machine().lower()
     if system == "darwin" and machine == "arm64":
+        if _has_quality_stack():
+            return "air_m4_quality"
         return "air_m4_safe"
     return "desktop_quality"
 
