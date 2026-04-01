@@ -1,0 +1,45 @@
+id: motion_frame
+render_mode: motion
+prompt_template: VideoFramePrompt
+threshold: 70
+dimensions:
+  motion_coherence:
+    weight: 0.20
+    criteria:
+      - "Frame implies coherent motion language and physical behavior"
+  temporal_rhythm:
+    weight: 0.15
+    criteria:
+      - "Frame feels correctly timed inside the sequence"
+  typographic_craft:
+    weight: 0.15
+    criteria:
+      - "Typography remains precise, readable, and system-driven"
+  spatial_intelligence:
+    weight: 0.15
+    criteria:
+      - "Space and composition stay intentional under motion pressure"
+  transition_quality:
+    weight: 0.10
+    criteria:
+      - "Edges of transitions feel premium, not abrupt or arbitrary"
+  emotional_arc:
+    weight: 0.10
+    criteria:
+      - "Frame supports the intended emotional arc of the act"
+  brand_discipline:
+    weight: 0.10
+    criteria:
+      - "Brand rules remain intact under motion"
+  silence_quality:
+    weight: 0.05
+    criteria:
+      - "The frame preserves restraint and cinematic breathing room"
+hard_vetoes:
+  - text_off_canvas
+  - text_overlap_text
+  - zero_hierarchy
+  - illegible_contrast
+  - empty_frame
+  - gradient_detected
+  - logo_detected

@@ -599,6 +599,10 @@ def _expand_target(
     design_canon: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     target = copy.deepcopy(target_spec)
+    target["style_pack"] = _target_style_pack_id(plan, target)
+    target["typography_system"] = _target_typography_system(plan, target)
+    target["still_family"] = _target_still_family(plan, target)
+    target["judge_profile"] = _target_judge_profile(target)
     target["summary"] = _target_summary(target, story_atoms)
     target["duration_sec"] = _target_duration(target, duration)
     target["beats"] = _build_target_beats(target, story_atoms, acts, text_beats)
@@ -616,6 +620,64 @@ def _expand_target(
     target["editorial_layout"] = _build_editorial_layout(target, design_canon or {})
     target["master_asset_strategy"] = _build_master_asset_strategy(target)
     return target
+
+
+def _target_style_pack_id(plan: dict[str, Any], target: dict[str, Any]) -> str:
+    style_pack_ids = [str(item).strip() for item in plan.get("style_pack_ids", []) if str(item).strip()]
+    render_mode = str(target.get("render_mode", "video")).strip().lower()
+    family = _target_family_spec(target)
+
+    if render_mode == "still" or family in {"hero_poster", "thumbnail"}:
+        preferred = "silent_luxury"
+    else:
+        preferred = "kinetic_editorial"
+
+    if preferred in style_pack_ids:
+        return preferred
+    if style_pack_ids:
+        return style_pack_ids[0]
+    return preferred
+
+
+def _target_typography_system(plan: dict[str, Any], target: dict[str, Any]) -> str:
+    from core.quality.contract_loader import load_quality_contract
+
+    contract = load_quality_contract()
+    style_pack = contract.get_style_pack(_target_style_pack_id(plan, target))
+    typography_system = str(style_pack.get("typography_system", "")).strip()
+    if typography_system:
+        return typography_system
+
+    family = _target_family_spec(target)
+    if family in {"hero_poster", "thumbnail"}:
+        return "editorial_minimal"
+    return "editorial_dense"
+
+
+def _target_still_family(plan: dict[str, Any], target: dict[str, Any]) -> str | None:
+    from core.quality.contract_loader import load_quality_contract
+
+    render_mode = str(target.get("render_mode", "video")).strip().lower()
+    if render_mode not in {"still", "carousel"}:
+        return None
+
+    contract = load_quality_contract()
+    style_pack = contract.get_style_pack(_target_style_pack_id(plan, target))
+    still_family = str(style_pack.get("still_family", "")).strip()
+    if still_family:
+        return still_family
+
+    family = _target_family_spec(target)
+    if family in {"hero_poster", "thumbnail"}:
+        return "poster_minimal"
+    return "editorial_portrait"
+
+
+def _target_judge_profile(target: dict[str, Any]) -> str:
+    render_mode = str(target.get("render_mode", "video")).strip().lower()
+    if render_mode == "still":
+        return "premium_still"
+    return "motion_frame"
 
 
 def _build_editorial_layout(target: dict[str, Any], design_canon: dict[str, Any]) -> dict[str, Any]:

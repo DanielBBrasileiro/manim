@@ -7,6 +7,7 @@ Resolves cross-references (easing names → cubic-bezier values).
 from __future__ import annotations
 
 import json
+import copy
 import yaml
 from functools import lru_cache
 from pathlib import Path
@@ -32,6 +33,10 @@ class QualityContract:
         self.typography = self._load_yaml(ROOT / "contracts" / "typography.yaml")
         self.motion = self._load_yaml(ROOT / "contracts" / "motion.yaml")
         self.layout = self._load_yaml(ROOT / "contracts" / "layout.yaml")
+        self.typography_systems = self._load_yaml_dir(ROOT / "contracts" / "typography_systems")
+        self.still_families = self._load_yaml_dir(ROOT / "contracts" / "still_families")
+        self.style_packs = self._load_yaml_dir(ROOT / "contracts" / "style_packs")
+        self.judge_profiles = self._load_yaml_dir(ROOT / "contracts" / "judge_profiles")
 
     def _load_json(self, path: Path) -> dict[str, Any]:
         if not path.exists():
@@ -48,6 +53,22 @@ class QualityContract:
             return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         except Exception:
             return {}
+
+    def _load_yaml_dir(self, path: Path) -> dict[str, dict[str, Any]]:
+        if not path.exists() or not path.is_dir():
+            return {}
+
+        data: dict[str, dict[str, Any]] = {}
+        for file_path in sorted(path.glob("*.yaml")):
+            loaded = self._load_yaml(file_path)
+            if not isinstance(loaded, dict):
+                continue
+            key = str(loaded.get("id") or file_path.stem).strip()
+            if not key:
+                continue
+            loaded.setdefault("id", key)
+            data[key] = loaded
+        return data
 
     def _brand(self) -> dict[str, Any]:
         return self.tokens.get("brand", {})
@@ -122,6 +143,32 @@ class QualityContract:
     def resolve_easing(self, name: str) -> str:
         """Resolve easing name to cubic-bezier string."""
         return _EASING_RESOLVED.get(name.lower(), name)
+
+    def get_typography_system(self, system_id: str | None) -> dict[str, Any]:
+        if not system_id:
+            return {}
+        return copy.deepcopy(self.typography_systems.get(str(system_id).strip(), {}))
+
+    def get_still_family(self, family_id: str | None) -> dict[str, Any]:
+        if not family_id:
+            return {}
+        return copy.deepcopy(self.still_families.get(str(family_id).strip(), {}))
+
+    def get_style_pack(self, pack_id: str | None) -> dict[str, Any]:
+        if not pack_id:
+            return {}
+        return copy.deepcopy(self.style_packs.get(str(pack_id).strip(), {}))
+
+    def get_judge_profile(self, render_mode: str | None, profile_id: str | None = None) -> dict[str, Any]:
+        if profile_id:
+            explicit = self.judge_profiles.get(str(profile_id).strip(), {})
+            if explicit:
+                return copy.deepcopy(explicit)
+
+        resolved_mode = str(render_mode or "still").strip().lower()
+        if resolved_mode == "still":
+            return copy.deepcopy(self.judge_profiles.get("premium_still", {}))
+        return copy.deepcopy(self.judge_profiles.get("motion_frame", {}))
 
 
 @lru_cache(maxsize=1)

@@ -5,15 +5,8 @@ Uses the vision model (Qwen3-VL or equivalent) to evaluate rendered
 frames against the AIOX premium design checklist derived from
 contracts/global_laws.yaml and brand DNA.
 
-Scoring dimensions:
-  1. Composition — negative space, balance, hierarchy
-  2. Typography — weight, size, readability, word count
-  3. Color — palette adherence, contrast, harmony
-  4. Motion Signature — implied movement, tension, resolution
-  5. Brand Compliance — forbidden patterns, logo rules, gradient rules
-
-Each dimension is scored 0-100. The composite score is a weighted average.
-A frame passes the quality gate if composite >= threshold (default 70).
+Scoring dimensions are now artifact-aware and loaded from judge profiles.
+Stills use the premium_still profile; motion uses the motion_frame profile.
 """
 
 from __future__ import annotations
@@ -35,7 +28,7 @@ load_repo_env()
 # Quality checklist (derived from contracts/global_laws.yaml)
 # ---------------------------------------------------------------------------
 
-QUALITY_DIMENSIONS = {
+LEGACY_QUALITY_DIMENSIONS = {
     "composition": {
         "weight": 0.25,
         "criteria": [
@@ -105,6 +98,7 @@ class FrameScore:
     raw_llm_response: str = ""
     latency_ms: float = 0.0
     model_used: str = ""
+    judge_profile: str = ""
     error: str | None = None
 
     def compute_composite(self) -> float:
@@ -135,6 +129,7 @@ class FrameScore:
             ],
             "latency_ms": round(self.latency_ms, 2),
             "model": self.model_used,
+            "judge_profile": self.judge_profile,
             "error": self.error,
         }
 
@@ -150,12 +145,44 @@ class FrameScore:
 # Vision prompt construction
 # ---------------------------------------------------------------------------
 
-def _build_score_prompt(context: dict[str, Any] | None = None, render_mode: str = "still") -> str:
+def _normalize_render_mode(render_mode: str | None) -> str:
+    mode = str(render_mode or "still").strip().lower()
+    if mode in {"still", "image", "poster", "premium_still", "thumbnail"}:
+        return "still"
+    return "motion"
+
+
+def _resolve_judge_profile(context: dict[str, Any] | None, render_mode: str) -> dict[str, Any]:
+    """Build the vision scoring prompt with unified brand context."""
+    from core.quality.contract_loader import load_quality_contract
+
+    contract = load_quality_contract()
+    profile_id = ""
+    if isinstance(context, dict):
+        profile_id = str(
+            context.get("judge_profile")
+            or context.get("judge_profile_id")
+            or ""
+        ).strip()
+    profile = contract.get_judge_profile(render_mode, profile_id)
+    if not profile:
+        profile = {
+            "id": f"legacy_{render_mode}",
+            "dimensions": LEGACY_QUALITY_DIMENSIONS,
+        }
+    return profile
+
+
+def _build_score_prompt(context: dict[str, Any] | None = None, render_mode: str = "still") -> tuple[str, dict[str, Any]]:
     """Build the vision scoring prompt with unified brand context."""
     from core.quality.contract_loader import load_quality_contract
 
     contract = load_quality_contract()
     brand_laws = contract.get_vision_context()
+    judge_profile = _resolve_judge_profile(context, render_mode)
+    dimension_specs = judge_profile.get("dimensions", {}) if isinstance(judge_profile.get("dimensions", {}), dict) else {}
+    if not dimension_specs:
+        dimension_specs = LEGACY_QUALITY_DIMENSIONS
 
     archetype = (context or {}).get("archetype", "")
     archetype_block = ""
@@ -165,26 +192,47 @@ def _build_score_prompt(context: dict[str, Any] | None = None, render_mode: str 
             archetype_block = f"\n# ARCHETYPE CONTEXT\n{archetype_block}\n"
 
     criteria_text = ""
-    for dim_name, dim_info in QUALITY_DIMENSIONS.items():
-        criteria_list = "\n".join(f"    - {c}" for c in dim_info["criteria"])
-        criteria_text += f"\n  {dim_name} (weight={dim_info['weight']}):\n{criteria_list}\n"
-
-    # Adjust weights for video vs still
-    if render_mode == "video":
-        # Motion signature matters more for video; negative space slightly less
-        criteria_text = criteria_text.replace("weight=0.15", "weight=0.25")
-        criteria_text = criteria_text.replace("weight=0.25", "weight=0.15")
+    for dim_name, dim_info in dimension_specs.items():
+        criteria = dim_info.get("criteria", [])
+        criteria_list = "\n".join(f"    - {c}" for c in criteria)
+        criteria_text += f"\n  {dim_name} (weight={dim_info.get('weight', 0.0)}):\n{criteria_list}\n"
 
     context_block = ""
     if context:
         context_block = f"\nAdditional context about this frame:\n{json.dumps(context, indent=2)[:500]}\n"
 
-    return f"""You are a premium visual quality auditor for AIOX Studio.
+    contract_context_lines: list[str] = []
+    if context:
+        for label, keys in (
+            ("STYLE PACK", ("style_pack_id", "style_pack")),
+            ("TYPOGRAPHY SYSTEM", ("typography_system",)),
+            ("STILL FAMILY", ("still_family",)),
+        ):
+            value = next((context.get(key) for key in keys if context.get(key)), None)
+            if value:
+                contract_context_lines.append(f"{label}: {value}")
+    contract_context = (
+        "\n# ACTIVE CONTRACTS\n" + "\n".join(contract_context_lines) + "\n"
+        if contract_context_lines
+        else ""
+    )
+
+    response_shape = {
+        dim_name: {"score": 85, "issues": [], "notes": "Short rationale"}
+        for dim_name in dimension_specs
+    }
+
+    prompt = f"""You are a premium visual quality auditor for AIOX Studio.
 Analyze this rendered frame against the design laws and quality checklist below.
 
 # MANDATORY DESIGN LAWS
 {brand_laws}
 {archetype_block}
+{contract_context}
+# JUDGE PROFILE
+PROFILE: {judge_profile.get("id", f"{render_mode}_judge")}
+RENDER MODE: {render_mode}
+
 # QUALITY CHECKLIST
 {criteria_text}
 {context_block}
@@ -195,16 +243,11 @@ For each dimension, provide:
 - notes: brief explanation of the score
 
 Return ONLY a JSON object with this exact shape:
-{{
-  "composition": {{"score": 85, "issues": [], "notes": "Clean layout with ample negative space"}},
-  "typography": {{"score": 90, "issues": [], "notes": "Minimal text, appropriate weight"}},
-  "color": {{"score": 80, "issues": [], "notes": "Monochromatic palette, good contrast"}},
-  "motion_signature": {{"score": 70, "issues": ["Lacks implied movement"], "notes": "Static feel"}},
-  "brand_compliance": {{"score": 95, "issues": [], "notes": "Fully compliant"}}
-}}
+{json.dumps(response_shape, indent=2)}
 
 No markdown. No prose. Only the JSON object.
 """
+    return prompt, judge_profile
 
 
 # ---------------------------------------------------------------------------
@@ -258,8 +301,9 @@ def score_frame(
         return result
 
     # Build prompt
-    render_mode = (context or {}).get("render_mode", "still")
-    prompt = _build_score_prompt(context, render_mode=render_mode)
+    render_mode = _normalize_render_mode((context or {}).get("render_mode", "still"))
+    prompt, judge_profile = _build_score_prompt(context, render_mode=render_mode)
+    result.judge_profile = str(judge_profile.get("id", ""))
 
     # Call vision model via Ollama
     try:
@@ -289,7 +333,7 @@ def score_frame(
         result.latency_ms = (time.time() - start) * 1000
 
         # Parse response
-        dimensions = _parse_score_response(response_text)
+        dimensions = _parse_score_response(response_text, judge_profile)
         result.dimensions = dimensions
         result.compute_composite()
         result.passed = result.composite_score >= threshold
@@ -309,7 +353,7 @@ def score_frame(
         return result
 
 
-def _parse_score_response(response_text: str) -> list[DimensionScore]:
+def _parse_score_response(response_text: str, judge_profile: dict[str, Any] | None = None) -> list[DimensionScore]:
     """Parse the JSON score response from the vision LLM."""
     # Try to extract JSON from the response
     text = response_text.strip()
@@ -331,12 +375,18 @@ def _parse_score_response(response_text: str) -> list[DimensionScore]:
             try:
                 data = json.loads(text[start:end])
             except json.JSONDecodeError:
-                return _fallback_dimensions()
+                return _fallback_dimensions(judge_profile)
         else:
-            return _fallback_dimensions()
+            return _fallback_dimensions(judge_profile)
+
+    dimension_specs = {}
+    if isinstance(judge_profile, dict):
+        dimension_specs = judge_profile.get("dimensions", {}) if isinstance(judge_profile.get("dimensions", {}), dict) else {}
+    if not dimension_specs:
+        dimension_specs = LEGACY_QUALITY_DIMENSIONS
 
     dimensions = []
-    for dim_name, dim_info in QUALITY_DIMENSIONS.items():
+    for dim_name, dim_info in dimension_specs.items():
         dim_data = data.get(dim_name, {})
         if isinstance(dim_data, dict):
             score = max(0, min(100, int(dim_data.get("score", 50))))
@@ -360,8 +410,13 @@ def _parse_score_response(response_text: str) -> list[DimensionScore]:
     return dimensions
 
 
-def _fallback_dimensions() -> list[DimensionScore]:
+def _fallback_dimensions(judge_profile: dict[str, Any] | None = None) -> list[DimensionScore]:
     """Return neutral scores when LLM parsing fails."""
+    dimension_specs = {}
+    if isinstance(judge_profile, dict):
+        dimension_specs = judge_profile.get("dimensions", {}) if isinstance(judge_profile.get("dimensions", {}), dict) else {}
+    if not dimension_specs:
+        dimension_specs = LEGACY_QUALITY_DIMENSIONS
     return [
         DimensionScore(
             name=dim_name,
@@ -370,7 +425,7 @@ def _fallback_dimensions() -> list[DimensionScore]:
             issues=["LLM response could not be parsed"],
             notes="Fallback score — manual review recommended",
         )
-        for dim_name, dim_info in QUALITY_DIMENSIONS.items()
+        for dim_name, dim_info in dimension_specs.items()
     ]
 
 
