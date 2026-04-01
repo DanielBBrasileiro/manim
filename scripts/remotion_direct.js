@@ -52,7 +52,6 @@ const TARGET_ALIASES = {
   "youtube-thumbnail-16-9": "youtube-thumbnail-16-9",
 };
 
-const requireFromRemotion = createRequire(path.join(REMOTION_ROOT, "package.json"));
 const BUNDLER_DIST = path.join(REMOTION_ROOT, "node_modules", "@remotion", "bundler", "dist");
 const RENDERER_DIST = path.join(REMOTION_ROOT, "node_modules", "@remotion", "renderer", "dist");
 
