@@ -361,11 +361,11 @@ const PosterHeroBackdrop: React.FC<{
 	bgSrc?: string | null;
 	editorialLayout?: EditorialLayout;
 }> = ({frame, profile, storyAtoms, activeVariant, targetId, bgSrc, editorialLayout}) => {
-	const drift = Math.sin(frame / 52) * 1.4;
+	const drift = Math.sin(frame / 52) * 1.1;
 	const titleWord = wordCap(storyAtoms?.resolve_word ?? storyAtoms?.resolveWord ?? 'AIOX', 1) || 'AIOX';
 	const accentLabel = wordCap(storyAtoms?.tagline ?? activeVariant?.label ?? 'Signal', 2);
 	const isWide = targetId === 'youtube_thumbnail_16_9';
-	const titleSize = isWide ? 'clamp(2.4rem, 6vw, 4rem)' : 'clamp(2.8rem, 8vw, 4.5rem)';
+	const titleSize = isWide ? 'clamp(2rem, 5vw, 3.3rem)' : 'clamp(2.2rem, 6.2vw, 3.7rem)';
 	const layout = editorialLayout ?? {};
 	const eyebrowBox = layout.eyebrow_box ?? {x: isWide ? 0.08 : 0.11, y: 0.14, w: 0.26, h: 0.05};
 	const titleBox = layout.title_box ?? {x: isWide ? 0.08 : 0.11, y: isWide ? 0.66 : 0.70, w: isWide ? 0.30 : 0.34, h: 0.16};
@@ -373,9 +373,13 @@ const PosterHeroBackdrop: React.FC<{
 	const accentAnchor = layout.accent_anchor ?? {x: isWide ? 0.92 : 0.90, y: isWide ? 0.16 : 0.14};
 	const assetCrop = layout.asset_crop ?? {};
 	const objectPosition = assetCrop.object_position ?? (isWide ? '64% 44%' : '58% 46%');
-	const veilOpacity = Number(assetCrop.veil_opacity ?? 0.34);
+	const veilOpacity = Number(assetCrop.veil_opacity ?? 0.54);
 	const grayscale = Number(assetCrop.grayscale ?? 1.0);
-	const contrast = Number(assetCrop.contrast ?? 1.18);
+	const contrast = Number(assetCrop.contrast ?? 1.1);
+	const titleOpacity = isWide ? 0.92 : 0.88;
+	const eyebrowOpacity = 0.78;
+	const curveOpacity = isWide ? 0.82 : 0.74;
+	const dotRadius = isWide ? 1.35 : 1.18;
 
 	return (
 		<AbsoluteFill
@@ -393,8 +397,8 @@ const PosterHeroBackdrop: React.FC<{
 						height: '100%',
 						objectFit: 'cover',
 						objectPosition,
-						filter: `grayscale(${grayscale}) contrast(${contrast}) brightness(0.78)`,
-						opacity: 0.92,
+						filter: `grayscale(${grayscale}) contrast(${contrast}) brightness(0.58)`,
+						opacity: 0.72,
 					}}
 				/>
 			)}
@@ -416,14 +420,15 @@ const PosterHeroBackdrop: React.FC<{
 						d={isWide ? 'M 8 74 C 22 66, 42 52, 58 44 C 74 36, 83 28, 92 16' : 'M 10 78 C 21 70, 38 57, 52 46 C 66 35, 79 24, 90 14'}
 						fill="none"
 						stroke="#FFFFFF"
-						strokeWidth={isWide ? 1.8 : 2}
+						strokeWidth={isWide ? 1.45 : 1.55}
 						strokeLinecap="round"
 						vectorEffect="non-scaling-stroke"
+						opacity={curveOpacity}
 					/>
 					<circle
 						cx={Number(((accentAnchor.x ?? (isWide ? 0.92 : 0.90)) as number) * 100).toFixed(2)}
 						cy={Number(((accentAnchor.y ?? (isWide ? 0.16 : 0.14)) as number) * 100).toFixed(2)}
-						r={1.6}
+						r={dotRadius}
 						fill="#FF3366"
 					/>
 				</svg>
@@ -432,14 +437,15 @@ const PosterHeroBackdrop: React.FC<{
 						...boxStyle(eyebrowBox),
 						color: '#FF3366',
 						fontFamily: tokens.typography.fonts.narrative.family,
+						opacity: eyebrowOpacity,
 					}}
 				>
 					<div
 						style={{
-							fontSize: '0.72rem',
+							fontSize: '0.58rem',
 							fontWeight: 300,
 							textTransform: 'uppercase',
-							letterSpacing: '0.28em',
+							letterSpacing: '0.34em',
 							lineHeight: 1.2,
 						}}
 					>
@@ -451,6 +457,7 @@ const PosterHeroBackdrop: React.FC<{
 						...boxStyle(titleBox),
 						color: '#FFFFFF',
 						fontFamily: tokens.typography.fonts.narrative.family,
+						opacity: titleOpacity,
 					}}
 				>
 					<div
@@ -458,7 +465,7 @@ const PosterHeroBackdrop: React.FC<{
 							fontSize: titleSize,
 							fontWeight: 300,
 							lineHeight: 0.92,
-							letterSpacing: '-0.055em',
+							letterSpacing: '-0.065em',
 						}}
 					>
 						{titleWord}

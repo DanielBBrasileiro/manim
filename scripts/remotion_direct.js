@@ -15,6 +15,7 @@ const BUNDLE_CACHE_MANIFEST = path.join(BUNDLE_CACHE_DIR, "bundle-manifest.json"
 const DEFAULT_COMPOSITION = "short-cinematic-vertical";
 const DEFAULT_TIMEOUT_MS = Number(process.env.REMOTION_RENDER_TIMEOUT_MS || "120000");
 const SYSTEM_CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const PLAYWRIGHT_CACHE_DIR = path.join(os.homedir(), "Library", "Caches", "ms-playwright");
 const DEFAULT_STILL_EXTENSION = ".png";
 const TARGET_ALIASES = {
   cinematicnarrative: "short-cinematic-vertical",
@@ -91,6 +92,31 @@ const resolveBrowserExecutable = () => {
   if (fromEnv && fs.existsSync(fromEnv)) {
     return fromEnv;
   }
+
+  try {
+    if (fs.existsSync(PLAYWRIGHT_CACHE_DIR)) {
+      const candidates = fs
+        .readdirSync(PLAYWRIGHT_CACHE_DIR, {withFileTypes: true})
+        .filter((entry) => entry.isDirectory() && entry.name.startsWith("chromium-"))
+        .map((entry) =>
+          path.join(
+            PLAYWRIGHT_CACHE_DIR,
+            entry.name,
+            "chrome-mac-arm64",
+            "Google Chrome for Testing.app",
+            "Contents",
+            "MacOS",
+            "Google Chrome for Testing",
+          ),
+        )
+        .filter((candidate) => fs.existsSync(candidate))
+        .sort()
+        .reverse();
+      if (candidates.length > 0) {
+        return candidates[0];
+      }
+    }
+  } catch (_) {}
 
   if (fs.existsSync(SYSTEM_CHROME)) {
     return SYSTEM_CHROME;
@@ -300,6 +326,16 @@ const makeRendererOptions = () => ({
   chromiumOptions: {
     headless: true,
     ignoreCertificateErrors: true,
+    gl: "angle",
+    disableWebSecurity: true,
+    args: [
+      "--no-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+      "--disable-software-rasterizer",
+      "--disable-background-networking",
+      "--disable-background-timer-throttling",
+    ],
   },
   logLevel: "info",
   timeoutInMilliseconds: DEFAULT_TIMEOUT_MS,

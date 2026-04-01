@@ -17,6 +17,7 @@ const BUNDLE_CACHE_MANIFEST = path.join(BUNDLE_CACHE_DIR, "bundle-manifest.json"
 const DEFAULT_COMPOSITION = "short-cinematic-vertical";
 const DEFAULT_TIMEOUT_MS = Number(process.env.REMOTION_RENDER_TIMEOUT_MS || "60000");
 const SYSTEM_CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const PLAYWRIGHT_CACHE_DIR = path.join(os.homedir(), "Library", "Caches", "ms-playwright");
 const DEFAULT_STILL_EXTENSION = ".png";
 
 const TARGET_ALIASES = {
@@ -69,6 +70,30 @@ const normalizeCompositionId = (value) => {
 const resolveBrowserExecutable = () => {
   const fromEnv = process.env.REMOTION_BROWSER_EXECUTABLE;
   if (fromEnv && fs.existsSync(fromEnv)) return fromEnv;
+  try {
+    if (fs.existsSync(PLAYWRIGHT_CACHE_DIR)) {
+      const candidates = fs
+        .readdirSync(PLAYWRIGHT_CACHE_DIR, {withFileTypes: true})
+        .filter((entry) => entry.isDirectory() && entry.name.startsWith("chromium-"))
+        .map((entry) =>
+          path.join(
+            PLAYWRIGHT_CACHE_DIR,
+            entry.name,
+            "chrome-mac-arm64",
+            "Google Chrome for Testing.app",
+            "Contents",
+            "MacOS",
+            "Google Chrome for Testing",
+          ),
+        )
+        .filter((candidate) => fs.existsSync(candidate))
+        .sort()
+        .reverse();
+      if (candidates.length > 0) {
+        return candidates[0];
+      }
+    }
+  } catch (_) {}
   if (fs.existsSync(SYSTEM_CHROME)) return SYSTEM_CHROME;
   return null;
 };
@@ -184,44 +209,74 @@ const loadRenderer = () => {
 
 const makeRendererOptions = () => ({
   browserExecutable,
-  chromiumOptions: { headless: true, ignoreCertificateErrors: true },
+  chromiumOptions: {
+    headless: true,
+    ignoreCertificateErrors: true,
+    gl: "angle",
+    disableWebSecurity: true,
+    args: [
+      "--no-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+      "--disable-software-rasterizer",
+      "--disable-background-networking",
+      "--disable-background-timer-throttling",
+    ],
+  },
   logLevel: "warn",
   timeoutInMilliseconds: DEFAULT_TIMEOUT_MS,
 });
 
 let _cachedBundleUrl = null;
+let _bundlePromise = null;
 
 const ensureBundle = async () => {
+  if (_cachedBundleUrl) {
+    return _cachedBundleUrl;
+  }
+
+  if (_bundlePromise) {
+    return _bundlePromise;
+  }
+
   const reusableBundle = findReusableBundle();
   if (reusableBundle) {
     syncPublicAssets(reusableBundle);
     _cachedBundleUrl = reusableBundle;
     return reusableBundle;
   }
-  console.log("[Daemon] Bundling Remotion project on startup...");
-  const { bundle } = loadBundler();
-  const serveUrl = await bundle({
-    askAIEnabled: false,
-    entryPoint: ENTRY_POINT,
-    enableCaching: true,
-    experimentalClientSideRenderingEnabled: false,
-    experimentalVisualModeEnabled: false,
-    ignoreRegisterRootWarning: true,
-    keyboardShortcutsEnabled: false,
-    publicDir: PUBLIC_DIR,
-    rootDir: REMOTION_ROOT,
-    rspack: true,
-    webpackOverride: (config) => {
-      config.resolve = config.resolve || {};
-      config.resolve.fallback = { ...(config.resolve.fallback || {}), fs: false, path: false };
-      return config;
-    },
-  });
-  writeBundleManifest(serveUrl);
-  syncPublicAssets(serveUrl);
-  _cachedBundleUrl = serveUrl;
-  console.log(`[Daemon] Bundle ready at: ${serveUrl}`);
-  return serveUrl;
+  _bundlePromise = (async () => {
+    console.log("[Daemon] Bundling Remotion project on startup...");
+    const { bundle } = loadBundler();
+    const serveUrl = await bundle({
+      askAIEnabled: false,
+      entryPoint: ENTRY_POINT,
+      enableCaching: true,
+      experimentalClientSideRenderingEnabled: false,
+      experimentalVisualModeEnabled: false,
+      ignoreRegisterRootWarning: true,
+      keyboardShortcutsEnabled: false,
+      publicDir: PUBLIC_DIR,
+      rootDir: REMOTION_ROOT,
+      rspack: true,
+      webpackOverride: (config) => {
+        config.resolve = config.resolve || {};
+        config.resolve.fallback = { ...(config.resolve.fallback || {}), fs: false, path: false };
+        return config;
+      },
+    });
+    writeBundleManifest(serveUrl);
+    syncPublicAssets(serveUrl);
+    _cachedBundleUrl = serveUrl;
+    console.log(`[Daemon] Bundle ready at: ${serveUrl}`);
+    return serveUrl;
+  })();
+
+  try {
+    return await _bundlePromise;
+  } finally {
+    _bundlePromise = null;
+  }
 };
 
 const loadCompositions = async (serveUrl, inputProps) => {
@@ -233,6 +288,16 @@ const loadCompositions = async (serveUrl, inputProps) => {
 const app = express();
 app.use(cors());
 app.use(bodyParser.json({ limit: "50mb" }));
+
+app.get("/health", async (_req, res) => {
+  res.json({
+    ok: true,
+    browserExecutable,
+    bundleReady: Boolean(_cachedBundleUrl),
+    bundleWarming: Boolean(_bundlePromise),
+    serveUrl: _cachedBundleUrl,
+  });
+});
 
 app.post("/render", async (req, res) => {
   try {
@@ -301,8 +366,13 @@ app.post("/render", async (req, res) => {
 });
 
 const PORT = 3333;
-app.listen(PORT, async () => {
+app.listen(PORT, () => {
   console.log(`🚀 AIOX Remotion Daemon v5.0 started on port ${PORT}`);
-  await ensureBundle();
-  console.log(`✅ Daemon is hot and ready for 500ms zero-bundle renders!`);
+  ensureBundle()
+    .then(() => {
+      console.log(`✅ Daemon is hot and ready for 500ms zero-bundle renders!`);
+    })
+    .catch((error) => {
+      console.error("[Daemon] Startup warmup failed:", error);
+    });
 });
