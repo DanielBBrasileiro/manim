@@ -303,20 +303,38 @@ const loadRenderer = () => {
   console.log(" - require get-compositions.js");
   const {getCompositions} = require(path.join(RENDERER_DIST, "get-compositions.js"));
   console.log(`   ok em ${Date.now() - startedAt}ms`);
-  console.log(" - require render-media.js");
-  const {renderMedia} = require(path.join(RENDERER_DIST, "render-media.js"));
-  console.log(`   ok em ${Date.now() - startedAt}ms`);
-  let renderStill = null;
-  try {
-    console.log(" - require render-still.js");
-    ({renderStill} = require(path.join(RENDERER_DIST, "render-still.js")));
-    console.log(`   ok em ${Date.now() - startedAt}ms`);
-  } catch (_error) {
-    renderStill = null;
-  }
-  rendererApi = {getCompositions, renderMedia, renderStill};
+  rendererApi = {
+    getCompositions,
+    renderMedia: null,
+    renderStill: null,
+    startedAt,
+  };
   console.log(`Renderer Remotion pronto em ${Date.now() - startedAt}ms`);
   return rendererApi;
+};
+
+const ensureRenderMedia = () => {
+  const renderer = loadRenderer();
+  if (!renderer.renderMedia) {
+    console.log(" - require render-media.js");
+    ({renderMedia: renderer.renderMedia} = require(path.join(RENDERER_DIST, "render-media.js")));
+    console.log(`   ok em ${Date.now() - renderer.startedAt}ms`);
+  }
+  return renderer.renderMedia;
+};
+
+const ensureRenderStill = () => {
+  const renderer = loadRenderer();
+  if (renderer.renderStill === null) {
+    try {
+      console.log(" - require render-still.js");
+      ({renderStill: renderer.renderStill} = require(path.join(RENDERER_DIST, "render-still.js")));
+      console.log(`   ok em ${Date.now() - renderer.startedAt}ms`);
+    } catch (_error) {
+      renderer.renderStill = false;
+    }
+  }
+  return renderer.renderStill || null;
 };
 
 const makeRendererOptions = () => ({
@@ -453,7 +471,7 @@ const renderComposition = async () => {
   console.log(`Renderizando ${compositionId} para ${outputLocation}...`);
   const startedAt = Date.now();
   let lastLoggedProgress = -1;
-  const {renderMedia} = loadRenderer();
+  const renderMedia = ensureRenderMedia();
 
   const concurrency = Number(process.env.REMOTION_CONCURRENCY || "1") || 1;
   await renderMedia({
@@ -515,7 +533,7 @@ const renderStill = async () => {
     );
   }
 
-  const {renderStill: renderStillApi} = loadRenderer();
+  const renderStillApi = ensureRenderStill();
   if (!renderStillApi) {
     throw new Error("renderStill nao esta disponivel na versao local do Remotion.");
   }
