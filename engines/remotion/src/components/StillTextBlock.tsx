@@ -43,6 +43,7 @@ export const StillTextBlock: React.FC<StillTextBlockProps> = ({
 		typographySystem,
 	});
 	const resolvedAlign = typography?.textAlign ?? align ?? 'left';
+	const opticalShift = typography?.opticalShiftPx ?? 0;
 
 	return (
 		<div
@@ -78,6 +79,7 @@ export const StillTextBlock: React.FC<StillTextBlockProps> = ({
 					textTransform: uppercase || role === 'resolve' ? 'uppercase' : 'none',
 					whiteSpace: typography ? 'pre-line' : 'pre-wrap',
 					margin: 0,
+					...(opticalShift !== 0 ? {transform: `translateY(${opticalShift}px)`} : {}),
 				}}
 			>
 				{typography?.text ?? text}

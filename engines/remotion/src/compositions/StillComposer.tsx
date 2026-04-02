@@ -1,6 +1,7 @@
 import React, {useMemo} from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
 import {StillTextBlock} from '../components/StillTextBlock';
+import {CompositionPrimitive} from '../components/CompositionPrimitive';
 import {tokens} from '../theme';
 import {Theme} from '../utils/theme';
 import {getStillFamily, getStylePack} from '../utils/stillContracts';
@@ -72,6 +73,7 @@ export type StillComposerProps = {
 		grain?: number;
 		still_base_strategy?: StillBaseStrategy;
 		summary?: string;
+		seed?: string;
 	};
 };
 
@@ -91,20 +93,24 @@ const lineCap = (text?: string, maxWords = 10): string =>
 		.slice(0, maxWords)
 		.join(' ');
 
-const GrainOverlay: React.FC<{opacity: number}> = ({opacity}) => (
-	<div
-		style={{
-			position: 'absolute',
-			inset: 0,
-			opacity,
-			mixBlendMode: 'screen',
-			backgroundImage:
-				'radial-gradient(rgba(255,255,255,0.08) 0.6px, transparent 0.7px)',
-			backgroundSize: '10px 10px',
-			pointerEvents: 'none',
-		}}
-	/>
-);
+const GrainOverlay: React.FC<{opacity: number; inkColor?: string}> = ({opacity, inkColor}) => {
+	const dot = inkColor
+		? inkColor.replace(/,\s*[\d.]+\)$/, ',0.10)')
+		: 'rgba(255,255,255,0.08)';
+	return (
+		<div
+			style={{
+				position: 'absolute',
+				inset: 0,
+				opacity,
+				mixBlendMode: 'screen',
+				backgroundImage: `radial-gradient(${dot} 0.6px, transparent 0.7px)`,
+				backgroundSize: '10px 10px',
+				pointerEvents: 'none',
+			}}
+		/>
+	);
+};
 
 export const StillComposer: React.FC<StillComposerProps> = ({target, targetId, renderManifest}) => {
 	const manifest = renderManifest ?? {};
@@ -173,10 +179,12 @@ export const StillComposer: React.FC<StillComposerProps> = ({target, targetId, r
 	);
 	const brandText = tokens.brand.identity.name;
 	const accentOpacity = Math.max(0.08, resolvedStylePack.accentIntensity);
-	const grainOpacity = Math.min(0.08, resolvedStylePack.grain ?? stillFamily?.grain ?? 0.04);
+	const grainOpacity = Math.max(palette.grainLift, resolvedStylePack.grain ?? stillFamily?.grain ?? 0.04);
 	const isEditorialPortrait = stillFamily?.id === 'editorial_portrait';
 	const titleRole = isEditorialPortrait ? 'climax' : 'resolve';
 	const backgroundColor = palette.background;
+	const inkColor = palette.ink;
+	const seed = manifest.seed ?? resolvedTargetId ?? 'still-default-seed';
 
 	return (
 		<AbsoluteFill style={{backgroundColor}}>
@@ -226,16 +234,14 @@ export const StillComposer: React.FC<StillComposerProps> = ({target, targetId, r
 
 			{stillFamily?.accent === 'single_rule_line' ? (
 				<>
-					<div
-						style={{
-							position: 'absolute',
-							left: `${(layout.curveBox.x * 100).toFixed(3)}%`,
-							top: `${((layout.accentAnchor.y ?? 0.14) * 100).toFixed(3)}%`,
-							width: `${(layout.curveBox.w * 42).toFixed(3)}%`,
-							height: 1,
-							background: '#FFFFFF',
-							opacity: accentOpacity,
-						}}
+					<CompositionPrimitive
+						seed={seed}
+						type={resolvedStylePack.primitiveFamily}
+						weight={resolvedStylePack.primitiveWeight}
+						opacity={accentOpacity}
+						tension={resolvedStylePack.primitiveTension}
+						color="#FFFFFF"
+						style={boxStyle(layout.curveBox)}
 					/>
 					<div
 						style={{
@@ -265,7 +271,7 @@ export const StillComposer: React.FC<StillComposerProps> = ({target, targetId, r
 				role={titleRole}
 				box={layout.titleBox}
 				typographySystem={typographySystem}
-				color="#FFFFFF"
+				color={inkColor}
 				align={isEditorialPortrait ? 'left' : 'left'}
 				weight={isEditorialPortrait ? 400 : 300}
 			/>
@@ -276,7 +282,7 @@ export const StillComposer: React.FC<StillComposerProps> = ({target, targetId, r
 					role={isEditorialPortrait ? 'statement' : 'brand'}
 					box={layout.eyebrowBox}
 					typographySystem={typographySystem}
-					color={isEditorialPortrait ? '#FFFFFF' : palette.accent}
+					color={isEditorialPortrait ? inkColor : palette.accent}
 					align="left"
 					weight={isEditorialPortrait ? 300 : 300}
 					uppercase={!isEditorialPortrait}
@@ -301,7 +307,7 @@ export const StillComposer: React.FC<StillComposerProps> = ({target, targetId, r
 				/>
 			) : null}
 
-			<GrainOverlay opacity={grainOpacity} />
+			<GrainOverlay opacity={grainOpacity} inkColor={palette.curve} />
 		</AbsoluteFill>
 	);
 };

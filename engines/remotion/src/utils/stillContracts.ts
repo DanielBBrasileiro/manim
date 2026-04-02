@@ -10,6 +10,10 @@ export type StillFamilyContract = {
 	max_text_elements: number;
 	max_visual_elements: number;
 	grain: number;
+	primitive_family?: string;
+	primitive_weight?: number;
+	primitive_opacity?: number;
+	primitive_tension?: number;
 };
 
 export type StylePackContract = {
@@ -20,6 +24,7 @@ export type StylePackContract = {
 	grain: number;
 	accent_intensity: number;
 	negative_space_target: number;
+	primitive_family?: string;
 };
 
 const STILL_FAMILIES: Record<string, StillFamilyContract> = {
@@ -35,6 +40,8 @@ const STILL_FAMILIES: Record<string, StillFamilyContract> = {
 		max_text_elements: 2,
 		max_visual_elements: 1,
 		grain: 0.06,
+		primitive_family: 'spline',
+		primitive_weight: 1.5,
 	},
 	editorial_portrait: {
 		id: 'editorial_portrait',
@@ -48,6 +55,8 @@ const STILL_FAMILIES: Record<string, StillFamilyContract> = {
 		max_text_elements: 4,
 		max_visual_elements: 2,
 		grain: 0.04,
+		primitive_family: 'ribbon',
+		primitive_weight: 1.8,
 	},
 };
 
@@ -60,15 +69,53 @@ const STYLE_PACKS: Record<string, StylePackContract> = {
 		grain: 0.04,
 		accent_intensity: 0.1,
 		negative_space_target: 0.65,
+		primitive_family: 'arc',
 	},
 	kinetic_editorial: {
 		id: 'kinetic_editorial',
 		typography_system: 'editorial_dense',
 		still_family: 'editorial_portrait',
-		color_mode: 'monochrome_warm',
+		color_mode: 'desaturated_warm',
 		grain: 0.08,
 		accent_intensity: 0.5,
 		negative_space_target: 0.4,
+		primitive_family: 'spline',
+	},
+	data_ink: {
+		id: 'data_ink',
+		typography_system: 'editorial_dense',
+		still_family: 'poster_minimal',
+		color_mode: 'editorial_white',
+		grain: 0.01,
+		accent_intensity: 0.35,
+		negative_space_target: 0.5,
+	},
+	carbon_authority: {
+		id: 'carbon_authority',
+		typography_system: 'editorial_dense',
+		still_family: 'poster_minimal',
+		color_mode: 'carbon_gold',
+		grain: 0.0,
+		accent_intensity: 0.2,
+		negative_space_target: 0.7,
+	},
+	signal_burst: {
+		id: 'signal_burst',
+		typography_system: 'editorial_dense',
+		still_family: 'editorial_portrait',
+		color_mode: 'void_crimson',
+		grain: 0.12,
+		accent_intensity: 0.7,
+		negative_space_target: 0.35,
+	},
+	blueprint_cold: {
+		id: 'blueprint_cold',
+		typography_system: 'editorial_minimal',
+		still_family: 'editorial_portrait',
+		color_mode: 'blueprint_cold',
+		grain: 0.06,
+		accent_intensity: 0.1,
+		negative_space_target: 0.42,
 	},
 };
 

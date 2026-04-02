@@ -579,6 +579,22 @@ def score_frame(
         result.latency_ms = (time.time() - start) * 1000
         return result
 
+    # Check for explicit fallback before calling LLM
+    if os.environ.get("OLLAMA_FALLBACK") == "1" or os.environ.get("FORCE_FALLBACK_JUDGE") == "1":
+        result.error = "Vision scoring bypassed: forced fallback via environment variable."
+        result.model_used = "deterministic_fallback"
+        result.dimensions = _fallback_dimensions(judge_profile, result.objective_signals, render_mode)
+        result.dimensions = _calibrate_dimensions(
+            result.dimensions,
+            signals=result.objective_signals,
+            render_mode=render_mode,
+        )
+        result.compute_composite()
+        result.passed = result.composite_score >= result.threshold_used
+        _classify_quality(result, judge_profile)
+        result.latency_ms = (time.time() - start) * 1000
+        return result
+
     # Call vision model via Ollama
     try:
         from core.intelligence.model_router import get_route, TASK_VISION_PLAN
@@ -607,7 +623,7 @@ def score_frame(
         result.latency_ms = (time.time() - start) * 1000
 
         # Parse response
-        dimensions = _parse_score_response(response_text, judge_profile)
+        dimensions = _parse_score_response(response_text, judge_profile, result.objective_signals, render_mode)
         dimensions = _calibrate_dimensions(
             dimensions,
             signals=result.objective_signals,
@@ -628,12 +644,21 @@ def score_frame(
         return result
 
     except Exception as exc:
-        result.error = f"Vision scoring failed: {type(exc).__name__}: {exc}"
+        result.error = f"Vision scoring failed: {type(exc).__name__}: {exc} (Using fallback)"
+        result.dimensions = _fallback_dimensions(judge_profile, result.objective_signals, render_mode)
+        result.dimensions = _calibrate_dimensions(
+            result.dimensions,
+            signals=result.objective_signals,
+            render_mode=render_mode,
+        )
+        result.compute_composite()
+        result.passed = result.composite_score >= result.threshold_used
+        _classify_quality(result, judge_profile)
         result.latency_ms = (time.time() - start) * 1000
         return result
 
 
-def _parse_score_response(response_text: str, judge_profile: dict[str, Any] | None = None) -> list[DimensionScore]:
+def _parse_score_response(response_text: str, judge_profile: dict[str, Any] | None = None, signals: dict[str, Any] | None = None, render_mode: str = "still") -> list[DimensionScore]:
     """Parse the JSON score response from the vision LLM."""
     # Try to extract JSON from the response
     text = response_text.strip()
@@ -655,9 +680,9 @@ def _parse_score_response(response_text: str, judge_profile: dict[str, Any] | No
             try:
                 data = json.loads(text[start:end])
             except json.JSONDecodeError:
-                return _fallback_dimensions(judge_profile)
+                return _fallback_dimensions(judge_profile, signals, render_mode)
         else:
-            return _fallback_dimensions(judge_profile)
+            return _fallback_dimensions(judge_profile, signals, render_mode)
 
     dimension_specs = {}
     if isinstance(judge_profile, dict):
@@ -690,23 +715,91 @@ def _parse_score_response(response_text: str, judge_profile: dict[str, Any] | No
     return dimensions
 
 
-def _fallback_dimensions(judge_profile: dict[str, Any] | None = None) -> list[DimensionScore]:
-    """Return neutral scores when LLM parsing fails."""
+def _fallback_dimensions(judge_profile: dict[str, Any] | None = None, signals: dict[str, Any] | None = None, render_mode: str = "still") -> list[DimensionScore]:
+    """Return deterministic fallback scores when LLM parsing/connection fails."""
     dimension_specs = {}
     if isinstance(judge_profile, dict):
         dimension_specs = judge_profile.get("dimensions", {}) if isinstance(judge_profile.get("dimensions", {}), dict) else {}
     if not dimension_specs:
         dimension_specs = LEGACY_QUALITY_DIMENSIONS
-    return [
-        DimensionScore(
+        
+    signals = signals or {}
+    dimensions = []
+
+    # Objective signals extraction
+    negative_space_pct = float(signals.get("negative_space_pct", 0.0))
+    negative_space_target = float(signals.get("recommended_negative_space_target", 0.4))
+    text_density = int(signals.get("text_density_estimate", 0))
+    max_words = int(signals.get("max_words_per_screen", 5))
+    color_purity = float(signals.get("color_purity_score", 0.0))
+    grain_variance = float(signals.get("grain_variance", 0.0))
+    silence_ratio = float(signals.get("silence_ratio", 0.0))
+    hold_ms = float(signals.get("minimum_hold_ms", 0.0))
+    breath_points = int(signals.get("breath_points_count", 0))
+
+    # Base scores start optimistic but are docked heavily by objective signal weaknesses
+    for dim_name, dim_info in dimension_specs.items():
+        base_score = 80
+        issues = []
+        notes = "Deterministic fallback score."
+
+        # Still / Layout Signals
+        if dim_name == "spatial_intelligence" or dim_name == "composition":
+            if negative_space_pct < negative_space_target:
+                penalty = int((negative_space_target - negative_space_pct) * 100)
+                base_score -= penalty
+                issues.append(f"Negative space too low ({negative_space_pct:.2f} < {negative_space_target:.2f}).")
+            elif negative_space_pct > 0.8:
+                base_score -= 10
+                issues.append("Frame feels empty; negative space exceeds 80%.")
+
+        elif dim_name in ("typographic_craft", "typography", "hierarchy_strength", "poster_impact"):
+            if text_density > max_words:
+                excess = text_density - max_words
+                base_score -= (10 + excess * 5)
+                issues.append(f"Overcrowded text breaks hierarchy ({text_density} > {max_words}).")
+            if negative_space_pct < 0.2:
+                base_score -= 15
+                issues.append("Text needs more breathing room to be premium.")
+
+        elif dim_name in ("brand_discipline", "brand_compliance", "color"):
+            if color_purity < 80 and color_purity > 0:
+                base_score -= int((80 - color_purity) * 1.5)
+                issues.append(f"Color purity is weak ({color_purity:.1f}%). Re-check palette.")
+            if not signals.get("brand_validation_passed"):
+                base_score -= 20
+                issues.append("General brand validation rules failed.")
+
+        elif dim_name == "material_finish":
+            if color_purity < 85 and color_purity > 0:
+                base_score -= 10
+                issues.append("Material feels unpolished due to impure palette.")
+            if grain_variance < 0.01 or grain_variance > 0.15:
+                base_score -= 15
+                issues.append(f"Grain/texture variance ({grain_variance:.4f}) is out of premium range.")
+
+        # Motion Signals
+        elif dim_name in ("temporal_rhythm", "silence_quality", "motion_coherence", "motion_signature") and render_mode == "motion":
+            if silence_ratio < 0.2 and silence_ratio > 0:
+                base_score -= 20
+                issues.append(f"Pacing lacks silence/hold ratio ({silence_ratio:.2f} < 0.20).")
+            if breath_points == 0:
+                base_score -= 15
+                issues.append("Motion lacks visible breath points.")
+            if hold_ms > 0 and hold_ms < 200:
+                base_score -= 15
+                issues.append(f"Holds are too brief ({hold_ms}ms).")
+
+        score_val = max(10, min(100, int(base_score)))
+        dimensions.append(DimensionScore(
             name=dim_name,
-            score=50,
-            weight=dim_info["weight"],
-            issues=["LLM response could not be parsed"],
-            notes="Fallback score — manual review recommended",
-        )
-        for dim_name, dim_info in dimension_specs.items()
-    ]
+            score=score_val,
+            weight=dim_info.get("weight", 0.0),
+            issues=issues,
+            notes=notes
+        ))
+
+    return dimensions
 
 
 # ---------------------------------------------------------------------------

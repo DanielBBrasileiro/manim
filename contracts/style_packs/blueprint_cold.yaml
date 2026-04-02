@@ -1,0 +1,9 @@
+id: blueprint_cold
+description: "Architectural documentation. Cold indigo, restrained tempo, portrait base."
+typography_system: editorial_minimal
+motion_grammar: cinematic_restrained
+still_family: editorial_portrait
+color_mode: blueprint_cold
+grain: 0.06
+accent_intensity: 0.10
+negative_space_target: 0.42

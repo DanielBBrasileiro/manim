@@ -10,6 +10,7 @@ import {
 	useVideoConfig,
 } from 'remotion';
 import {NarrativeText, type NarrativeRole, type NarrativeZone} from '../components/NarrativeText';
+import {CompositionPrimitive} from '../components/CompositionPrimitive';
 import {tokens} from '../theme';
 import {Theme} from '../utils/theme';
 import {buildMotionSequences, resolveCueMotionSpec, resolveSceneMotionState} from '../utils/motionSequence';
@@ -137,6 +138,7 @@ export type CinematicNarrativeProps = {
 			acts?: RawAct[];
 			resolveWord?: string;
 		};
+		seed?: string;
 	};
 };
 
@@ -351,24 +353,17 @@ const StaticBackdrop: React.FC<{frame: number; targetKind?: string; profile: Tar
 							opacity: 0.7,
 						}}
 					/>
-					<svg
-						viewBox="0 0 100 100"
-						preserveAspectRatio="none"
+					<CompositionPrimitive
+						seed={seed}
+						type={stylePack.primitiveFamily}
+						weight={profile.curveWidth}
+						opacity={profile.curveOpacity}
+						tension={stylePack.primitiveTension}
+						color={profile.curveStroke}
 						style={{
-							position: 'absolute',
 							inset: profile.panelInset,
-							overflow: 'visible',
 						}}
-					>
-						<path
-							d="M 6 70 C 20 48, 32 36, 46 42 C 62 49, 72 60, 94 22"
-							fill="none"
-							stroke={profile.curveStroke}
-							strokeWidth={profile.curveWidth}
-							strokeLinecap="round"
-							style={{opacity: profile.curveOpacity}}
-						/>
-					</svg>
+					/>
 				</AbsoluteFill>
 			<GrainOverlay opacity={Math.min(0.06, stylePack.grain)} />
 			</AbsoluteFill>
@@ -441,6 +436,15 @@ const PosterHeroBackdrop: React.FC<{
 					transform: `translate(${drift}px, ${drift * 0.25}px)`,
 				}}
 			>
+				<CompositionPrimitive
+					seed={seed}
+					type={stylePack.primitiveFamily}
+					weight={isWide ? 1.45 : 1.55}
+					opacity={curveOpacity}
+					tension={stylePack.primitiveTension}
+					color={profile.curveStroke}
+					style={boxStyle(curveBox)}
+				/>
 				<svg
 					viewBox="0 0 100 100"
 					preserveAspectRatio="none"
@@ -449,15 +453,6 @@ const PosterHeroBackdrop: React.FC<{
 						overflow: 'visible',
 					}}
 				>
-					<path
-						d={isWide ? 'M 8 74 C 22 66, 42 52, 58 44 C 74 36, 83 28, 92 16' : 'M 10 78 C 21 70, 38 57, 52 46 C 66 35, 79 24, 90 14'}
-						fill="none"
-						stroke={profile.curveStroke}
-						strokeWidth={isWide ? 1.45 : 1.55}
-						strokeLinecap="round"
-						vectorEffect="non-scaling-stroke"
-						opacity={curveOpacity}
-					/>
 					<circle
 						cx={Number(((accentAnchor.x ?? (isWide ? 0.92 : 0.90)) as number) * 100).toFixed(2)}
 						cy={Number(((accentAnchor.y ?? (isWide ? 0.16 : 0.14)) as number) * 100).toFixed(2)}
@@ -798,6 +793,7 @@ export const CinematicNarrative: React.FC<CinematicNarrativeProps> = (props) => 
 	const turbulenceStart = Math.round(durationInFrames * 0.25);
 	const resolutionStart = Math.round(durationInFrames * 0.7);
 	const breathe = Math.sin((frame / fps) * (Math.PI / 2)) * 0.002;
+	const seed = manifest.seed ?? targetId ?? 'cinematic-default-seed';
 	const sceneMotion = resolveSceneMotionState({
 		frame,
 		sequences: motionSequences,

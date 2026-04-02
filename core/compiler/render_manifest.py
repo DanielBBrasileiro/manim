@@ -121,6 +121,7 @@ def build_render_manifest(plan: dict, seed: dict | str) -> dict:
             "gain": 0.3,
         },
         "layout": primary_target.get("layout", layout_contract.get("formats", {}).get("vertical_9_16", {})),
+        "seed": str(seed),
     }
 
 
