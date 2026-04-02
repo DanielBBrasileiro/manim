@@ -1,4 +1,5 @@
 from .intent_parser import parse_intent
+from .reference_direction import apply_reference_direction_to_plan, resolve_reference_native_direction
 from .render_manifest import build_artifact_plan, build_render_manifest
 from .rule_engine import apply_rules
 from .mutation_engine import mutate_entropy, mutate_motion
@@ -208,6 +209,9 @@ def compile_seed(
         plan["llm_confidence"] = getattr(intent, "confidence", 0.0)
         plan["llm_metadata"] = getattr(intent, "llm_metadata", {})
         plan = apply_scene_plan_guidance(plan, intent.scene_plan)
+
+    reference_direction = resolve_reference_native_direction(seed, brief=seed if isinstance(seed, dict) else None, plan=plan)
+    plan = apply_reference_direction_to_plan(plan, reference_direction, seed=seed if isinstance(seed, dict) else None)
     
     # 4. Negociação Darwiniana (Crítica Multi-Agente)
     plan = negotiate(plan)

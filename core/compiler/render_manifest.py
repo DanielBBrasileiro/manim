@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from core.compiler.reference_direction import reference_value_for_target
 from core.intelligence.model_profiles import get_active_profile
 
 ROOT = Path(__file__).resolve().parent.parent.parent
@@ -96,10 +97,13 @@ def build_render_manifest(plan: dict, seed: dict | str) -> dict:
         "negative_space_target": artifact_plan.get("negative_space_target"),
         "accent_intensity": artifact_plan.get("accent_intensity"),
         "grain": artifact_plan.get("grain"),
+        "material_hint": artifact_plan.get("material_hint"),
         "quality_constraints": artifact_plan.get("quality_constraints", {}),
         "quality_mode": artifact_plan.get("quality_mode", "absolute"),
         "premium_targets": artifact_plan.get("premium_targets", []),
         "preview_policy": artifact_plan.get("preview_policy", {}),
+        "reference_native_direction": artifact_plan.get("reference_native_direction", {}),
+        "reference_evidence": artifact_plan.get("reference_evidence", []),
         "qa_frames": artifact_plan.get("qa_frames"),
         "auto_iterate_max": artifact_plan.get("auto_iterate_max"),
         "brand_veto_policy": artifact_plan.get("brand_veto_policy", {}),
@@ -195,13 +199,14 @@ def build_artifact_plan(plan: dict, seed: dict | str) -> dict:
         "story_atoms": story_atoms,
         "style_pack": primary_style_pack_id,
         "style_pack_ids": style_pack_ids,
-        "motion_grammar": primary_style_pack.get("motion_grammar"),
-        "typography_system": primary_style_pack.get("typography_system"),
-        "still_family": primary_style_pack.get("still_family"),
-        "color_mode": primary_style_pack.get("color_mode"),
-        "negative_space_target": primary_style_pack.get("negative_space_target"),
-        "accent_intensity": primary_style_pack.get("accent_intensity"),
-        "grain": primary_style_pack.get("grain"),
+        "motion_grammar": primary_target.get("motion_grammar", primary_style_pack.get("motion_grammar")),
+        "typography_system": primary_target.get("typography_system", primary_style_pack.get("typography_system")),
+        "still_family": primary_target.get("still_family", primary_style_pack.get("still_family")),
+        "color_mode": primary_target.get("color_mode", primary_style_pack.get("color_mode")),
+        "negative_space_target": primary_target.get("negative_space_target", primary_style_pack.get("negative_space_target")),
+        "accent_intensity": primary_target.get("accent_intensity", primary_style_pack.get("accent_intensity")),
+        "grain": primary_target.get("grain", primary_style_pack.get("grain")),
+        "material_hint": primary_target.get("material_hint", "editorial_flat"),
         "quality_constraints": quality_constraints,
         "quality_tier": "lab_absolute",
         "quality_mode": "absolute",
@@ -226,7 +231,16 @@ def build_artifact_plan(plan: dict, seed: dict | str) -> dict:
         "chosen_variant": chosen_variant,
         "chosen_variant_reason": "initial_priority_seed",
         "review_session_id": None,
-        "reference_evidence": [],
+        "reference_native_direction": copy.deepcopy(plan.get("reference_native_direction", {}))
+        if isinstance(plan.get("reference_native_direction", {}), dict)
+        else {},
+        "reference_evidence": copy.deepcopy(
+            (
+                plan.get("reference_native_direction", {})
+                if isinstance(plan.get("reference_native_direction", {}), dict)
+                else {}
+            ).get("reference_evidence", [])
+        ),
         "style_retrieval_results": style_retrieval_results,
         "objective_metrics": {
             "still_aesthetic_model": "hpsv2_optional",
@@ -508,9 +522,22 @@ def _resolve_style_pack_ids(seed: dict | str, brief: dict | None = None, plan: d
         references = seed.get("references", {})
         if isinstance(references, dict):
             _append_style_pack_values(references)
+            translation = references.get("aiox_translation") or references.get("reference_native_direction")
+            if isinstance(translation, dict):
+                value = str(translation.get("style_pack") or translation.get("style_pack_hint") or "").strip()
+                if value:
+                    candidates.append(value)
 
     _append_style_pack_values(brief)
     _append_style_pack_values(plan)
+    if isinstance(plan, dict):
+        reference_direction = plan.get("reference_native_direction", {})
+        if isinstance(reference_direction, dict):
+            resolved = reference_direction.get("resolved", {})
+            if isinstance(resolved, dict):
+                value = str(resolved.get("style_pack", "")).strip()
+                if value:
+                    candidates.append(value)
 
     deduped: list[str] = []
     for candidate in candidates:
@@ -678,11 +705,57 @@ def _expand_target(
     target_style_pack = _style_pack_contract(target["style_pack"])
     target["typography_system"] = _target_typography_system(plan, target)
     target["still_family"] = _target_still_family(plan, target)
-    target["motion_grammar"] = str(target_style_pack.get("motion_grammar", "")).strip() or plan.get("motion_grammar")
-    target["color_mode"] = str(target_style_pack.get("color_mode", "")).strip() or "monochrome_pure"
-    target["negative_space_target"] = float(target_style_pack.get("negative_space_target", 0.65) or 0.65)
-    target["accent_intensity"] = float(target_style_pack.get("accent_intensity", 0.1) or 0.1)
-    target["grain"] = float(target_style_pack.get("grain", 0.04) or 0.04)
+    target_reference = _target_reference_direction(plan, target)
+    target["motion_grammar"] = (
+        str(target.get("motion_grammar", "")).strip()
+        or str(plan.get("motion_grammar", "")).strip()
+        or str(target_reference.get("motion_grammar", "")).strip()
+        or str(target_style_pack.get("motion_grammar", "")).strip()
+        or "cinematic_restrained"
+    )
+    target["color_mode"] = (
+        str(target.get("color_mode", "")).strip()
+        or str(plan.get("color_mode", "")).strip()
+        or str(target_reference.get("color_mode", "")).strip()
+        or str(target_style_pack.get("color_mode", "")).strip()
+        or "monochrome_pure"
+    )
+    target["negative_space_target"] = float(
+        target.get("negative_space_target")
+        if target.get("negative_space_target") is not None
+        else plan.get("negative_space_target")
+        if plan.get("negative_space_target") is not None
+        else target_reference.get("negative_space_target")
+        if target_reference.get("negative_space_target") is not None
+        else target_style_pack.get("negative_space_target", 0.65)
+        or 0.65
+    )
+    target["accent_intensity"] = float(
+        target.get("accent_intensity")
+        if target.get("accent_intensity") is not None
+        else plan.get("accent_intensity")
+        if plan.get("accent_intensity") is not None
+        else target_reference.get("accent_intensity")
+        if target_reference.get("accent_intensity") is not None
+        else target_style_pack.get("accent_intensity", 0.1)
+        or 0.1
+    )
+    target["grain"] = float(
+        target.get("grain")
+        if target.get("grain") is not None
+        else plan.get("grain")
+        if plan.get("grain") is not None
+        else target_reference.get("grain")
+        if target_reference.get("grain") is not None
+        else target_style_pack.get("grain", 0.04)
+        or 0.04
+    )
+    target["material_hint"] = (
+        str(target.get("material_hint", "")).strip()
+        or str(plan.get("material_hint", "")).strip()
+        or str(target_reference.get("material_hint", "")).strip()
+        or "editorial_flat"
+    )
     target["judge_profile"] = _target_judge_profile(target)
     target["summary"] = _target_summary(target, story_atoms)
     target["duration_sec"] = _target_duration(target, duration)
@@ -709,7 +782,18 @@ def _target_style_pack_id(plan: dict[str, Any], target: dict[str, Any]) -> str:
     if explicit_style_pack:
         return explicit_style_pack
 
+    explicit_target_style_pack = str(target.get("style_pack", "")).strip()
+    if explicit_target_style_pack:
+        return explicit_target_style_pack
+
     style_pack_ids = [str(item).strip() for item in plan.get("style_pack_ids", []) if str(item).strip()]
+    if style_pack_ids:
+        return style_pack_ids[0]
+
+    reference_style_pack = str(reference_value_for_target(plan, str(target.get("id", "")), "style_pack") or "").strip()
+    if reference_style_pack:
+        return reference_style_pack
+
     render_mode = str(target.get("render_mode", "video")).strip().lower()
     family = _target_family_spec(target)
 
@@ -718,14 +802,18 @@ def _target_style_pack_id(plan: dict[str, Any], target: dict[str, Any]) -> str:
     else:
         preferred = "kinetic_editorial"
 
-    if preferred in style_pack_ids:
-        return preferred
-    if style_pack_ids:
-        return style_pack_ids[0]
     return preferred
 
 
 def _target_typography_system(plan: dict[str, Any], target: dict[str, Any]) -> str:
+    explicit_typography = str(target.get("typography_system", "")).strip() or str(plan.get("typography_system", "")).strip()
+    if explicit_typography:
+        return explicit_typography
+
+    reference_typography = str(reference_value_for_target(plan, str(target.get("id", "")), "typography_system") or "").strip()
+    if reference_typography:
+        return reference_typography
+
     style_pack = _style_pack_contract(_target_style_pack_id(plan, target))
     typography_system = str(style_pack.get("typography_system", "")).strip()
     if typography_system:
@@ -741,6 +829,14 @@ def _target_still_family(plan: dict[str, Any], target: dict[str, Any]) -> str | 
     render_mode = str(target.get("render_mode", "video")).strip().lower()
     if render_mode not in {"still", "carousel"}:
         return None
+
+    explicit_still_family = str(target.get("still_family", "")).strip() or str(plan.get("still_family", "")).strip()
+    if explicit_still_family:
+        return explicit_still_family
+
+    reference_still_family = str(reference_value_for_target(plan, str(target.get("id", "")), "still_family") or "").strip()
+    if reference_still_family:
+        return reference_still_family
 
     style_pack = _style_pack_contract(_target_style_pack_id(plan, target))
     still_family = str(style_pack.get("still_family", "")).strip()
@@ -758,6 +854,17 @@ def _target_judge_profile(target: dict[str, Any]) -> str:
     if render_mode == "still":
         return "premium_still"
     return "motion_frame"
+
+
+def _target_reference_direction(plan: dict[str, Any], target: dict[str, Any]) -> dict[str, Any]:
+    target_id = str(target.get("id", "")).strip()
+    keys = ("style_pack", "typography_system", "still_family", "motion_grammar", "color_mode", "negative_space_target", "accent_intensity", "grain", "material_hint")
+    resolved: dict[str, Any] = {}
+    for key in keys:
+        value = reference_value_for_target(plan, target_id, key)
+        if value not in {None, ""}:
+            resolved[key] = value
+    return resolved
 
 
 def _build_editorial_layout(target: dict[str, Any], design_canon: dict[str, Any]) -> dict[str, Any]:
@@ -1152,6 +1259,7 @@ def _build_render_inputs(
             "negative_space_target": target.get("negative_space_target", artifact_plan.get("negative_space_target")),
             "accent_intensity": target.get("accent_intensity", artifact_plan.get("accent_intensity")),
             "grain": target.get("grain", artifact_plan.get("grain")),
+            "material_hint": target.get("material_hint", artifact_plan.get("material_hint")),
             "quality_constraints": artifact_plan.get("quality_constraints", {}),
             "quality_mode": target.get("quality_mode", artifact_plan.get("quality_mode", "absolute")),
             "premium_targets": artifact_plan.get("premium_targets", []),
@@ -1176,6 +1284,8 @@ def _build_render_inputs(
                 "pacing": plan.get("pacing"),
                 "emotion": _infer_emotional_target(plan),
             },
+            "reference_native_direction": artifact_plan.get("reference_native_direction", {}),
+            "reference_evidence": artifact_plan.get("reference_evidence", []),
         }
     return render_inputs
 
