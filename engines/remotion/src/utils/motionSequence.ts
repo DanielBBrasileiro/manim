@@ -1,8 +1,10 @@
 import type {MotionGrammarContract, MotionRhythm, MotionTransitionType} from './motionGrammar';
 
-type RawCue = {
+type RawCueTiming = {
+	id: string;
 	from: number;
 	durationInFrames: number;
+	actId?: string;
 };
 
 type RawAct = {
@@ -241,7 +243,7 @@ export const resolveCueMotionSpec = ({
 	sequences,
 	fps,
 }: {
-	cue: RawCue;
+	cue: {from: number};
 	cueIndex: number;
 	sequences: MotionSequence[];
 	fps: number;
@@ -262,6 +264,102 @@ export const resolveCueMotionSpec = ({
 		spring: phrase.action.spring ?? {stiffness: 90, damping: 18, mass: 0.95},
 		transitionHint: sequence.withinActTransition,
 	};
+};
+
+export const scheduleCuesWithGrammar = <T extends RawCueTiming>({
+	cues,
+	grammar,
+	fps,
+	seed = 'default-seed',
+}: {
+	cues: T[];
+	grammar: MotionGrammarContract | null;
+	fps: number;
+	seed?: string;
+}): T[] => {
+	if (!grammar) {
+		return cues;
+	}
+
+	const minHoldFrames = Math.round((grammar.timing.minimum_hold_ms / 1000) * fps);
+	const maxSimultaneous = grammar.timing.maximum_simultaneous;
+	const [minSilenceMs, maxSilenceMs] = grammar.timing.silence_between_phrases_ms;
+	const staggerProfile = grammar.stagger;
+
+	// Group cues by act
+	const cuesByAct: Record<string, T[]> = {};
+	cues.forEach((cue) => {
+		const actId = cue.actId ?? 'default';
+		if (!cuesByAct[actId]) {
+			cuesByAct[actId] = [];
+		}
+		cuesByAct[actId].push(cue);
+	});
+
+	const scheduledCues: T[] = [];
+
+	Object.keys(cuesByAct).forEach((actId) => {
+		const actCues = cuesByAct[actId].sort((a, b) => a.from - b.from);
+		if (actCues.length === 0) {
+			return;
+		}
+
+		const actStart = actCues[0].from;
+		let currentSequenceTime = actStart;
+		const activeCues: {endFrame: number}[] = [];
+
+		actCues.forEach((cue, index) => {
+			// Clear finished cues from active list
+			while (activeCues.length > 0 && activeCues[0].endFrame <= currentSequenceTime) {
+				activeCues.shift();
+			}
+
+			// Apply stagger if grammar allows simultaneity, otherwise force sequential
+			const staggerIdx = index % Math.max(staggerProfile.length, 1);
+			const staggerFrames = Math.round(staggerProfile[staggerIdx] * 2);
+
+			let startTime = currentSequenceTime;
+
+			if (activeCues.length >= maxSimultaneous) {
+				// If we hit limits, we MUST wait for at least one to finish
+				const earliestFinish = activeCues.shift();
+				if (earliestFinish) {
+					// Add silence if needed
+					const silenceFrames = Math.round(
+						((minSilenceMs + (maxSilenceMs - minSilenceMs) * 0.5) / 1000) * fps,
+					);
+					startTime = Math.max(startTime, earliestFinish.endFrame + silenceFrames);
+				}
+			} else if (index > 0 && maxSimultaneous > 1) {
+				// We can have some overlap/stagger
+				startTime = Math.max(actCues[index - 1].from + staggerFrames, currentSequenceTime);
+			} else if (index > 0 && maxSimultaneous === 1) {
+				// Force sequential with silence
+				const silenceFrames = Math.round(
+					((minSilenceMs + (maxSilenceMs - minSilenceMs) * 0.5) / 1000) * fps,
+				);
+				startTime = Math.max(startTime, actCues[index - 1].from + actCues[index - 1].durationInFrames + silenceFrames);
+			}
+
+			// Ensure we don't start before the original intent if it was explicitly timed
+			// (Though for this patch we want the grammar to take over mostly)
+			// But we'll respect the act boundaries.
+
+			const duration = Math.max(minHoldFrames, cue.durationInFrames);
+
+			cue.from = startTime;
+			cue.durationInFrames = duration;
+
+			scheduledCues.push(cue);
+			activeCues.push({endFrame: startTime + duration});
+			activeCues.sort((a, b) => a.endFrame - b.endFrame);
+
+			// Update sequence time only if we are moving forward in a way that affects the next cue
+			currentSequenceTime = startTime;
+		});
+	});
+
+	return scheduledCues.sort((a, b) => a.from - b.from);
 };
 
 const inBreathHold = (frame: number, sequence: MotionSequence): boolean =>

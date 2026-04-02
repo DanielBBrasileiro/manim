@@ -13,7 +13,7 @@ import {NarrativeText, type NarrativeRole, type NarrativeZone} from '../componen
 import {CompositionPrimitive} from '../components/CompositionPrimitive';
 import {tokens} from '../theme';
 import {Theme} from '../utils/theme';
-import {buildMotionSequences, resolveCueMotionSpec, resolveSceneMotionState} from '../utils/motionSequence';
+import {buildMotionSequences, resolveCueMotionSpec, resolveSceneMotionState, scheduleCuesWithGrammar} from '../utils/motionSequence';
 import {resolveMotionGrammar} from '../utils/motionGrammar';
 import {applyStylePackToProfile, resolveStylePackFields, resolveStylePackPalette, type ResolvedStylePackFields} from '../utils/stylePack';
 
@@ -153,6 +153,7 @@ type ResolvedCue = {
 	size?: string | number;
 	color?: string;
 	align?: 'left' | 'center' | 'right';
+	actId?: string;
 };
 
 type TargetVisualProfile = {
@@ -656,6 +657,7 @@ const flattenActs = (acts: RawAct[] | undefined, fps: number, totalFrames: numbe
 						? Theme.colors.textPrimary
 						: cue.color,
 				align: cue.align,
+				actId: act.id ?? act.name ?? `act-${actIndex}`,
 			});
 		});
 	});
@@ -691,6 +693,7 @@ const buildCues = (
 	props: CinematicNarrativeProps,
 	fps: number,
 	durationInFrames: number,
+	grammar: any | null = null,
 ): ResolvedCue[] => {
 	const manifest = props.renderManifest ?? {};
 	const targetId = props.target ?? props.targetId ?? manifest.targetId ?? manifest.target;
@@ -700,23 +703,28 @@ const buildCues = (
 	const directCues = props.textCues ?? manifest.textCues ?? manifest.text_cues;
 	const resolveWord = props.resolveWord ?? manifest.resolveWord ?? manifest.resolve_word;
 
+	let built: ResolvedCue[] = [];
+
 	if (directCues?.length) {
-		return addResolveCueIfNeeded(
-			flattenActs([{name: 'custom', text: directCues}], fps, durationInFrames),
-			resolveWord,
-			fps,
-			durationInFrames,
-		);
+		built = flattenActs([{name: 'custom', text: directCues}], fps, durationInFrames);
+	} else {
+		const acts =
+			props.narrative?.acts ??
+			manifest.acts ??
+			manifest.narrative?.acts ??
+			tokens.narrative.acts;
+		built = flattenActs(acts, fps, durationInFrames);
 	}
 
-	const acts =
-		props.narrative?.acts ??
-		manifest.acts ??
-		manifest.narrative?.acts ??
-		tokens.narrative.acts;
-	const built = flattenActs(acts, fps, durationInFrames);
+	const withGrammar = scheduleCuesWithGrammar({
+		cues: built,
+		grammar,
+		fps,
+		seed: manifest.seed ?? 'aiox-motion-seed',
+	});
+
 	const withResolve = addResolveCueIfNeeded(
-		built,
+		withGrammar,
 		resolveWord ?? props.narrative?.resolveWord ?? manifest.narrative?.resolveWord,
 		fps,
 		durationInFrames,
@@ -770,7 +778,7 @@ export const CinematicNarrative: React.FC<CinematicNarrativeProps> = (props) => 
 			}),
 		[manifest.motion_grammar, resolvedStylePack.stylePackId],
 	);
-	const cues = useMemo(() => buildCues(props, fps, durationInFrames), [props, fps, durationInFrames]);
+	const cues = useMemo(() => buildCues(props, fps, durationInFrames, motionGrammar), [props, fps, durationInFrames, motionGrammar]);
 	const motionSequences = useMemo(
 		() =>
 			buildMotionSequences({

@@ -5,6 +5,7 @@ from typing import Any
 
 from core.quality.brand_validator import validate_frame
 from core.tools.quality_gate import evaluate_artifact_plan
+from core.quality.mutator import mutate_render_manifest
 
 
 @dataclass
@@ -172,11 +173,23 @@ def run_preview_judge(
     policy = artifact_plan.get("preview_policy", {}) if isinstance(artifact_plan.get("preview_policy", {}), dict) else {}
     accept_score = float(policy.get("accept_score", 72.0) or 72.0)
     accepted = not hard_veto and not artifact_quality.get("errors") and score >= accept_score
+
+    # Apply mutations to artifact_plan if not accepted
+    # This will affect subsequent iterations of the preview loop
+    applied_mutations = []
+    if not accepted and not hard_veto:
+        # Use issues as findings for the mutator
+        finding_dicts = [issue.to_dict() for issue in issues]
+        mutate_render_manifest(artifact_plan, finding_dicts, brand_result.to_dict() if brand_result else None)
+        if "_mutation_audit" in artifact_plan and artifact_plan["_mutation_audit"]:
+            applied_mutations = artifact_plan["_mutation_audit"][-1]
+
     return {
         "accepted": accepted,
         "score": round(score, 1),
         "hard_veto": hard_veto,
         "issues": [issue.to_dict() for issue in issues],
+        "applied_mutations": applied_mutations,
         "artifact_quality_report": artifact_quality,
         "brand_preview": brand_result.to_dict() if brand_result else None,
         "summary": {
