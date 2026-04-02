@@ -29,6 +29,7 @@ def main():
         default="contracts/references",
         help="Diretorio onde contratos de referencia ingeridos via ZIP serao escritos",
     )
+    create_parser.add_argument("--project", help="ID do projeto (ex: linkedin_tecnico) para carregar defaults")
     
     # NOVOS COMANDOS UX ELITE
     subparsers.add_parser("lab", help="Modo Interativo Conversacional (AIOX Lab)")
@@ -148,6 +149,11 @@ def main():
 
             brief = attach_reference_to_brief(brief, reference_id=args.reference)
             print(f"🧭 Reference-native direction -> {args.reference}")
+
+        if getattr(args, "project", None):
+            brief["project_id"] = args.project
+            print(f"📁 Project Profile -> {args.project}")
+
             
         from core.runtime.graph_runtime import GraphRuntime
         director_mode = str((brief or {}).get("director_mode", "assisted")).strip().lower()

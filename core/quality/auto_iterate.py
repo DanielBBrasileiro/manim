@@ -27,6 +27,7 @@ from core.quality.frame_scorer import (
     batch_summary,
     score_frame,
 )
+from core.quality.mutator import mutate_render_manifest
 
 
 @dataclass
@@ -35,6 +36,7 @@ class IterationResult:
     iteration: int
     score: FrameScore
     corrections_applied: list[str]
+    mutations: list[dict[str, Any]] = field(default_factory=list)
     duration_ms: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
@@ -43,6 +45,7 @@ class IterationResult:
             "composite_score": round(self.score.composite_score, 1),
             "passed": self.score.passed,
             "corrections": self.corrections_applied,
+            "mutations": self.mutations,
             "duration_ms": round(self.duration_ms, 2),
         }
 
@@ -93,6 +96,8 @@ class AutoIterateReport:
             )
             for corr in result.corrections_applied:
                 lines.append(f"  - {corr}")
+            for mut in result.mutations:
+                lines.append(f"  - Parameter Shift: {mut.get('parameter')} ({mut.get('old')} -> {mut.get('new')})")
 
         return "\n".join(lines)
 
@@ -275,10 +280,23 @@ def auto_iterate(
 
         corrections = extract_corrections(score) if not score.passed else []
 
+        # Apply parameter mutations based on findings
+        mutations: list[dict[str, Any]] = []
+        if not score.passed:
+            manifest_to_mutate = (context or {}).get("render_manifest", {})
+            if manifest_to_mutate:
+                # Deterministic mutation
+                findings = [d.to_dict() for d in score.dimensions if d.score < 70]
+                mutate_render_manifest(manifest_to_mutate, findings, score.objective_signals)
+                # Pull out the last recorded mutations from the audit
+                if "_mutation_audit" in manifest_to_mutate and manifest_to_mutate["_mutation_audit"]:
+                    mutations = manifest_to_mutate["_mutation_audit"][-1]
+
         result = IterationResult(
             iteration=iteration,
             score=score,
             corrections_applied=corrections,
+            mutations=mutations,
             duration_ms=(time.monotonic() - iter_start) * 1000,
         )
         report.iterations.append(result)

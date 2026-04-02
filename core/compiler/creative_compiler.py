@@ -1,5 +1,6 @@
 from .intent_parser import parse_intent
 from .reference_direction import apply_reference_direction_to_plan, resolve_reference_native_direction
+from .project_profile import apply_project_profile_to_plan
 from .render_manifest import build_artifact_plan, build_render_manifest
 from .rule_engine import apply_rules
 from .mutation_engine import mutate_entropy, mutate_motion
@@ -190,6 +191,11 @@ def compile_seed(
     reference_direction = resolve_reference_native_direction(seed, brief=seed if isinstance(seed, dict) else None, plan=plan)
     plan = apply_reference_direction_to_plan(plan, reference_direction, seed=seed if isinstance(seed, dict) else None)
     
+    # 3.5. Projetos / Direcionamento Editorial
+    project_id = (seed or {}).get("project_id") if isinstance(seed, dict) else None
+    if project_id:
+        plan = apply_project_profile_to_plan(plan, project_id)
+
     # 4. Negociação Darwiniana (Crítica Multi-Agente)
     plan = negotiate(plan)
     artifact_plan = build_artifact_plan(plan, seed)

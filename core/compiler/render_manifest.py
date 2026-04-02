@@ -9,6 +9,7 @@ from typing import Any
 
 import yaml
 from core.compiler.reference_direction import reference_value_for_target
+from core.compiler.project_profile import get_project_value
 from core.intelligence.model_profiles import get_active_profile
 
 ROOT = Path(__file__).resolve().parent.parent.parent
@@ -141,6 +142,10 @@ def build_artifact_plan(plan: dict, seed: dict | str) -> dict:
         formats,
         requested_output_tokens=requested_output_tokens,
     )
+    project_id = plan.get("project_id")
+    project_profile = plan.get("project_profile")
+    project_id = plan.get("project_id")
+    project_profile = plan.get("project_profile")
     duration = float(plan.get("duration", 12) or 12.0)
     acts = _build_act_windows(duration, plan, narrative_contract)
     text_beats = _collect_text_beats(brief, acts, duration, plan)
@@ -295,6 +300,9 @@ def build_artifact_plan(plan: dict, seed: dict | str) -> dict:
             "thesis": brief.get("thesis"),
             "output_targets": requested_output_tokens,
         },
+        "project_id": project_id,
+        "project_profile_id": project_id,
+        "output_base_dir": project_profile.get("output_base_dir") if project_profile else None,
     }
 
 
@@ -434,6 +442,7 @@ def _resolve_requested_target_ids(
     fallback_sources = [
         brief.get("platform"),
         brief.get("format"),
+        get_project_value(plan, "targets"),
     ]
 
     for source in explicit_sources:
@@ -711,6 +720,7 @@ def _expand_target(
         str(target.get("motion_grammar", "")).strip()
         or str(plan.get("motion_grammar", "")).strip()
         or str(target_reference.get("motion_grammar", "")).strip()
+        or str(get_project_value(plan, "motion_grammar", target_id=target.get("id")) or "").strip()
         or str(target_style_pack.get("motion_grammar", "")).strip()
         or "cinematic_restrained"
     )
@@ -728,6 +738,8 @@ def _expand_target(
         if plan.get("negative_space_target") is not None
         else target_reference.get("negative_space_target")
         if target_reference.get("negative_space_target") is not None
+        else get_project_value(plan, "negative_space_target", target_id=target.get("id"))
+        if get_project_value(plan, "negative_space_target", target_id=target.get("id")) is not None
         else target_style_pack.get("negative_space_target", 0.65)
         or 0.65
     )
@@ -738,6 +750,8 @@ def _expand_target(
         if plan.get("accent_intensity") is not None
         else target_reference.get("accent_intensity")
         if target_reference.get("accent_intensity") is not None
+        else get_project_value(plan, "accent_intensity", target_id=target.get("id"))
+        if get_project_value(plan, "accent_intensity", target_id=target.get("id")) is not None
         else target_style_pack.get("accent_intensity", 0.1)
         or 0.1
     )
@@ -748,6 +762,8 @@ def _expand_target(
         if plan.get("grain") is not None
         else target_reference.get("grain")
         if target_reference.get("grain") is not None
+        else get_project_value(plan, "grain", target_id=target.get("id"))
+        if get_project_value(plan, "grain", target_id=target.get("id")) is not None
         else target_style_pack.get("grain", 0.04)
         or 0.04
     )
@@ -795,6 +811,10 @@ def _target_style_pack_id(plan: dict[str, Any], target: dict[str, Any]) -> str:
     if reference_style_pack:
         return reference_style_pack
 
+    project_style_pack = str(get_project_value(plan, "style_pack", target_id=target.get("id")) or "").strip()
+    if project_style_pack:
+        return project_style_pack
+
     render_mode = str(target.get("render_mode", "video")).strip().lower()
     family = _target_family_spec(target)
 
@@ -814,6 +834,10 @@ def _target_typography_system(plan: dict[str, Any], target: dict[str, Any]) -> s
     reference_typography = str(reference_value_for_target(plan, str(target.get("id", "")), "typography_system") or "").strip()
     if reference_typography:
         return reference_typography
+
+    project_typography = str(get_project_value(plan, "typography_system", target_id=target.get("id")) or "").strip()
+    if project_typography:
+        return project_typography
 
     style_pack = _style_pack_contract(_target_style_pack_id(plan, target))
     typography_system = str(style_pack.get("typography_system", "")).strip()
@@ -838,6 +862,10 @@ def _target_still_family(plan: dict[str, Any], target: dict[str, Any]) -> str | 
     reference_still_family = str(reference_value_for_target(plan, str(target.get("id", "")), "still_family") or "").strip()
     if reference_still_family:
         return reference_still_family
+
+    project_still_family = str(get_project_value(plan, "still_family", target_id=target.get("id")) or "").strip()
+    if project_still_family:
+        return project_still_family
 
     style_pack = _style_pack_contract(_target_style_pack_id(plan, target))
     still_family = str(style_pack.get("still_family", "")).strip()
