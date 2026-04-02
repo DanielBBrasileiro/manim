@@ -2,7 +2,7 @@ id: kinetic_editorial
 typography_system: editorial_dense
 motion_grammar: kinetic_editorial
 still_family: editorial_portrait
-color_mode: monochrome_warm
+color_mode: desaturated_warm
 grain: 0.08
 accent_intensity: 0.5
 negative_space_target: 0.40

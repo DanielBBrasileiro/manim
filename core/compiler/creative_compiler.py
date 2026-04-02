@@ -1,9 +1,11 @@
 from .intent_parser import parse_intent
+from .reference_direction import apply_reference_direction_to_plan, resolve_reference_native_direction
 from .render_manifest import build_artifact_plan, build_render_manifest
 from .rule_engine import apply_rules
 from .mutation_engine import mutate_entropy, mutate_motion
 from .scoring_engine import novelty_score, coherence_score
 from .signature_simulator import simulate_signature
+from .archetype_loader import get_archetype_timeline
 from core.agents import aria, kael, zara
 from core.intelligence.model_router import TASK_PLAN
 
@@ -122,31 +124,7 @@ def enrich_with_entropy(plan: dict, intent_text: str = "") -> dict:
     # ---------------------------------------------
     # FASE 1 (ELITE): A Linguagem Temporal (Timeline)
     # ---------------------------------------------
-    timeline = []
-    if archetype == "emergence":
-        timeline = [
-             {"phase": [0.0, 0.4], "behavior": "coherent_flow", "tension": "low"},
-             {"phase": [0.4, 0.8], "behavior": bias or "scattered_to_aligned", "tension": "medium"},
-             {"phase": [0.8, 1.0], "behavior": "convergence_field", "tension": "high"}
-        ]
-    elif archetype == "chaos_to_order":
-        timeline = [
-             {"phase": [0.0, 0.3], "behavior": "chaotic_burst", "tension": "high"},
-             {"phase": [0.3, 0.7], "behavior": bias or "vortex_pull", "tension": "medium"},
-             {"phase": [0.7, 1.0], "behavior": "laminar_flow", "tension": "low"}
-        ]
-    elif archetype == "order_to_chaos":
-        timeline = [
-             {"phase": [0.0, 0.4], "behavior": "laminar_flow", "tension": "low"},
-             {"phase": [0.4, 0.7], "behavior": bias or "oscillatory_wave", "tension": "medium"},
-             {"phase": [0.7, 1.0], "behavior": "chaotic_dispersion", "tension": "high"}
-        ]
-    else:
-        timeline = [
-             {"phase": [0.0, 0.5], "behavior": bias or "laminar_flow", "tension": "medium"},
-             {"phase": [0.5, 1.0], "behavior": "breathing_field", "tension": "medium"}
-        ]
-        
+    timeline = get_archetype_timeline(archetype, bias)
     plan["timeline"] = timeline
     
     return plan
@@ -208,6 +186,9 @@ def compile_seed(
         plan["llm_confidence"] = getattr(intent, "confidence", 0.0)
         plan["llm_metadata"] = getattr(intent, "llm_metadata", {})
         plan = apply_scene_plan_guidance(plan, intent.scene_plan)
+
+    reference_direction = resolve_reference_native_direction(seed, brief=seed if isinstance(seed, dict) else None, plan=plan)
+    plan = apply_reference_direction_to_plan(plan, reference_direction, seed=seed if isinstance(seed, dict) else None)
     
     # 4. Negociação Darwiniana (Crítica Multi-Agente)
     plan = negotiate(plan)

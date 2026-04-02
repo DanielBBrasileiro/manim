@@ -26,6 +26,13 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import yaml
+from core.tools.reference_translation import (
+    analyze_site_zip,
+    build_reference_contract,
+    synthesize_design_dna,
+    translate_site_dna_to_aiox,
+    write_reference_contract,
+)
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 DEFAULT_OUTPUT_DIR = ROOT / "contracts" / "references"
@@ -512,16 +519,45 @@ def write_style_pack(url: str, output_dir: str | Path | None = None) -> Referenc
 
 def cli(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Capture a reusable AIOX reference/style pack")
-    parser.add_argument("urls", nargs="+", help="One or more reference URLs")
+    parser.add_argument("inputs", nargs="+", help="One or more reference URLs or site snapshot ZIPs")
     parser.add_argument(
         "--output-dir",
         default=str(DEFAULT_OUTPUT_DIR),
         help="Directory where the YAML and JSON style pack files will be written",
     )
+    parser.add_argument(
+        "--screenshot",
+        dest="screenshots",
+        action="append",
+        default=[],
+        help="Optional screenshot path to improve site snapshot translation. Repeatable.",
+    )
+    parser.add_argument(
+        "--notes",
+        default="",
+        help="Optional operator notes about what to emulate or avoid.",
+    )
     args = parser.parse_args(argv)
 
-    for url in args.urls:
-        paths = write_style_pack(url, args.output_dir)
+    for raw_input in args.inputs:
+        value = str(raw_input).strip()
+        if value.lower().endswith(".zip") and Path(value).exists():
+            analysis = analyze_site_zip(value, screenshots=args.screenshots, notes=args.notes)
+            dna = synthesize_design_dna(analysis)
+            translation = translate_site_dna_to_aiox(analysis, dna)
+            contract = build_reference_contract(analysis, dna, translation)
+            paths = write_reference_contract(contract, output_dir=args.output_dir)
+            print(f"Reference translation -> {paths.yaml_path}")
+            print(f"Reference translation -> {paths.json_path}")
+            print(
+                f"AIOX hints: style_pack={translation.get('style_pack_hint')} "
+                f"typography={translation.get('typography_system_hint')} "
+                f"still_family={translation.get('still_family_hint')} "
+                f"motion={translation.get('motion_grammar_hint')}"
+            )
+            continue
+
+        paths = write_style_pack(value, args.output_dir)
         print(f"Reference pack -> {paths.yaml_path}")
         print(f"Reference pack -> {paths.json_path}")
 

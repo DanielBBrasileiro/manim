@@ -14,6 +14,21 @@ def main():
     # Comando CREATE: O pipeline de ponta a ponta
     create_parser = subparsers.add_parser("create", help="Gera o vídeo final a partir de um briefing")
     create_parser.add_argument("briefing", help="Caminho para o YAML (ex: briefings/teste.yaml)")
+    create_parser.add_argument("--reference", help="ID ou caminho de um contrato de referencia ja traduzido")
+    create_parser.add_argument("--reference-zip", help="ZIP de snapshot de site para ingestao e producao guiada por referencia")
+    create_parser.add_argument(
+        "--reference-screenshot",
+        dest="reference_screenshots",
+        action="append",
+        default=[],
+        help="Screenshot opcional para enriquecer a traducao da referencia. Repetivel.",
+    )
+    create_parser.add_argument("--reference-notes", default="", help="Notas opcionais sobre o que emular/evitar da referencia")
+    create_parser.add_argument(
+        "--reference-output-dir",
+        default="contracts/references",
+        help="Diretorio onde contratos de referencia ingeridos via ZIP serao escritos",
+    )
     
     # NOVOS COMANDOS UX ELITE
     subparsers.add_parser("lab", help="Modo Interativo Conversacional (AIOX Lab)")
@@ -104,6 +119,35 @@ def main():
         print(f"🚀 IGNITION: AIOX Studio Engine -> Lendo {args.briefing}")
         with open(args.briefing, "r") as f:
             brief = yaml.safe_load(f)
+
+        if getattr(args, "reference_zip", None):
+            from core.compiler.reference_direction import attach_reference_to_brief, ingest_reference_zip_to_contract
+
+            ingest_report = ingest_reference_zip_to_contract(
+                args.reference_zip,
+                screenshots=getattr(args, "reference_screenshots", []) or [],
+                notes=getattr(args, "reference_notes", ""),
+                output_dir=getattr(args, "reference_output_dir", "contracts/references"),
+            )
+            brief = attach_reference_to_brief(
+                brief,
+                reference_id=ingest_report.get("reference_contract_id"),
+                translation=ingest_report.get("aiox_translation"),
+                metadata={
+                    "source": "reference_zip",
+                    "reference_contract_path": ingest_report.get("reference_contract_path"),
+                    "reference_contract_json_path": ingest_report.get("reference_contract_json_path"),
+                },
+            )
+            print(
+                f"🧭 Reference-native direction -> {ingest_report.get('reference_contract_id')} "
+                f"({ingest_report.get('reference_contract_path')})"
+            )
+        elif getattr(args, "reference", None):
+            from core.compiler.reference_direction import attach_reference_to_brief
+
+            brief = attach_reference_to_brief(brief, reference_id=args.reference)
+            print(f"🧭 Reference-native direction -> {args.reference}")
             
         from core.runtime.graph_runtime import GraphRuntime
         director_mode = str((brief or {}).get("director_mode", "assisted")).strip().lower()

@@ -69,6 +69,20 @@ export const boxStyle = (value: Required<LayoutBox>): React.CSSProperties => ({
 	height: `${(value.h * 100).toFixed(3)}%`,
 });
 
+/**
+ * Scale factor derived from negative_space_target.
+ * At ns=0.50 (baseline), returns 0. At ns=0.35 (dense), returns ~-0.15.
+ * At ns=0.72 (airy), returns ~+0.22.  Clamped to avoid collapse.
+ */
+const spaceScale = (ns: number): number => Math.max(-0.18, Math.min(0.26, ns - 0.50));
+
+/**
+ * Shrinks a zone's width to create more negative space, keeping it
+ * anchored to the same left edge.
+ */
+const shrinkW = (base: number, delta: number): number =>
+	Math.max(0.14, Math.min(0.60, base - delta));
+
 export const resolveStillLayout = ({
 	editorialLayout,
 	stillFamily,
@@ -91,15 +105,17 @@ export const resolveStillLayout = ({
 		stillFamily?.composition_grid === 'golden_section' ||
 		negativeSpaceTarget >= 0.58;
 
+	const ns = spaceScale(negativeSpaceTarget);
+
 	const defaults = isPosterMinimal
 		? {
-				heroZone: {x: 0.1, y: 0.60, w: 0.28, h: 0.18},
-				supportZone: {x: 0.1, y: 0.14, w: 0.22, h: 0.06},
-				emptyZone: {x: 0.48, y: 0.08, w: 0.42, h: 0.52},
-				focalZone: {x: 0.08, y: 0.08, w: 0.84, h: 0.80},
-				curveBox: {x: 0.08, y: 0.08, w: 0.84, h: 0.80},
-				titleBox: {x: 0.10, y: 0.62, w: 0.28, h: 0.18},
-				eyebrowBox: {x: 0.10, y: 0.14, w: 0.22, h: 0.05},
+				heroZone: {x: 0.1, y: 0.60, w: shrinkW(0.28, ns * 0.5), h: 0.18},
+				supportZone: {x: 0.1, y: 0.14, w: shrinkW(0.22, ns * 0.3), h: 0.06},
+				emptyZone: {x: Math.min(0.60, 0.48 - ns * 0.4), y: 0.08, w: Math.max(0.30, 0.42 + ns * 0.5), h: 0.52},
+				focalZone: {x: 0.08 + ns * 0.04, y: 0.08, w: Math.max(0.60, 0.84 - ns * 0.3), h: 0.80},
+				curveBox: {x: 0.08 + ns * 0.04, y: 0.08, w: Math.max(0.60, 0.84 - ns * 0.3), h: 0.80},
+				titleBox: {x: 0.10, y: 0.62, w: shrinkW(0.28, ns * 0.5), h: 0.18},
+				eyebrowBox: {x: 0.10, y: 0.14, w: shrinkW(0.22, ns * 0.3), h: 0.05},
 				accentAnchor: {x: 0.90, y: 0.14},
 				assetCrop: {
 					object_position: '58% 46%',
@@ -109,13 +125,13 @@ export const resolveStillLayout = ({
 				},
 			}
 		: {
-				heroZone: {x: 0.08, y: 0.50, w: 0.42, h: 0.26},
-				supportZone: {x: 0.08, y: 0.12, w: 0.30, h: 0.12},
-				emptyZone: {x: 0.56, y: 0.10, w: 0.28, h: 0.46},
-				focalZone: {x: 0.06, y: 0.08, w: 0.88, h: 0.82},
-				curveBox: {x: 0.06, y: 0.08, w: 0.88, h: 0.78},
-				titleBox: {x: 0.08, y: 0.52, w: 0.40, h: 0.22},
-				eyebrowBox: {x: 0.08, y: 0.12, w: 0.30, h: 0.06},
+				heroZone: {x: 0.08, y: 0.50, w: shrinkW(0.42, ns * 0.6), h: 0.26},
+				supportZone: {x: 0.08, y: 0.12, w: shrinkW(0.30, ns * 0.4), h: 0.12},
+				emptyZone: {x: Math.min(0.68, 0.56 - ns * 0.4), y: 0.10, w: Math.max(0.20, 0.28 + ns * 0.5), h: 0.46},
+				focalZone: {x: 0.06, y: 0.08, w: Math.max(0.60, 0.88 - ns * 0.3), h: 0.82},
+				curveBox: {x: 0.06, y: 0.08, w: Math.max(0.60, 0.88 - ns * 0.3), h: 0.78},
+				titleBox: {x: 0.08, y: 0.52, w: shrinkW(0.40, ns * 0.6), h: 0.22},
+				eyebrowBox: {x: 0.08, y: 0.12, w: shrinkW(0.30, ns * 0.4), h: 0.06},
 				accentAnchor: {x: 0.90, y: 0.16},
 				assetCrop: {
 					object_position: width > height ? '62% 44%' : '56% 42%',
@@ -128,7 +144,7 @@ export const resolveStillLayout = ({
 	return {
 		safeZonePx:
 			editorialLayout?.safe_margin_px ??
-			Math.max(64, Math.round(Math.min(width, height) * 0.06)),
+			Math.max(64, Math.round(Math.min(width, height) * (0.06 + ns * 0.02))),
 		heroZone: box(defaults.heroZone, editorialLayout?.hero_zone ?? editorialLayout?.title_box),
 		supportZone: box(defaults.supportZone, editorialLayout?.support_zone ?? editorialLayout?.eyebrow_box),
 		emptyZone: box(defaults.emptyZone, editorialLayout?.empty_zone),

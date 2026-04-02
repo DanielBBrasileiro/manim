@@ -105,32 +105,80 @@ def extract_corrections(score: FrameScore) -> list[str]:
     """Extract contract-bound actionable corrections from a FrameScore."""
     corrections: list[str] = []
 
-    # Contract-specific fix recipes per dimension score range
+    if score.hard_veto:
+        for entry in score.hard_veto_reasons:
+            if not isinstance(entry, dict):
+                continue
+            detail = str(entry.get("detail", "Resolve structural veto.")).strip()
+            code = str(entry.get("code", "hard_veto")).strip().upper()
+            corrections.append(f"[{code}] Resolve structural invalidity before any craft refinement. {detail}")
+        return corrections
+
     _FIXES: dict[str, dict[str, str]] = {
-        "typography": {
-            "critical": "Reduce to MAX 3 words. Use weight 300 (Whisper). Lowercase only. Remove all text except core statement.",
-            "poor":     "Reduce to max 5 words. Use weight 300 or 500 only. No serif. No uppercase prose.",
-            "weak":     "Tighten word count. Verify weight is 300 (whisper) or 500 (statement) only.",
+        "hierarchy_strength": {
+            "critical": "Establish one dominant element immediately. Increase the scale gap, suppress secondary copy, and make the focal order obvious within half a second.",
+            "poor": "Strengthen primary-vs-secondary contrast. Reduce competing elements and let one message own the frame.",
+            "weak": "Tighten hierarchy so supporting elements stop competing with the hero statement.",
         },
-        "color": {
-            "critical": "Use ONLY #000000 background and #FFFFFF foreground. Remove ALL other colors. Accent #FF3366 max 2% if needed.",
-            "poor":     "Eliminate parasitic colors. Palette must be #000/#FFF with optional #FF3366 accent < 2% coverage.",
-            "weak":     "Check for off-black or off-white values. Purify to strict #000/#FFF.",
+        "typographic_craft": {
+            "critical": "Rewrite the text architecture. Shorten lines, improve line breaks, tighten tracking for large type, and restore a deliberate measure.",
+            "poor": "Refine line breaking, measure, and role contrast so the typography feels authored instead of merely readable.",
+            "weak": "Polish the type system: cleaner breaks, better rag, and stronger size relationships.",
         },
-        "composition": {
-            "critical": "Increase negative space to >= 50%. Apply Rule of Thirds. Single focal point. Remove all secondary elements.",
-            "poor":     "Negative space must be >= 40%. Clear visual hierarchy. 64px minimum edge margin.",
-            "weak":     "Increase breathing room. Reduce element density. Confirm single dominant focal point.",
+        "spatial_intelligence": {
+            "critical": "Increase negative space aggressively. Rebalance focal, support, and empty zones until the frame breathes with intention.",
+            "poor": "Open more breathing room and reduce compression around the focal element.",
+            "weak": "Give the layout cleaner tension by protecting empty space and edge margins.",
         },
-        "motion_signature": {
-            "critical": "Add strong directional tension. Elements must imply movement or weight. Use spring physics.",
-            "poor":     "Increase implied momentum. Frame should convey physical behavior even as a still.",
-            "weak":     "Subtle tension cues: diagonal asymmetry, implied velocity, off-center gravity.",
+        "poster_impact": {
+            "critical": "Rebuild the frame as a poster, not a paused design. Remove noise, enlarge the dominant statement, and restore stop power.",
+            "poor": "Increase scroll-stopping force through stronger hierarchy and cleaner isolation.",
+            "weak": "Sharpen the poster read so the frame lands faster and harder.",
         },
-        "brand_compliance": {
-            "critical": "CRITICAL VIOLATIONS: Remove all gradients, shadows, glassmorphism, logos immediately.",
-            "poor":     "Remove anti-patterns. Verify no gradients, shadows, glow effects, or tech logos present.",
-            "weak":     "Minor compliance issues. Check for subtle shadows or faint gradients.",
+        "brand_discipline": {
+            "critical": "Strip every off-brand signal immediately. Purify palette, remove ornamental noise, and return to strict accent restraint.",
+            "poor": "Tighten palette discipline and reduce accent misuse so the frame feels premium, not decorative.",
+            "weak": "Remove subtle off-brand drift and restore cleaner restraint.",
+        },
+        "material_finish": {
+            "critical": "Rebuild the finish layer. Grain, contrast, and texture must feel intentional instead of dirty or accidental.",
+            "poor": "Refine the surface treatment so grain and contrast feel premium and controlled.",
+            "weak": "Clean up finish details; the material layer needs more discipline.",
+        },
+        "emotional_coherence": {
+            "critical": "Realign the frame mood with the intended emotional target. Every element should support the same emotional read.",
+            "poor": "Clarify the emotional tone so the composition feels more intentional and less neutral.",
+            "weak": "Tighten mood alignment; the frame should feel more emotionally specific.",
+        },
+        "originality": {
+            "critical": "Move away from safe template behavior. Keep the contracts, but introduce a more authored compositional idea.",
+            "poor": "Reduce generic startup-design cues and make the frame feel more deliberately authored.",
+            "weak": "Push one compositional decision further so the result feels less default.",
+        },
+        "motion_coherence": {
+            "critical": "Recompose the motion sentence. The frame should imply one clear motion language instead of multiple competing behaviors.",
+            "poor": "Tighten the motion logic so elements feel governed by the same physical and editorial intent.",
+            "weak": "Reduce motion ambiguity and make the movement read cleaner.",
+        },
+        "temporal_rhythm": {
+            "critical": "Re-time the sequence. Introduce holds, remove constant activity, and make cadence legible.",
+            "poor": "Add clearer beat spacing and stronger timing contrast between phrases.",
+            "weak": "Refine the rhythm so the pacing feels more deliberate.",
+        },
+        "transition_quality": {
+            "critical": "Redesign the act handoff. The transition should feel motivated, premium, and structurally legible.",
+            "poor": "Give the transition more intention; it currently feels arbitrary or abrupt.",
+            "weak": "Polish the handoff so act edges feel cleaner.",
+        },
+        "emotional_arc": {
+            "critical": "Reconnect the frame to the act emotion. Motion intensity and composition should clearly serve the narrative arc.",
+            "poor": "Strengthen emotional alignment between the frame and the act it belongs to.",
+            "weak": "Clarify the act emotion a little more through pacing and emphasis.",
+        },
+        "silence_quality": {
+            "critical": "Place stillness intentionally. The motion needs breathing room to gain authority.",
+            "poor": "Increase silence between phrases so movement can land with more meaning.",
+            "weak": "Add a touch more restraint; the sequence needs cleaner breath points.",
         },
     }
 
@@ -145,12 +193,15 @@ def extract_corrections(score: FrameScore) -> list[str]:
         else:
             tier = "weak"
 
-        fix = _FIXES.get(dim.name, {}).get(tier, f"Improve {dim.name} quality.")
+        fix = _FIXES.get(dim.name, {}).get(tier, f"Improve {dim.name} quality with a more deliberate authored decision.")
         corrections.append(f"[{dim.name.upper()} {dim.score}/100] {fix}")
 
         for issue in dim.issues:
             if issue and issue != "LLM response could not be parsed":
                 corrections.append(f"  -> {issue}")
+
+        if dim.notes and dim.notes not in {"", "No data from LLM"}:
+            corrections.append(f"  -> Critic: {dim.notes}")
 
     return corrections
 

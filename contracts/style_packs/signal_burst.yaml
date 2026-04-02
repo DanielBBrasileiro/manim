@@ -1,0 +1,9 @@
+id: signal_burst
+description: "Launch energy. Urgent. Heavy grain, dominant accent, compressed space."
+typography_system: editorial_dense
+motion_grammar: kinetic_editorial
+still_family: editorial_portrait
+color_mode: void_crimson
+grain: 0.12
+accent_intensity: 0.70
+negative_space_target: 0.35

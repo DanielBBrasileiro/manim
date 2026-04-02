@@ -1,0 +1,9 @@
+id: data_ink
+description: "Tufte-grade information density. Numbers-first. Digital precision."
+typography_system: editorial_dense
+motion_grammar: kinetic_editorial
+still_family: poster_minimal
+color_mode: editorial_white
+grain: 0.01
+accent_intensity: 0.35
+negative_space_target: 0.50

@@ -1,40 +1,63 @@
 id: motion_frame
 render_mode: motion
+artifact_class: motion_frame
 prompt_template: VideoFramePrompt
-threshold: 70
+threshold: 72
+premium_threshold: 80
+craft_floor: 66
+objective_checks:
+  - hard_vetoes
+  - negative_space
+  - text_density
+  - color_purity
+  - silence_window
+  - transition_hint
+correction_focus:
+  - motion_coherence
+  - temporal_rhythm
+  - transition_quality
+  - silence_quality
 dimensions:
   motion_coherence:
-    weight: 0.20
+    weight: 0.18
     criteria:
       - "Frame implies coherent motion language and physical behavior"
+      - "Motion feels intentionally composed rather than procedurally busy"
   temporal_rhythm:
-    weight: 0.15
+    weight: 0.16
     criteria:
       - "Frame feels correctly timed inside the sequence"
+      - "Cadence implies a deliberate rhythm, not constant activity"
   typographic_craft:
-    weight: 0.15
+    weight: 0.14
     criteria:
       - "Typography remains precise, readable, and system-driven"
+      - "Moving type still feels authored and not mechanically animated"
   spatial_intelligence:
-    weight: 0.15
+    weight: 0.14
     criteria:
       - "Space and composition stay intentional under motion pressure"
+      - "Visual load remains controlled even during kinetic moments"
   transition_quality:
-    weight: 0.10
+    weight: 0.12
     criteria:
       - "Edges of transitions feel premium, not abrupt or arbitrary"
+      - "Act handoffs feel motivated and structurally legible"
   emotional_arc:
     weight: 0.10
     criteria:
       - "Frame supports the intended emotional arc of the act"
+      - "Motion intensity matches the act's emotional target"
   brand_discipline:
-    weight: 0.10
+    weight: 0.08
     criteria:
       - "Brand rules remain intact under motion"
+      - "Dynamic treatments do not break palette or restraint"
   silence_quality:
-    weight: 0.05
+    weight: 0.08
     criteria:
       - "The frame preserves restraint and cinematic breathing room"
+      - "Stillness is placed intentionally and gives the motion meaning"
 hard_vetoes:
   - text_off_canvas
   - text_overlap_text
