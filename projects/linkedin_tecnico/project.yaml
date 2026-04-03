@@ -2,7 +2,7 @@ id: linkedin_tecnico
 description: "Produção editorial técnica para LinkedIn com foco em precisão e ritmo cinético."
 default_targets:
   - linkedin_feed_4_5
-default_style_pack: technical_minimal
+default_style_pack: data_ink
 default_typography_system: editorial_dense
 default_still_family: editorial_portrait
 default_motion_grammar: kinetic_editorial
@@ -10,4 +10,3 @@ default_negative_space_target: 0.48
 default_accent_intensity: 0.35
 default_grain: 0.08
 default_reference_ids: []
-output_base_dir: output/linkedin_tecnico

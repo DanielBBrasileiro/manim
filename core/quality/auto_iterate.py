@@ -27,7 +27,7 @@ from core.quality.frame_scorer import (
     batch_summary,
     score_frame,
 )
-from core.quality.mutator import mutate_render_manifest
+from core.quality.mutator import apply_mutation_plan, build_mutation_plan
 
 
 @dataclass
@@ -285,12 +285,18 @@ def auto_iterate(
         if not score.passed:
             manifest_to_mutate = (context or {}).get("render_manifest", {})
             if manifest_to_mutate:
-                # Deterministic mutation
                 findings = [d.to_dict() for d in score.dimensions if d.score < 70]
-                mutate_render_manifest(manifest_to_mutate, findings, score.objective_signals)
-                # Pull out the last recorded mutations from the audit
-                if "_mutation_audit" in manifest_to_mutate and manifest_to_mutate["_mutation_audit"]:
-                    mutations = manifest_to_mutate["_mutation_audit"][-1]
+                mutation_plan = build_mutation_plan(manifest_to_mutate, findings, score.objective_signals)
+                if mutation_plan.get("ok"):
+                    applied = apply_mutation_plan(
+                        manifest_to_mutate,
+                        manifest_to_mutate,
+                        {"artifact_plan": manifest_to_mutate, "render_manifest": manifest_to_mutate},
+                        mutation_plan,
+                    )
+                    manifest_to_mutate.clear()
+                    manifest_to_mutate.update(applied["artifact_plan"])
+                    mutations = applied.get("audit_entries", [])
 
         result = IterationResult(
             iteration=iteration,

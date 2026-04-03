@@ -1,3 +1,11 @@
+export type StillCompositionGrammar =
+	| 'monumental'
+	| 'editorial_grid'
+	| 'centered'
+	| 'asymmetric'
+	| 'rule_horizontal'
+	| 'diagonal';
+
 export type StillFamilyContract = {
 	id: string;
 	description?: string;
@@ -5,6 +13,7 @@ export type StillFamilyContract = {
 	background: string;
 	typography_system: string;
 	composition_grid: string;
+	grammar?: StillCompositionGrammar;
 	accent: string;
 	negative_space_min: number;
 	max_text_elements: number;
@@ -35,6 +44,7 @@ const STILL_FAMILIES: Record<string, StillFamilyContract> = {
 		background: 'solid_dark',
 		typography_system: 'editorial_minimal',
 		composition_grid: 'golden_section',
+		grammar: 'monumental',
 		accent: 'single_rule_line',
 		negative_space_min: 0.6,
 		max_text_elements: 2,
@@ -50,6 +60,7 @@ const STILL_FAMILIES: Record<string, StillFamilyContract> = {
 		background: 'photo_with_veil',
 		typography_system: 'editorial_dense',
 		composition_grid: 'rule_of_thirds',
+		grammar: 'editorial_grid',
 		accent: 'frame_crop + subtle_counter',
 		negative_space_min: 0.35,
 		max_text_elements: 4,
@@ -58,13 +69,61 @@ const STILL_FAMILIES: Record<string, StillFamilyContract> = {
 		primitive_family: 'ribbon',
 		primitive_weight: 1.8,
 	},
+	architectural_grid: {
+		id: 'architectural_grid',
+		description: 'Rigid grid-based layout. Modular blocks.',
+		base: 'textured_minimal',
+		background: 'solid_dark',
+		typography_system: 'editorial_dense',
+		composition_grid: 'modular_9_cell',
+		grammar: 'editorial_grid',
+		accent: 'rule_split',
+		negative_space_min: 0.45,
+		max_text_elements: 4,
+		max_visual_elements: 3,
+		grain: 0.02,
+		primitive_family: 'arc',
+		primitive_weight: 1.2,
+	},
+	centered_resolve: {
+		id: 'centered_resolve',
+		description: 'Symmetrical monument. Absolute focus.',
+		base: null,
+		background: 'solid_dark',
+		typography_system: 'editorial_minimal',
+		composition_grid: 'center_axis',
+		grammar: 'centered',
+		accent: 'dot_anchor',
+		negative_space_min: 0.5,
+		max_text_elements: 2,
+		max_visual_elements: 1,
+		grain: 0.05,
+		primitive_family: 'spline',
+		primitive_weight: 1.0,
+	},
+	asymmetric_corner: {
+		id: 'asymmetric_corner',
+		description: 'High tension diagonal. Opposing corner anchors.',
+		base: 'editorial_photo',
+		background: 'photo_with_veil',
+		typography_system: 'editorial_dense',
+		composition_grid: 'diagonal_thirds',
+		grammar: 'asymmetric',
+		accent: 'frame_crop',
+		negative_space_min: 0.4,
+		max_text_elements: 3,
+		max_visual_elements: 2,
+		grain: 0.08,
+		primitive_family: 'ribbon',
+		primitive_weight: 2.0,
+	},
 };
 
 const STYLE_PACKS: Record<string, StylePackContract> = {
 	silent_luxury: {
 		id: 'silent_luxury',
 		typography_system: 'editorial_minimal',
-		still_family: 'poster_minimal',
+		still_family: 'centered_resolve',
 		color_mode: 'monochrome_pure',
 		grain: 0.04,
 		accent_intensity: 0.1,
@@ -84,7 +143,7 @@ const STYLE_PACKS: Record<string, StylePackContract> = {
 	data_ink: {
 		id: 'data_ink',
 		typography_system: 'editorial_dense',
-		still_family: 'poster_minimal',
+		still_family: 'architectural_grid',
 		color_mode: 'editorial_white',
 		grain: 0.01,
 		accent_intensity: 0.35,
@@ -102,7 +161,7 @@ const STYLE_PACKS: Record<string, StylePackContract> = {
 	signal_burst: {
 		id: 'signal_burst',
 		typography_system: 'editorial_dense',
-		still_family: 'editorial_portrait',
+		still_family: 'asymmetric_corner',
 		color_mode: 'void_crimson',
 		grain: 0.12,
 		accent_intensity: 0.7,
@@ -111,7 +170,7 @@ const STYLE_PACKS: Record<string, StylePackContract> = {
 	blueprint_cold: {
 		id: 'blueprint_cold',
 		typography_system: 'editorial_minimal',
-		still_family: 'editorial_portrait',
+		still_family: 'architectural_grid',
 		color_mode: 'blueprint_cold',
 		grain: 0.06,
 		accent_intensity: 0.1,
