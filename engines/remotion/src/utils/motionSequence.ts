@@ -120,6 +120,37 @@ const rhythmMultiplier = (rhythm: MotionRhythm, actIndex: number, totalActs: num
 	return 1;
 };
 
+/**
+ * Resolve silence duration (ms) in a rhythm-aware way.
+ * Instead of always using the midpoint of the grammar range, vary by
+ * position and rhythm so restrained/kinetic grammars feel different
+ * across the sequence — not just in magnitude but in shape.
+ */
+const resolveSilenceMs = (
+	range: [number, number],
+	rhythm: MotionRhythm,
+	indexInAct: number,
+	totalInAct: number,
+): number => {
+	const [min, max] = range;
+	const progress = totalInAct > 1 ? indexInAct / (totalInAct - 1) : 0.5;
+
+	if (rhythm === 'decelerating') {
+		// Silence grows as sequence progresses — each pause is earned
+		return Math.round(min + (max - min) * progress);
+	}
+	if (rhythm === 'accelerating') {
+		// Silence shrinks — momentum builds
+		return Math.round(max - (max - min) * progress);
+	}
+	if (rhythm === 'syncopated') {
+		// Short–long alternation; odd indices get 35% of the gap added
+		return Math.round(indexInAct % 2 === 0 ? min : min + (max - min) * 0.35);
+	}
+	// uniform: use midpoint (safe default, unchanged behaviour)
+	return Math.round(min + (max - min) * 0.5);
+};
+
 const defaultPhrase = (
 	actId: string,
 	grammar: MotionGrammarContract,
@@ -252,7 +283,10 @@ export const resolveCueMotionSpec = ({
 	if (!sequence) {
 		return null;
 	}
-	const phrase = sequence.phrases[0];
+	// Rotate through available phrases so each cue in an act gets distinct
+	// motion character when multiple phrases were defined.
+	const phraseIndex = cueIndex % Math.max(sequence.phrases.length, 1);
+	const phrase = sequence.phrases[phraseIndex];
 	const staggerUnit = sequence.staggerProfile[cueIndex % Math.max(sequence.staggerProfile.length, 1)] ?? 0;
 	return {
 		anticipationFrames: Math.max(0, Math.round((phrase.anticipation.duration_ms / 1000) * fps)),
@@ -324,20 +358,27 @@ export const scheduleCuesWithGrammar = <T extends RawCueTiming>({
 				// If we hit limits, we MUST wait for at least one to finish
 				const earliestFinish = activeCues.shift();
 				if (earliestFinish) {
-					// Add silence if needed
-					const silenceFrames = Math.round(
-						((minSilenceMs + (maxSilenceMs - minSilenceMs) * 0.5) / 1000) * fps,
+					const silenceMs = resolveSilenceMs(
+						[minSilenceMs, maxSilenceMs],
+						grammar.rhythm,
+						index,
+						actCues.length,
 					);
+					const silenceFrames = Math.round((silenceMs / 1000) * fps);
 					startTime = Math.max(startTime, earliestFinish.endFrame + silenceFrames);
 				}
 			} else if (index > 0 && maxSimultaneous > 1) {
 				// We can have some overlap/stagger
 				startTime = Math.max(actCues[index - 1].from + staggerFrames, currentSequenceTime);
 			} else if (index > 0 && maxSimultaneous === 1) {
-				// Force sequential with silence
-				const silenceFrames = Math.round(
-					((minSilenceMs + (maxSilenceMs - minSilenceMs) * 0.5) / 1000) * fps,
+				// Force sequential with rhythm-aware silence
+				const silenceMs = resolveSilenceMs(
+					[minSilenceMs, maxSilenceMs],
+					grammar.rhythm,
+					index,
+					actCues.length,
 				);
+				const silenceFrames = Math.round((silenceMs / 1000) * fps);
 				startTime = Math.max(startTime, actCues[index - 1].from + actCues[index - 1].durationInFrames + silenceFrames);
 			}
 
@@ -381,7 +422,15 @@ export const resolveSceneMotionState = ({
 	const sequence =
 		sequences.find((item) => frame >= item.startFrame && frame < item.endFrame) ??
 		sequences[sequences.length - 1];
-	const phrase = sequence.phrases[0];
+	// Select phrase based on temporal position within the sequence window so
+	// scene motion character evolves across a multi-phrase act.
+	const sequenceDuration = Math.max(1, sequence.endFrame - sequence.startFrame);
+	const frameInSequence = Math.max(0, frame - sequence.startFrame);
+	const phraseIndex = Math.min(
+		sequence.phrases.length - 1,
+		Math.floor((frameInSequence / sequenceDuration) * sequence.phrases.length),
+	);
+	const phrase = sequence.phrases[phraseIndex];
 	const emphasisFactor = phrase.emphasis === 'high' ? 1.25 : phrase.emphasis === 'low' ? 0.72 : 1.0;
 	const baseTranslateY = Math.sin(frame / (sequence.rhythm === 'syncopated' ? 14 : 22)) * 8 * emphasisFactor;
 	const baseTranslateX =

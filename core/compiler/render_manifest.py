@@ -950,6 +950,11 @@ def _build_editorial_layout(target: dict[str, Any], design_canon: dict[str, Any]
     safe_margin_px = max(int(math_precision.get("safe_zone_margin_px", 64) or 64), int(min(width, height) * 0.06))
     family = _target_family_spec(target)
     still_family = str(target.get("still_family", "")).strip()
+    runtime_native_still_grammars = {
+        "centered_resolve": "centered",
+        "asymmetric_corner": "asymmetric",
+        "architectural_grid": "editorial_grid",
+    }
 
     base_layout = {
         "family": family,
@@ -970,6 +975,8 @@ def _build_editorial_layout(target: dict[str, Any], design_canon: dict[str, Any]
     if still_family == "poster_minimal":
         return {
             **base_layout,
+            "family": "poster_minimal",
+            "grammar": "monumental",
             "hero_zone": {"x": 0.10, "y": 0.62, "w": 0.28, "h": 0.18},
             "support_zone": {"x": 0.10, "y": 0.14, "w": 0.22, "h": 0.05},
             "empty_zone": {"x": 0.48, "y": 0.08, "w": 0.42, "h": 0.52},
@@ -983,6 +990,8 @@ def _build_editorial_layout(target: dict[str, Any], design_canon: dict[str, Any]
     if still_family == "editorial_portrait":
         return {
             **base_layout,
+            "family": "editorial_portrait",
+            "grammar": "editorial_grid",
             "hero_zone": {"x": 0.08, "y": 0.50, "w": 0.42, "h": 0.24},
             "support_zone": {"x": 0.08, "y": 0.12, "w": 0.30, "h": 0.12},
             "empty_zone": {"x": 0.56, "y": 0.10, "w": 0.28, "h": 0.46},
@@ -992,6 +1001,16 @@ def _build_editorial_layout(target: dict[str, Any], design_canon: dict[str, Any]
             "title_box": {"x": 0.08, "y": 0.52, "w": 0.40, "h": 0.22},
             "accent_anchor": {"x": 0.90, "y": 0.16},
             "asset_crop": {"object_position": "56% 42%", "veil_opacity": 0.36, "grayscale": 1.0, "contrast": 1.16},
+        }
+    if still_family in runtime_native_still_grammars:
+        # Preserve runtime-native family geometry instead of flattening it back
+        # into the generic hero-poster scaffold at compiler handoff time.
+        return {
+            "family": still_family,
+            "grammar": runtime_native_still_grammars[still_family],
+            "golden_ratio": phi,
+            "baseline_step_px": baseline_step,
+            "safe_margin_px": safe_margin_px,
         }
 
     if family == "thumbnail":
