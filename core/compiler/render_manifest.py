@@ -143,9 +143,6 @@ def build_artifact_plan(plan: dict, seed: dict | str) -> dict:
         requested_output_tokens=requested_output_tokens,
     )
     project_id = plan.get("project_id")
-    project_profile = plan.get("project_profile")
-    project_id = plan.get("project_id")
-    project_profile = plan.get("project_profile")
     duration = float(plan.get("duration", 12) or 12.0)
     acts = _build_act_windows(duration, plan, narrative_contract)
     text_beats = _collect_text_beats(brief, acts, duration, plan)
@@ -302,7 +299,6 @@ def build_artifact_plan(plan: dict, seed: dict | str) -> dict:
         },
         "project_id": project_id,
         "project_profile_id": project_id,
-        "output_base_dir": project_profile.get("output_base_dir") if project_profile else None,
     }
 
 
@@ -711,68 +707,68 @@ def _expand_target(
     design_canon: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     target = copy.deepcopy(target_spec)
-    target["style_pack"] = _target_style_pack_id(plan, target)
-    target_style_pack = _style_pack_contract(target["style_pack"])
-    target["typography_system"] = _target_typography_system(plan, target)
-    target["still_family"] = _target_still_family(plan, target)
     target_reference = _target_reference_direction(plan, target)
-    target["motion_grammar"] = (
-        str(target.get("motion_grammar", "")).strip()
-        or str(plan.get("motion_grammar", "")).strip()
-        or str(target_reference.get("motion_grammar", "")).strip()
-        or str(get_project_value(plan, "motion_grammar", target_id=target.get("id")) or "").strip()
-        or str(target_style_pack.get("motion_grammar", "")).strip()
-        or "cinematic_restrained"
+    target["style_pack"] = _target_style_pack_id(plan, target, target_reference=target_reference)
+    target_style_pack = _style_pack_contract(target["style_pack"])
+    target["typography_system"] = _target_typography_system(plan, target, target_reference=target_reference, target_style_pack=target_style_pack)
+    target["still_family"] = _target_still_family(plan, target, target_reference=target_reference, target_style_pack=target_style_pack)
+    motion_grammar = _resolve_target_field(
+        plan,
+        target,
+        "motion_grammar",
+        target_reference=target_reference,
+        project_value=get_project_value(plan, "motion_grammar"),
+        style_pack_value=target_style_pack.get("motion_grammar"),
+        fallback="cinematic_restrained",
     )
-    target["color_mode"] = (
-        str(target.get("color_mode", "")).strip()
-        or str(plan.get("color_mode", "")).strip()
-        or str(target_reference.get("color_mode", "")).strip()
-        or str(target_style_pack.get("color_mode", "")).strip()
-        or "monochrome_pure"
+    color_mode = _resolve_target_field(
+        plan,
+        target,
+        "color_mode",
+        target_reference=target_reference,
+        style_pack_value=target_style_pack.get("color_mode"),
+        fallback="monochrome_pure",
     )
-    target["negative_space_target"] = float(
-        target.get("negative_space_target")
-        if target.get("negative_space_target") is not None
-        else plan.get("negative_space_target")
-        if plan.get("negative_space_target") is not None
-        else target_reference.get("negative_space_target")
-        if target_reference.get("negative_space_target") is not None
-        else get_project_value(plan, "negative_space_target", target_id=target.get("id"))
-        if get_project_value(plan, "negative_space_target", target_id=target.get("id")) is not None
-        else target_style_pack.get("negative_space_target", 0.65)
-        or 0.65
+    negative_space_target = _resolve_target_field(
+        plan,
+        target,
+        "negative_space_target",
+        target_reference=target_reference,
+        project_value=get_project_value(plan, "negative_space_target"),
+        style_pack_value=target_style_pack.get("negative_space_target"),
+        fallback=0.65,
     )
-    target["accent_intensity"] = float(
-        target.get("accent_intensity")
-        if target.get("accent_intensity") is not None
-        else plan.get("accent_intensity")
-        if plan.get("accent_intensity") is not None
-        else target_reference.get("accent_intensity")
-        if target_reference.get("accent_intensity") is not None
-        else get_project_value(plan, "accent_intensity", target_id=target.get("id"))
-        if get_project_value(plan, "accent_intensity", target_id=target.get("id")) is not None
-        else target_style_pack.get("accent_intensity", 0.1)
-        or 0.1
+    accent_intensity = _resolve_target_field(
+        plan,
+        target,
+        "accent_intensity",
+        target_reference=target_reference,
+        project_value=get_project_value(plan, "accent_intensity"),
+        style_pack_value=target_style_pack.get("accent_intensity"),
+        fallback=0.1,
     )
-    target["grain"] = float(
-        target.get("grain")
-        if target.get("grain") is not None
-        else plan.get("grain")
-        if plan.get("grain") is not None
-        else target_reference.get("grain")
-        if target_reference.get("grain") is not None
-        else get_project_value(plan, "grain", target_id=target.get("id"))
-        if get_project_value(plan, "grain", target_id=target.get("id")) is not None
-        else target_style_pack.get("grain", 0.04)
-        or 0.04
+    grain = _resolve_target_field(
+        plan,
+        target,
+        "grain",
+        target_reference=target_reference,
+        project_value=get_project_value(plan, "grain"),
+        style_pack_value=target_style_pack.get("grain"),
+        fallback=0.04,
     )
-    target["material_hint"] = (
-        str(target.get("material_hint", "")).strip()
-        or str(plan.get("material_hint", "")).strip()
-        or str(target_reference.get("material_hint", "")).strip()
-        or "editorial_flat"
+    material_hint = _resolve_target_field(
+        plan,
+        target,
+        "material_hint",
+        target_reference=target_reference,
+        fallback="editorial_flat",
     )
+    target["motion_grammar"] = str(motion_grammar).strip()
+    target["color_mode"] = str(color_mode).strip()
+    target["negative_space_target"] = float(negative_space_target)
+    target["accent_intensity"] = float(accent_intensity)
+    target["grain"] = float(grain)
+    target["material_hint"] = str(material_hint).strip()
     target["judge_profile"] = _target_judge_profile(target)
     target["summary"] = _target_summary(target, story_atoms)
     target["duration_sec"] = _target_duration(target, duration)
@@ -794,24 +790,24 @@ def _expand_target(
     return target
 
 
-def _target_style_pack_id(plan: dict[str, Any], target: dict[str, Any]) -> str:
-    explicit_style_pack = str(plan.get("style_pack", "")).strip()
-    if explicit_style_pack:
-        return explicit_style_pack
-
+def _target_style_pack_id(plan: dict[str, Any], target: dict[str, Any], *, target_reference: dict[str, Any] | None = None) -> str:
     explicit_target_style_pack = str(target.get("style_pack", "")).strip()
     if explicit_target_style_pack:
         return explicit_target_style_pack
+
+    explicit_style_pack = str(plan.get("style_pack", "")).strip()
+    if explicit_style_pack:
+        return explicit_style_pack
 
     style_pack_ids = [str(item).strip() for item in plan.get("style_pack_ids", []) if str(item).strip()]
     if style_pack_ids:
         return style_pack_ids[0]
 
-    reference_style_pack = str(reference_value_for_target(plan, str(target.get("id", "")), "style_pack") or "").strip()
+    reference_style_pack = str((target_reference or {}).get("style_pack") or "").strip()
     if reference_style_pack:
         return reference_style_pack
 
-    project_style_pack = str(get_project_value(plan, "style_pack", target_id=target.get("id")) or "").strip()
+    project_style_pack = str(get_project_value(plan, "style_pack") or "").strip()
     if project_style_pack:
         return project_style_pack
 
@@ -826,21 +822,24 @@ def _target_style_pack_id(plan: dict[str, Any], target: dict[str, Any]) -> str:
     return preferred
 
 
-def _target_typography_system(plan: dict[str, Any], target: dict[str, Any]) -> str:
-    explicit_typography = str(target.get("typography_system", "")).strip() or str(plan.get("typography_system", "")).strip()
-    if explicit_typography:
-        return explicit_typography
-
-    reference_typography = str(reference_value_for_target(plan, str(target.get("id", "")), "typography_system") or "").strip()
-    if reference_typography:
-        return reference_typography
-
-    project_typography = str(get_project_value(plan, "typography_system", target_id=target.get("id")) or "").strip()
-    if project_typography:
-        return project_typography
-
-    style_pack = _style_pack_contract(_target_style_pack_id(plan, target))
-    typography_system = str(style_pack.get("typography_system", "")).strip()
+def _target_typography_system(
+    plan: dict[str, Any],
+    target: dict[str, Any],
+    *,
+    target_reference: dict[str, Any] | None = None,
+    target_style_pack: dict[str, Any] | None = None,
+) -> str:
+    typography_system = str(
+        _resolve_target_field(
+            plan,
+            target,
+            "typography_system",
+            target_reference=target_reference or {},
+            project_value=get_project_value(plan, "typography_system"),
+            style_pack_value=(target_style_pack or {}).get("typography_system"),
+        )
+        or ""
+    ).strip()
     if typography_system:
         return typography_system
 
@@ -850,25 +849,28 @@ def _target_typography_system(plan: dict[str, Any], target: dict[str, Any]) -> s
     return "editorial_dense"
 
 
-def _target_still_family(plan: dict[str, Any], target: dict[str, Any]) -> str | None:
+def _target_still_family(
+    plan: dict[str, Any],
+    target: dict[str, Any],
+    *,
+    target_reference: dict[str, Any] | None = None,
+    target_style_pack: dict[str, Any] | None = None,
+) -> str | None:
     render_mode = str(target.get("render_mode", "video")).strip().lower()
     if render_mode not in {"still", "carousel"}:
         return None
 
-    explicit_still_family = str(target.get("still_family", "")).strip() or str(plan.get("still_family", "")).strip()
-    if explicit_still_family:
-        return explicit_still_family
-
-    reference_still_family = str(reference_value_for_target(plan, str(target.get("id", "")), "still_family") or "").strip()
-    if reference_still_family:
-        return reference_still_family
-
-    project_still_family = str(get_project_value(plan, "still_family", target_id=target.get("id")) or "").strip()
-    if project_still_family:
-        return project_still_family
-
-    style_pack = _style_pack_contract(_target_style_pack_id(plan, target))
-    still_family = str(style_pack.get("still_family", "")).strip()
+    still_family = str(
+        _resolve_target_field(
+            plan,
+            target,
+            "still_family",
+            target_reference=target_reference or {},
+            project_value=get_project_value(plan, "still_family"),
+            style_pack_value=(target_style_pack or {}).get("still_family"),
+        )
+        or ""
+    ).strip()
     if still_family:
         return still_family
 
@@ -876,6 +878,25 @@ def _target_still_family(plan: dict[str, Any], target: dict[str, Any]) -> str | 
     if family in {"hero_poster", "thumbnail"}:
         return "poster_minimal"
     return "editorial_portrait"
+
+
+def _resolve_target_field(
+    plan: dict[str, Any],
+    target: dict[str, Any],
+    key: str,
+    *,
+    target_reference: dict[str, Any] | None = None,
+    project_value: Any = None,
+    style_pack_value: Any = None,
+    fallback: Any = None,
+) -> Any:
+    explicit_target = target.get(key)
+    explicit_plan = plan.get(key)
+    reference_value = (target_reference or {}).get(key)
+    for candidate in (explicit_target, explicit_plan, reference_value, project_value, style_pack_value, fallback):
+        if candidate not in {None, ""}:
+            return candidate
+    return None
 
 
 def _target_judge_profile(target: dict[str, Any]) -> str:
@@ -896,6 +917,25 @@ def _target_reference_direction(plan: dict[str, Any], target: dict[str, Any]) ->
     return resolved
 
 
+def _build_editorial_layout_dict(target: dict[str, Any], design_canon: dict[str, Any]) -> dict[str, Any]:
+    layout_id = str(target.get("still_family") or "poster_minimal").strip().lower()
+    design_layout = design_canon.get(layout_id, {})
+
+    return {
+        "family": layout_id,
+        "grammar": design_layout.get("grammar"),
+        "safe_margin_px": design_layout.get("safe_margin_px"),
+        "hero_zone": design_layout.get("hero_zone"),
+        "support_zone": design_layout.get("support_zone"),
+        "empty_zone": design_layout.get("empty_zone"),
+        "focal_zone": design_layout.get("focal_zone"),
+        "title_box": design_layout.get("title_box"),
+        "eyebrow_box": design_layout.get("eyebrow_box"),
+        "accent_anchor": design_layout.get("accent_anchor"),
+        "asset_crop": design_layout.get("asset_crop"),
+    }
+
+
 def _build_editorial_layout(target: dict[str, Any], design_canon: dict[str, Any]) -> dict[str, Any]:
     math_precision = (
         design_canon.get("mathematical_precision", {})
@@ -910,6 +950,11 @@ def _build_editorial_layout(target: dict[str, Any], design_canon: dict[str, Any]
     safe_margin_px = max(int(math_precision.get("safe_zone_margin_px", 64) or 64), int(min(width, height) * 0.06))
     family = _target_family_spec(target)
     still_family = str(target.get("still_family", "")).strip()
+    runtime_native_still_grammars = {
+        "centered_resolve": "centered",
+        "asymmetric_corner": "asymmetric",
+        "architectural_grid": "editorial_grid",
+    }
 
     base_layout = {
         "family": family,
@@ -930,6 +975,8 @@ def _build_editorial_layout(target: dict[str, Any], design_canon: dict[str, Any]
     if still_family == "poster_minimal":
         return {
             **base_layout,
+            "family": "poster_minimal",
+            "grammar": "monumental",
             "hero_zone": {"x": 0.10, "y": 0.62, "w": 0.28, "h": 0.18},
             "support_zone": {"x": 0.10, "y": 0.14, "w": 0.22, "h": 0.05},
             "empty_zone": {"x": 0.48, "y": 0.08, "w": 0.42, "h": 0.52},
@@ -943,6 +990,8 @@ def _build_editorial_layout(target: dict[str, Any], design_canon: dict[str, Any]
     if still_family == "editorial_portrait":
         return {
             **base_layout,
+            "family": "editorial_portrait",
+            "grammar": "editorial_grid",
             "hero_zone": {"x": 0.08, "y": 0.50, "w": 0.42, "h": 0.24},
             "support_zone": {"x": 0.08, "y": 0.12, "w": 0.30, "h": 0.12},
             "empty_zone": {"x": 0.56, "y": 0.10, "w": 0.28, "h": 0.46},
@@ -952,6 +1001,16 @@ def _build_editorial_layout(target: dict[str, Any], design_canon: dict[str, Any]
             "title_box": {"x": 0.08, "y": 0.52, "w": 0.40, "h": 0.22},
             "accent_anchor": {"x": 0.90, "y": 0.16},
             "asset_crop": {"object_position": "56% 42%", "veil_opacity": 0.36, "grayscale": 1.0, "contrast": 1.16},
+        }
+    if still_family in runtime_native_still_grammars:
+        # Preserve runtime-native family geometry instead of flattening it back
+        # into the generic hero-poster scaffold at compiler handoff time.
+        return {
+            "family": still_family,
+            "grammar": runtime_native_still_grammars[still_family],
+            "golden_ratio": phi,
+            "baseline_step_px": baseline_step,
+            "safe_margin_px": safe_margin_px,
         }
 
     if family == "thumbnail":

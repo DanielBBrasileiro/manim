@@ -5,6 +5,7 @@ import os
 from typing import Any
 
 from core.quality.fix_plan import apply_fix_plan, generate_fix_plan
+from core.quality.mutator import apply_mutation_plan
 from core.quality.preview_judge import run_preview_judge
 from core.quality.preview_runtime import build_preview_bundle
 
@@ -46,11 +47,33 @@ def run_preview_iteration_loop(
     for iteration in range(1, max_iterations + 1):
         preview_bundle = build_preview_bundle(current_plan, current_artifact_plan)
         preview_report = run_preview_judge(preview_bundle, current_artifact_plan, context=context)
+        mutation_plan = (
+            preview_report.get("mutation_plan", {})
+            if isinstance(preview_report.get("mutation_plan", {}), dict)
+            else {}
+        )
+        applied_mutations: list[dict[str, Any]] = []
+
+        if mutation_plan.get("ok") and not bool(preview_report.get("hard_veto")):
+            mutated = apply_mutation_plan(
+                current_artifact_plan,
+                current_render_manifest,
+                current_plan,
+                mutation_plan,
+            )
+            current_artifact_plan = mutated["artifact_plan"]
+            current_render_manifest = mutated["render_manifest"]
+            current_plan = mutated["plan"]
+            applied_mutations = mutated.get("audit_entries", [])
+
+        preview_report["applied_mutations"] = copy.deepcopy(applied_mutations)
         fix_plan = generate_fix_plan(preview_report, current_artifact_plan)
         iteration_record = {
             "iteration": iteration,
             "preview": preview_bundle,
             "preview_judge": preview_report,
+            "mutation_plan": mutation_plan,
+            "applied_mutations": applied_mutations,
             "fix_plan": fix_plan,
         }
         iterations.append(iteration_record)
@@ -58,25 +81,31 @@ def run_preview_iteration_loop(
         current_score = float(preview_report.get("score", 0.0) or 0.0)
         hard_veto = bool(preview_report.get("hard_veto"))
         directives = fix_plan.get("directives", []) if isinstance(fix_plan.get("directives", []), list) else []
+        mutation_directives = (
+            mutation_plan.get("directives", [])
+            if isinstance(mutation_plan.get("directives", []), list)
+            else []
+        )
 
         if preview_report.get("accepted") or current_score >= accept_score:
             accepted = True
             stopped_reason = "accepted_for_final_render"
             break
-        if hard_veto and not directives:
-            stopped_reason = "hard_veto_without_fix"
+        if hard_veto:
+            stopped_reason = "hard_veto_short_circuit"
             break
-        if not directives:
-            stopped_reason = "no_actionable_fix_plan"
+        if not directives and not mutation_directives:
+            stopped_reason = "no_actionable_fix_or_mutation"
             break
         if previous_score is not None and abs(current_score - previous_score) < plateau_delta:
             stopped_reason = "quality_plateau_detected"
             break
 
-        applied = apply_fix_plan(current_artifact_plan, current_render_manifest, current_plan, fix_plan)
-        current_artifact_plan = applied["artifact_plan"]
-        current_render_manifest = applied["render_manifest"]
-        current_plan = applied["plan"]
+        if directives:
+            applied = apply_fix_plan(current_artifact_plan, current_render_manifest, current_plan, fix_plan)
+            current_artifact_plan = applied["artifact_plan"]
+            current_render_manifest = applied["render_manifest"]
+            current_plan = applied["plan"]
         previous_score = current_score
 
     return {

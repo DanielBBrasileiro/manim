@@ -360,7 +360,8 @@ const loadBundler = () => {
 
   console.log("Carregando @remotion/bundler...");
   const startedAt = Date.now();
-  bundlerApi = require(path.join(BUNDLER_DIST, "bundle.js"));
+  // Usar index.js padrão em vez de bundle.js (que é focado em CLI) para evitar hangs no require
+  bundlerApi = require(path.join(REMOTION_ROOT, "node_modules", "@remotion", "bundler", "dist", "index.js"));
   console.log(`@remotion/bundler pronto em ${Date.now() - startedAt}ms`);
   return bundlerApi;
 };
@@ -372,15 +373,15 @@ const loadRenderer = () => {
 
   console.log("Carregando renderer Remotion...");
   const startedAt = Date.now();
-  console.log(" - require get-compositions.js");
-  trace("before require get-compositions.js");
-  const {getCompositions} = require(path.join(RENDERER_DIST, "get-compositions.js"));
-  trace("after require get-compositions.js");
-  console.log(`   ok em ${Date.now() - startedAt}ms`);
+  
+  // Usar entry point padrão do renderer
+  const rendererPath = path.join(REMOTION_ROOT, "node_modules", "@remotion", "renderer", "dist", "index.js");
+  const rendererModule = require(rendererPath);
+  
   rendererApi = {
-    getCompositions,
-    renderMedia: null,
-    renderStill: null,
+    getCompositions: rendererModule.getCompositions,
+    renderMedia: rendererModule.renderMedia,
+    renderStill: rendererModule.renderStill,
     startedAt,
   };
   console.log(`Renderer Remotion pronto em ${Date.now() - startedAt}ms`);
@@ -390,29 +391,23 @@ const loadRenderer = () => {
 const ensureRenderMedia = () => {
   const renderer = loadRenderer();
   if (!renderer.renderMedia) {
-    console.log(" - require render-media.js");
-    trace("before require render-media.js");
-    ({renderMedia: renderer.renderMedia} = require(path.join(RENDERER_DIST, "render-media.js")));
-    trace("after require render-media.js");
-    console.log(`   ok em ${Date.now() - renderer.startedAt}ms`);
+    const renderMediaPath = path.join(REMOTION_ROOT, "node_modules", "@remotion", "renderer", "dist", "render-media.js");
+    renderer.renderMedia = require(renderMediaPath).renderMedia;
   }
   return renderer.renderMedia;
 };
 
 const ensureRenderStill = () => {
   const renderer = loadRenderer();
-  if (renderer.renderStill === null) {
+  if (!renderer.renderStill) {
+    const renderStillPath = path.join(REMOTION_ROOT, "node_modules", "@remotion", "renderer", "dist", "render-still.js");
     try {
-      console.log(" - require render-still.js");
-      trace("before require render-still.js");
-      ({renderStill: renderer.renderStill} = require(path.join(RENDERER_DIST, "render-still.js")));
-      trace("after require render-still.js");
-      console.log(`   ok em ${Date.now() - renderer.startedAt}ms`);
+      renderer.renderStill = require(renderStillPath).renderStill;
     } catch (_error) {
-      renderer.renderStill = false;
+      renderer.renderStill = null;
     }
   }
-  return renderer.renderStill || null;
+  return renderer.renderStill;
 };
 
 const makeRendererOptions = () => ({
@@ -467,6 +462,7 @@ const makeBundle = async () => {
     keyboardShortcutsEnabled: false,
     publicDir: PUBLIC_DIR,
     rootDir: REMOTION_ROOT,
+    cache: false,
     rspack: USE_RSPACK,
     webpackOverride: (config) => {
       config.resolve = config.resolve || {};

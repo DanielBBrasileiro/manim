@@ -36,17 +36,29 @@ LEGACY_OUTPUT_ALIASES = {
 }
 
 
-def run_manim(scene_name: str, script_path: str) -> None:
+def run_manim(scene_name: str, script_path: str, timeout: int = 120) -> None:
+    if os.getenv("AIOX_SKIP_MANIM_PREPASS") == "1":
+        print(f"⏩ [Manim Tool] Pulo manual detectado. Ignorando {scene_name}...")
+        return
     print(f"💎 [Manim Tool] Renderizando geometria de {scene_name}...")
     env = dict(os.environ, PYTHONPATH=str(ROOT))
     cmd = ["manim", "-f", "-qh", script_path, scene_name]
-    subprocess.run(cmd, check=True, cwd=str(ROOT / "engines" / "manim"), env=env)
+    try:
+        subprocess.run(cmd, check=True, cwd=str(ROOT / "engines" / "manim"), env=env, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        print(f"⚠️ [Manim Tool] Timeout de {timeout}s atingindo para {scene_name}. Continuando pipeline...")
 
-def run_manim_hero_still(scene_name: str = "HeroStillGeometry", script_path: str = "scenes/hero_still.py") -> None:
+def run_manim_hero_still(scene_name: str = "HeroStillGeometry", script_path: str = "scenes/hero_still.py", timeout: int = 120) -> None:
+    if os.getenv("AIOX_SKIP_MANIM_PREPASS") == "1":
+        print(f"⏩ [Manim Tool] Pulo manual detectado. Ignorando {scene_name}...")
+        return
     print(f"🖼️  [Manim Tool] Renderizando geometria MASTER em 1080x1350 para {scene_name}...")
     env = dict(os.environ, PYTHONPATH=str(ROOT))
     cmd = ["manim", "-f", "-qh", "-s", "-r", "1080,1350", script_path, scene_name]
-    subprocess.run(cmd, check=True, cwd=str(ROOT / "engines" / "manim"), env=env)
+    try:
+        subprocess.run(cmd, check=True, cwd=str(ROOT / "engines" / "manim"), env=env, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        print(f"⚠️ [Manim Tool] Timeout de {timeout}s atingindo para {scene_name}. Usando fallback.")
 
 def bridge_engines(scene_name: str, script_path: str) -> None:
     script_name = Path(script_path).stem
@@ -106,20 +118,38 @@ def _load_remotion_env(
     return env
 
 
-def _prewarm_remotion_bundle(timeout_seconds: int = DEFAULT_BUNDLE_WARM_TIMEOUT) -> None:
-    render_mode = os.getenv("AIOX_REMOTION_RENDER_MODE", "auto").strip().lower()
-    if render_mode == "cli":
+def _prewarm_remotion_bundle(artifact_plan: dict[str, Any]) -> None:
+    """Invoca o bundler do Remotion como warmup para evitar cold starts no render principal."""
+    targets = artifact_plan.get("artifact_plan", {}).get("targets", [])
+    
+    # Bypass para Still-Only: O renderStill já faz bundle, não precisamos travar aqui.
+    if all(str(t.get("render_mode")).lower() == "still" for t in targets if isinstance(t, dict)):
+        print("🪶 [Remotion Tool] Pipeline de stills detectado. Pulando warmup redundante.")
         return
 
-    env = _load_remotion_env(timeout_seconds=timeout_seconds)
-    warm_cmd = [
-        "/bin/bash",
-        _load_remotion_runner(),
-        str(ROOT / "scripts" / "remotion_direct.js"),
-        "warm",
-    ]
     print("🔥 [Remotion Tool] Preaquecendo bundle nativo...")
-    subprocess.run(warm_cmd, check=True, cwd=str(ROOT), env=env, timeout=timeout_seconds)
+    try:
+        # Timeout curto para warm-up: se falhar ou travar, o render principal tentará novamente.
+        _run_direct_node_command(["warm"], timeout=180)
+    except Exception as e:
+        print(f"⚠️ [Remotion Tool] Warmup não completou no tempo: {e}. Continuando...")
+
+
+def _run_direct_node_command(args: list[str], timeout: int | None = None) -> subprocess.CompletedProcess:
+    """Executa scripts/remotion_direct.js com Node 20 sem as abstrações de composição/props."""
+    script_path = str(ROOT / "scripts" / "remotion_direct.js")
+    runner = _load_remotion_runner()
+    
+    env = _load_remotion_env()
+    cmd = ["/bin/bash", runner, script_path] + args
+    
+    return subprocess.run(
+        cmd,
+        check=True,
+        cwd=str(ROOT),
+        env=env,
+        timeout=timeout
+    )
 
 
 def _run_remotion_via_daemon(command: str, composition: str, output_path: Path, remotion_props: dict[str, Any] | None, timeout_seconds: int) -> bool:
@@ -332,7 +362,36 @@ def _target_uses_base_video(target: dict[str, Any]) -> bool:
 
 
 def _requires_manim_pass(targets: list[dict[str, Any]]) -> bool:
-    return any(isinstance(target, dict) and _target_uses_base_video(target) for target in targets)
+    """True se houver vídeo cinematic vertical no mix ativo."""
+    return any(
+        isinstance(target, dict) 
+        and str(target.get("render_mode", "video")).lower() == "video"
+        and str(target.get("id")).strip() == "short_cinematic_vertical"
+        for target in targets
+    )
+
+
+def _target_needs_hero_still_prepass(target: dict[str, Any]) -> bool:
+    target_id = str(target.get("id", "")).strip()
+    render_mode = str(target.get("render_mode", "video")).strip().lower()
+    hero_target_ids = {
+        "linkedin_feed_4_5",
+        "youtube_thumbnail_16_9",
+        "linkedin_carousel_square",
+        "loop_gif_square",
+        "loop_gif_vertical",
+        "motion_preview_webm",
+    }
+    if target_id not in hero_target_ids:
+        return False
+
+    if render_mode in {"still", "carousel"}:
+        strategy = target.get("still_base_strategy", {})
+        if not isinstance(strategy, dict):
+            return False
+        return bool(strategy.get("requires_manim"))
+
+    return True
 
 
 def _target_render_priority(target: dict[str, Any]) -> tuple[int, str]:
@@ -751,43 +810,32 @@ def render_pipeline(
     else:
         print("🪶 [Render Tool] Nenhum target exige base de video. Pulando Manim.")
 
-    hero_target_present = any(
-        str(target.get("id")).strip()
-        in (
-            "linkedin_feed_4_5",
-            "youtube_thumbnail_16_9",
-            "linkedin_carousel_square",
-            "loop_gif_square",
-            "loop_gif_vertical",
-            "motion_preview_webm",
-        )
+    hero_prepass_targets = [
+        target
         for target in targets
-        if isinstance(target, dict)
-    )
-    if hero_target_present:
+        if isinstance(target, dict) and _target_needs_hero_still_prepass(target)
+    ]
+    if hero_prepass_targets:
         try:
             run_manim_hero_still()
             success = bridge_manim_hero_still()
             # Injeta prop dinamicamente
-            for target in targets:
-                if str(target.get("id")).strip() in (
-                    "linkedin_feed_4_5",
-                    "youtube_thumbnail_16_9",
-                    "linkedin_carousel_square",
-                    "loop_gif_square",
-                    "loop_gif_vertical",
-                    "motion_preview_webm",
-                ):
+            for target in hero_prepass_targets:
+                if str(target.get("render_mode", "video")).strip().lower() in {"still", "carousel"}:
                     target["bg_src"] = "manim_hero_bg.png" if success else None
                 target["master_asset_src"] = "manim_hero_bg.png" if success else None
+                target["_hero_prep_used"] = bool(success)
         except Exception as error:
             print(f"⚠️ [Render Tool] Sem pre-render avançado do Hero Still: {error}. Usando fallback.")
+    else:
+        print("🪶 [Render Tool] Nenhum still/carousel ativo exige hero prepass do Manim.")
 
     outputs: list[dict[str, Any]] = []
+    degraded_native_still_targets: list[dict[str, Any]] = []
     remotion_unavailable_reason: str | None = None
 
     try:
-        _prewarm_remotion_bundle()
+        _prewarm_remotion_bundle(artifact_plan)
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, RuntimeError) as error:
         print(f"⚠️ [Render Tool] Prewarm do Remotion falhou: {error}")
         remotion_unavailable_reason = str(error)
@@ -811,6 +859,8 @@ def render_pipeline(
                 _copy_alias_output(canonical_output, alias_output)
                 fallback_output["alias_output"] = str(alias_output) if alias_output else None
                 fallback_output["remotion_skipped"] = True
+                fallback_output["validation_status"] = "fallback_non_native_target"
+                fallback_output["native_validation_passed"] = False
                 outputs.append(fallback_output)
                 continue
             except Exception as fallback_error:
@@ -827,6 +877,18 @@ def render_pipeline(
                 _copy_alias_output(canonical_output, alias_output)
                 fallback_output["alias_output"] = str(alias_output) if alias_output else None
                 fallback_output["remotion_skipped"] = True
+                fallback_output["validation_status"] = "degraded_fallback"
+                fallback_output["native_validation_passed"] = False
+                fallback_output["native_failure_reason"] = remotion_unavailable_reason
+                if render_mode == "still":
+                    degraded_native_still_targets.append(
+                        {
+                            "target": target_id,
+                            "mode": render_mode,
+                            "reason": remotion_unavailable_reason,
+                            "output": str(fallback_output.get("output", "")),
+                        }
+                    )
                 outputs.append(fallback_output)
                 continue
             except Exception as fallback_error:
@@ -864,6 +926,11 @@ def render_pipeline(
                         "composition": composition,
                         "output": str(output),
                         "slides": slide_outputs,
+                        "render_backend": "remotion",
+                        "fallback": False,
+                        "hero_prepass_used": bool(target.get("_hero_prep_used")),
+                        "validation_status": "native_success",
+                        "native_validation_passed": True,
                     }
                 )
                 continue
@@ -878,6 +945,11 @@ def render_pipeline(
                     "composition": composition,
                     "output": str(output),
                     "alias_output": str(alias_output) if alias_output else None,
+                    "render_backend": "remotion",
+                    "fallback": False,
+                    "hero_prepass_used": bool(target.get("_hero_prep_used")),
+                    "validation_status": "native_success",
+                    "native_validation_passed": True,
                 }
             )
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired, RuntimeError) as error:
@@ -887,9 +959,40 @@ def render_pipeline(
                 fallback_output = _fallback_target_render(target, artifact_plan, canonical_output)
                 _copy_alias_output(canonical_output, alias_output)
                 fallback_output["alias_output"] = str(alias_output) if alias_output else None
+                fallback_output["render_backend"] = "fallback_artifact_renderer"
+                fallback_output["hero_prepass_used"] = bool(target.get("_hero_prep_used"))
+                fallback_output["validation_status"] = "degraded_fallback"
+                fallback_output["native_validation_passed"] = False
+                fallback_output["native_failure_reason"] = str(error)
+                if render_mode == "still":
+                    degraded_native_still_targets.append(
+                        {
+                            "target": target_id,
+                            "mode": render_mode,
+                            "reason": str(error),
+                            "output": str(fallback_output.get("output", "")),
+                        }
+                    )
                 outputs.append(fallback_output)
             except Exception as fallback_error:
                 print(f"❌ [Render Tool] Falha ao renderizar target '{target_id}': {fallback_error}")
                 return {"ok": False, "errors": [str(fallback_error)], "outputs": outputs}
 
-    return {"ok": True, "outputs": outputs}
+    if degraded_native_still_targets:
+        return {
+            "ok": False,
+            "status": "degraded_fallback",
+            "native_validation_passed": False,
+            "errors": [
+                "Still native render did not complete; fallback output was generated instead."
+            ],
+            "degraded_targets": degraded_native_still_targets,
+            "outputs": outputs,
+        }
+
+    return {
+        "ok": True,
+        "status": "native_success",
+        "native_validation_passed": True,
+        "outputs": outputs,
+    }
