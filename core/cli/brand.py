@@ -3,6 +3,12 @@ import sys
 import yaml
 import json
 from pathlib import Path
+import sys
+import os
+
+# Add core path to import tools
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+from core.tools.color_engine import HCTColorEngine
 
 def load_yaml(file_path):
     if not os.path.exists(file_path):
@@ -35,14 +41,19 @@ def sync_identity(identity_name="aiox_default"):
     # 1. Carrega as Leis Globais
     global_laws = load_yaml(contracts_dir / "global_laws.yaml")
     
-    # 2. Carrega os Contratos da Identidade Específica
+    # 2. Carrega os Contratos da Identidade Específica e as Leis de Motion Globais
     brand_data = load_yaml(identity_dir / "brand.yaml")
     audio_data = load_yaml(identity_dir / "audio.yaml")
-    
-    # (No futuro, podemos adicionar motion.yaml, layout.yaml aqui)
+    motion_data = load_yaml(contracts_dir / "motion.yaml")
+    layout_data = load_yaml(contracts_dir / "layout.yaml")
     
     if not brand_data:
         print(f"⚠️ Aviso: Nenhum brand.yaml encontrado para '{identity_name}'.")
+        
+    # Generate HCT Color Palettes
+    primary_color = brand_data.get("color_states", {}).get("dark", {}).get("primary", "#ffffff")
+    generated_colors = HCTColorEngine.generate_semantic_tokens(primary_color)
+    brand_data["colors"] = generated_colors
     
     # 3. Funde tudo em um Master Theme
     master_theme = {
@@ -55,12 +66,31 @@ def sync_identity(identity_name="aiox_default"):
         "audio": audio_data
     }
     
-    # 4. Exporta para JSON para consumo rápido do Manim e Remotion (Node.js)
+    # 4. Exporta para JSON para consumo rápido do Manim
     output_file = output_dir / "theme.json"
     with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(master_theme, f, indent=2)
+    
+    # 5. Mestre Ouro: O Token Bridge (TypeScript genérico imutável)
+    # AIOX Studio - The Token Bridge ensuring single Source of Truth
+    remotion_gen_dir = base_dir / "engines" / "remotion" / "src" / "generated"
+    remotion_gen_dir.mkdir(parents=True, exist_ok=True)
+    
+    ts_content = f"""// ⚠️ GERADO AUTOMATICAMENTE VIA core/cli/brand.py - NÃO EDITE
+// Pipeline de Governança de Design Física AIOX
+
+export const AIOX_TOKENS = {{
+  layout: {json.dumps(layout_data, indent=2)},
+  motion: {json.dumps(motion_data, indent=2)},
+  brand: {json.dumps(master_theme['brand'], indent=2)}
+}} as const;
+"""
+    ts_output_file = remotion_gen_dir / "aiox_tokens.ts"
+    with open(ts_output_file, 'w', encoding='utf-8') as f:
+        f.write(ts_content)
         
     print(f"✅ DNA visual fundido e exportado para: {output_file.relative_to(base_dir)}")
+    print(f"🌉 Token Bridge compilada em TypeScript: {ts_output_file.relative_to(base_dir)}")
 
 if __name__ == "__main__":
     # Permite passar a identidade via argumento ou usa a padrão

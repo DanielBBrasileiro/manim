@@ -1,5 +1,29 @@
 # contracts/layout.yaml v4.1
 
+window_size_classes:
+  COMPACT:
+    max_width: 599
+    base_gap: 16px
+    base_padding: 24px
+    edge_breathing: 24px
+    grid_columns: 4
+    grid_margin: 16px
+  MEDIUM:
+    max_width: 839
+    base_gap: 24px
+    base_padding: 32px
+    edge_breathing: 48px
+    grid_columns: 8
+    grid_margin: 24px
+  EXPANDED:
+    max_width: 10000 # Desktop/Wide
+    base_gap: 32px
+    base_padding: 48px
+    edge_breathing: 64px
+    grid_columns: 12
+    grid_margin: 24px
+
+
 formats:
   # ── Base formats ──────────────────────────────
   vertical_9_16:

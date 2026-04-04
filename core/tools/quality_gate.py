@@ -5,6 +5,14 @@ quality_gate.py — lightweight quality checks for Story Engine artifact plans.
 from __future__ import annotations
 
 from typing import Any
+import json
+import logging
+
+try:
+    from core.tools.color_engine import get_contrast_ratio
+except ImportError:
+    get_contrast_ratio = None
+
 
 
 REQUIRED_STORY_ATOMS = ("thesis", "emotional_target", "visual_metaphor")
@@ -27,6 +35,9 @@ def evaluate_artifact_plan(artifact_plan: dict[str, Any]) -> dict[str, Any]:
 
     if int(artifact_plan.get("schema_version", 1) or 1) < 3:
         report["warnings"].append("artifact_plan_schema_legacy")
+
+    # [NEW] Accessibility Contrast Guard
+    _check_accessibility_contrast(artifact_plan, report)
 
     for key in REQUIRED_STORY_ATOMS:
         if not str(story_atoms.get(key, "")).strip():
@@ -148,3 +159,38 @@ def _check_target(target: dict[str, Any], report: dict[str, Any]) -> None:
     for key in ("act_quality_profile", "post_fx_profile", "qa_sampling_frames", "poster_test_frames"):
         if key not in target:
             report["warnings"].append(f"target_quality_contract_missing:{target_id}:{key}")
+
+
+def _check_accessibility_contrast(artifact_plan: dict[str, Any], report: dict[str, Any]) -> None:
+    """
+    Validates if the active styling uses legible foreground-background contrast 
+    following WCAG AA standards (4.5:1 ratio). Simulates the mapping from the HCT Engine.
+    """
+    if not get_contrast_ratio:
+        report["warnings"].append("color_engine_unavailable_for_contrast_check")
+        return
+        
+    style_pack = artifact_plan.get("style_pack", {})
+    if not isinstance(style_pack, dict):
+        return
+
+    tokens = style_pack.get("brand_tokens", {})
+    if not tokens:
+        return
+        
+    # Get primary against surface, or on_primary against primary
+    primary = tokens.get("primary")
+    on_primary = tokens.get("on_primary")
+    surface = tokens.get("surface")
+    on_surface = tokens.get("on_surface")
+
+    if primary and on_primary:
+        ratio = get_contrast_ratio(primary, on_primary)
+        if ratio < 4.5:
+            report["warnings"].append(f"contrast_violation_primary: {ratio:.2f} < 4.5")
+            
+    if surface and on_surface:
+        ratio = get_contrast_ratio(surface, on_surface)
+        if ratio < 4.5:
+            report["warnings"].append(f"contrast_violation_surface: {ratio:.2f} < 4.5")
+

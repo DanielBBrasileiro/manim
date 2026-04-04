@@ -1,0 +1,179 @@
+{
+  "run_id": "bench_20260401T232522Z",
+  "created_at": "2026-04-01T23:25:22.302828+00:00",
+  "golden_set_id": "starter",
+  "golden_set_path": "/Users/daniel/Documents/Bordeless/manim/core/quality/golden_sets/starter.yaml",
+  "mode": "lightweight",
+  "execution_mode": "benchmark",
+  "include_final": false,
+  "cases": [
+    {
+      "case_id": "linkedin_feed_silent",
+      "target": "linkedin_feed_4_5",
+      "artifact_class": "still",
+      "style_pack": "silent_luxury",
+      "judge_profile": "premium_still",
+      "briefing": "briefings/creative_seed.yaml",
+      "expected_quality_focus": [
+        "hierarchy_strength",
+        "poster_impact",
+        "spatial_intelligence"
+      ],
+      "preview_score": 76.0,
+      "preview_initial_score": 76.0,
+      "preview_improvement_delta": 0.0,
+      "preview_iterations_used": 1,
+      "preview_accepted": true,
+      "preview_stopped_reason": "accepted_for_final_render",
+      "preview_hard_veto": true,
+      "hard_veto": true,
+      "preview_issue_count": 1,
+      "preview_summary": {
+        "issue_count": 1,
+        "errors": 0,
+        "warnings": 0
+      },
+      "dimension_scores": {
+        "hierarchy_strength": 76.0,
+        "typographic_craft": 76.0,
+        "spatial_intelligence": 76.0,
+        "poster_impact": 76.0,
+        "brand_discipline": 12.0,
+        "material_finish": 60.0,
+        "emotional_coherence": 76.0,
+        "originality": 76.0
+      },
+      "weak_dimensions": [
+        "brand_discipline",
+        "material_finish"
+      ],
+      "final_score": null,
+      "final_passed": null,
+      "final_premium": null,
+      "quality_band": "preview_only",
+      "preview_loop_report": {
+        "accepted": true,
+        "stopped_reason": "accepted_for_final_render",
+        "iterations": 1
+      }
+    }
+  ],
+  "aggregate": {
+    "case_count": 1,
+    "avg_effective_score": 76.0,
+    "avg_preview_improvement_delta": 0.0,
+    "hard_veto_frequency": 1.0,
+    "preview_accept_rate": 1.0,
+    "by_target": {
+      "linkedin_feed_4_5": {
+        "count": 1,
+        "avg_score": 76.0,
+        "avg_preview_score": 76.0,
+        "avg_premium_score": null,
+        "premium_rate": 0.0,
+        "hard_veto_frequency": 1.0,
+        "avg_preview_delta": 0.0,
+        "common_weak_dimensions": [
+          "brand_discipline",
+          "material_finish"
+        ]
+      }
+    },
+    "by_artifact_class": {
+      "still": {
+        "count": 1,
+        "avg_score": 76.0,
+        "avg_preview_score": 76.0,
+        "avg_premium_score": null,
+        "premium_rate": 0.0,
+        "hard_veto_frequency": 1.0,
+        "avg_preview_delta": 0.0,
+        "common_weak_dimensions": [
+          "brand_discipline",
+          "material_finish"
+        ]
+      }
+    },
+    "by_style_pack": {
+      "silent_luxury": {
+        "count": 1,
+        "avg_score": 76.0,
+        "avg_preview_score": 76.0,
+        "avg_premium_score": null,
+        "premium_rate": 0.0,
+        "hard_veto_frequency": 1.0,
+        "avg_preview_delta": 0.0,
+        "common_weak_dimensions": [
+          "brand_discipline",
+          "material_finish"
+        ]
+      }
+    },
+    "by_judge_profile": {
+      "premium_still": {
+        "count": 1,
+        "avg_score": 76.0,
+        "avg_preview_score": 76.0,
+        "avg_premium_score": null,
+        "premium_rate": 0.0,
+        "hard_veto_frequency": 1.0,
+        "avg_preview_delta": 0.0,
+        "common_weak_dimensions": [
+          "brand_discipline",
+          "material_finish"
+        ]
+      }
+    },
+    "by_dimension": {
+      "hierarchy_strength": {
+        "avg_score": 76.0,
+        "fail_count": 0,
+        "sample_count": 1
+      },
+      "typographic_craft": {
+        "avg_score": 76.0,
+        "fail_count": 0,
+        "sample_count": 1
+      },
+      "spatial_intelligence": {
+        "avg_score": 76.0,
+        "fail_count": 0,
+        "sample_count": 1
+      },
+      "poster_impact": {
+        "avg_score": 76.0,
+        "fail_count": 0,
+        "sample_count": 1
+      },
+      "brand_discipline": {
+        "avg_score": 12.0,
+        "fail_count": 1,
+        "sample_count": 1
+      },
+      "material_finish": {
+        "avg_score": 60.0,
+        "fail_count": 1,
+        "sample_count": 1
+      },
+      "emotional_coherence": {
+        "avg_score": 76.0,
+        "fail_count": 0,
+        "sample_count": 1
+      },
+      "originality": {
+        "avg_score": 76.0,
+        "fail_count": 0,
+        "sample_count": 1
+      }
+    },
+    "most_common_weak_dimensions": [
+      "brand_discipline",
+      "material_finish"
+    ]
+  },
+  "metrics": {
+    "total_run_duration_ms": 37818.55,
+    "preview_iterations_used": 1
+  },
+  "report_markdown": "# Benchmark Report: bench_20260401T232522Z\n\n- Cases: 1\n- Avg effective score: 76.0\n- Avg preview delta: 0.0\n- Hard veto frequency: 1.0\n- Preview accept rate: 1.0\n- Strongest target: linkedin_feed_4_5\n- Weakest target: linkedin_feed_4_5\n- Strongest style pack: silent_luxury\n- Weakest style pack: silent_luxury\n- Common weak dimensions: brand_discipline, material_finish\n"
+}
