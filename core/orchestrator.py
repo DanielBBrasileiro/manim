@@ -100,11 +100,13 @@ class AgenticOrchestrator:
         tech_plan = self.brief["tech_plan"]
         design = self.brief["design_overlay"]
         
+        # dynamic_data.json contract: only tech_plan + design_overlay.
+        # Heavy payloads (strategy, quality_report, llm_scene_plan, briefing)
+        # must NOT be written here — they bloat the file and have no live reader.
         with open("assets/brand/dynamic_data.json", "w") as f:
             json.dump({
-                "strategy": strategy,
                 "tech_plan": tech_plan,
-                "design": design
+                "design_overlay": design,
             }, f, indent=2)
             
         return tech_plan
