@@ -13,35 +13,50 @@ export interface SpringConfig {
 /**
  * useAioxSpring
  * Translates offline Manim physical metrics into React determinist springs.
+ *
+ * @param presetName    - key in motion.yaml spring_presets
+ * @param overrideConfig - partial overrides applied on top of the preset
+ * @param externalVelocity - scalar velocity injected from physics_state.initial_velocity.magnitude
+ *   in the render_manifest (written by PhysicsOrchestratorMixin.inject_velocity_into_manifest).
+ *   Unit: Pymunk abstract coordinates/s. Scaled to px/s (×100) before passing to Framer Motion.
+ *   When present this takes precedence over the preset's initial_velocity.
  */
-export const useAioxSpring = (presetName: string = "silent_luxury_fluid", overrideConfig?: Partial<SpringConfig>): Transition => {
+export const useAioxSpring = (
+    presetName: string = "silent_luxury_fluid",
+    overrideConfig?: Partial<SpringConfig>,
+    externalVelocity?: number,
+): Transition => {
     const { fps } = useVideoConfig();
 
     return useMemo(() => {
         // Read strictly from the Governance pipeline (Single Source of Truth)
         const motionContracts = AIOX_TOKENS.motion as any;
         const presets: Record<string, SpringConfig> = motionContracts?.timing_standards?.presets || {};
-        
-        let baseConfig: SpringConfig = presets[presetName] || {
+
+        const baseConfig: SpringConfig = presets[presetName] || {
             stiffness: 100, damping: 20, mass: 1, initial_velocity: 0
         };
 
         const merged = { ...baseConfig, ...overrideConfig };
-        
-        // Translating the raw metrics to motion/react Transition spec.
+
+        // Velocity resolution priority:
+        // 1. externalVelocity from Pymunk physics_state (wired handshake)
+        // 2. preset/override initial_velocity (static contract default)
+        // Framer Motion velocity unit = px/sec.
+        // Pymunk operates on [-7, 7] abstract coords — multiply by 100 for screen mapping.
+        const resolvedVelocity = externalVelocity !== undefined
+            ? externalVelocity * 100
+            : (merged.initial_velocity ? merged.initial_velocity * 100 : 0);
+
         return {
             type: "spring",
             stiffness: merged.stiffness,
             damping: merged.damping,
             mass: merged.mass,
-            // Framer motion uses velocity unit format of px/sec. 
-            // We scale the Manim (which operates on [-7, 7] abstract coordinates)
-            // assuming a rough multiplier based on standard screen mapping.
-            velocity: merged.initial_velocity ? merged.initial_velocity * 100 : 0,
-            
+            velocity: resolvedVelocity,
             // Critical for deterministic layout morphing over FFMPEG context
-            bounce: 0, // Enforce strict no-bounce defaults if not mapped differently 
-            restDelta: 0.001 // High precision stopping point for strict convergence
+            bounce: 0,
+            restDelta: 0.001,
         };
-    }, [presetName, overrideConfig, fps]);
+    }, [presetName, overrideConfig, externalVelocity, fps]);
 };

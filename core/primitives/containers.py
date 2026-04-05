@@ -10,12 +10,19 @@ class NarrativeContainer(VGroup):
     def __init__(self, width=4, height=5, **kwargs):
         corner_radius = kwargs.pop("corner_radius", 0)
         super().__init__(**kwargs)
-        self.rect = Rectangle(
-            width=width, height=height,
-            corner_radius=corner_radius,
-            stroke_color=WHITE, stroke_width=0.8,
-            fill_opacity=0
-        )
+        if corner_radius > 0:
+            self.rect = RoundedRectangle(
+                corner_radius=corner_radius,
+                width=width, height=height,
+                stroke_color=WHITE, stroke_width=0.8,
+                fill_opacity=0
+            )
+        else:
+            self.rect = Rectangle(
+                width=width, height=height,
+                stroke_color=WHITE, stroke_width=0.8,
+                fill_opacity=0
+            )
         self.add(self.rect)
     
     def split_horizontal(self, gap=0.3):

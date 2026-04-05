@@ -85,7 +85,13 @@ export const StoryAtom: React.FC<StoryAtomProps> = ({
             exit={exitAnim}
             transition={springTransition}
             style={{
-                willChange: "transform, opacity, filter", // Force M4 GPU layer acceleration
+                // GPU promotion: willChange elevates the layer, backfaceVisibility
+                // prevents Safari/Chrome from flushing the composite layer on repaint.
+                // translate3d is managed by Framer Motion internally via layout="position" —
+                // do NOT add a raw transform here as it would override Framer's interpolation.
+                willChange: "transform, opacity, filter",
+                backfaceVisibility: "hidden",
+                WebkitBackfaceVisibility: "hidden",
                 ...style
             }}
             {...restProps}

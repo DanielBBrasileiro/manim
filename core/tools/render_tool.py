@@ -212,6 +212,10 @@ def _run_remotion_command(
     effective_timeout = max(cli_timeout, direct_timeout)
     
     # ⚡️ THE AIOX 5.0 TURBO MECHANISM: DEMON OPPORTUNISTIC ROUTING
+    if os.getenv("AIOX_SKIP_REMOTION") == "1":
+        print("⏭️ [Remotion Tool] AIOX_SKIP_REMOTION detectado. Forçando fallback engine.")
+        raise RuntimeError("Remotion skipped by user")
+
     if render_mode in ("auto", "daemon"):
         if _run_remotion_via_daemon(command, composition, output_path, remotion_props, effective_timeout):
             return

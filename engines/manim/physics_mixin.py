@@ -1,5 +1,7 @@
+import json
 import math
-from typing import Any, List, Tuple
+from pathlib import Path
+from typing import Any, Dict, List, Tuple
 
 class PhysicsOrchestratorMixin:
     """
@@ -73,6 +75,72 @@ class PhysicsOrchestratorMixin:
             for _ in range(self._sub_steps):
                 self.space.step(sub_dt)
                 
+    def get_final_velocity(self, mobject: Any) -> Tuple[float, float]:
+        """
+        Extracts the linear velocity vector (vx, vy) from the Pymunk body
+        at the current simulation state — intended to be called at the last
+        frame of the Genesis act, immediately before act transition.
+        Returns (0.0, 0.0) if no physics body is present.
+        """
+        if not getattr(self, "_physics_active", False):
+            return (0.0, 0.0)
+        if not hasattr(mobject, "body") or mobject.body is None:
+            return (0.0, 0.0)
+        vx, vy = mobject.body.velocity
+        return (float(vx), float(vy))
+
+    def inject_velocity_into_manifest(
+        self,
+        manifest_path: str,
+        mobject: Any,
+        atom_id: str = "genesis_primary",
+    ) -> None:
+        """
+        Writes the final velocity of a Pymunk body into the render_manifest.json
+        under physics_state.initial_velocity. This value is consumed by useAioxSpring
+        on the React side to seed deterministic spring animations with real momentum.
+
+        Layout injected into manifest:
+            physics_state: {
+                initial_velocity: {
+                    vx: float,       # raw Pymunk x-velocity (abstract units)
+                    vy: float,       # raw Pymunk y-velocity (abstract units)
+                    magnitude: float # scalar for useAioxSpring.externalVelocity
+                },
+                atom_id: str         # which atom produced this velocity
+            }
+        """
+        vx, vy = self.get_final_velocity(mobject)
+        magnitude = math.sqrt(vx ** 2 + vy ** 2)
+
+        manifest_file = Path(manifest_path)
+        if not manifest_file.exists():
+            print(
+                f"⚠️ [PhysicsMixin] render_manifest.json não encontrado em "
+                f"{manifest_path} — velocity não injetada."
+            )
+            return
+
+        with open(manifest_file, "r", encoding="utf-8") as f:
+            manifest: Dict[str, Any] = json.load(f)
+
+        manifest["physics_state"] = {
+            "initial_velocity": {
+                "vx": round(vx, 6),
+                "vy": round(vy, 6),
+                "magnitude": round(magnitude, 6),
+            },
+            "atom_id": atom_id,
+        }
+
+        with open(manifest_file, "w", encoding="utf-8") as f:
+            json.dump(manifest, f, indent=2)
+
+        print(
+            f"⚡ [PhysicsMixin] Velocity injetada → atom='{atom_id}' "
+            f"vx={vx:.3f} vy={vy:.3f} |v|={magnitude:.3f}"
+        )
+
     def teardown_physics(self) -> None:
         """
         Scorched earth cleanup policy for physical bodies to prevent memory leaks 
