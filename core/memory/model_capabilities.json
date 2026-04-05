@@ -1,0 +1,47 @@
+{
+  "models": [
+    {
+      "id": "qwen3-vl:4b-instruct-q4_K_M",
+      "provider": "ollama",
+      "supports_text_plan": true,
+      "supports_vision_plan": true,
+      "supports_structured_json": true,
+      "quality_band": "fast",
+      "context_budget": 5000,
+      "observed_latency_ms": null,
+      "observed_success_rate": null,
+      "observed_memory_pressure": null,
+      "recommended_roles": [
+        "fast_plan",
+        "variant_ranker",
+        "vision_plan"
+      ],
+      "observation_count": 0,
+      "success_count": 0,
+      "last_task_type": null,
+      "updated_at": 1775346144.350893
+    },
+    {
+      "id": "qwen2.5:14b-instruct-q4_K_M",
+      "provider": "ollama",
+      "supports_text_plan": true,
+      "supports_vision_plan": false,
+      "supports_structured_json": true,
+      "quality_band": "high",
+      "context_budget": 9000,
+      "observed_latency_ms": 24957.17,
+      "observed_success_rate": 0.0145,
+      "observed_memory_pressure": null,
+      "recommended_roles": [
+        "copy_refiner",
+        "quality_plan",
+        "variant_ranker"
+      ],
+      "observation_count": 69,
+      "success_count": 1,
+      "last_task_type": "plan",
+      "updated_at": 1775346144.3508961
+    }
+  ],
+  "updated_at": 1775346144.3509471
+}

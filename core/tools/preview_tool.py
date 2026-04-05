@@ -396,3 +396,20 @@ def generate_ascii_preview(plan: dict) -> str:
         border,
     ]
     return "\n".join(lines)
+
+
+def generate_preview_from_seed(
+    seed: str,
+    asset_registry: dict | None = None,
+    identity: str = "aiox_default",
+    output_path: str = None,
+) -> str:
+    """
+    Generate a cheap preview directly from a seed by using the fast planning route.
+    This avoids running the heavy render pipeline during ideation.
+    """
+    from core.compiler.creative_compiler import compile_seed
+    from core.intelligence.model_router import TASK_FAST_PLAN
+
+    result = compile_seed(seed, identity=identity, asset_registry=asset_registry, task_type=TASK_FAST_PLAN)
+    return generate_preview(result["creative_plan"], output_path=output_path)

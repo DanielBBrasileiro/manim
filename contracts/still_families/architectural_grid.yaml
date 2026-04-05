@@ -1,0 +1,12 @@
+id: architectural_grid
+description: "Rigid grid-based layout. Modular blocks."
+base: textured_minimal
+background: solid_dark
+typography_system: editorial_dense
+composition_grid: modular_9_cell
+grammar: editorial_grid
+accent: rule_split
+negative_space_min: 0.45
+max_text_elements: 4
+max_visual_elements: 3
+grain: 0.02

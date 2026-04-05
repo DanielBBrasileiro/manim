@@ -1,0 +1,57 @@
+# contracts/references/stripe_sessions.yaml
+# Stripe Sessions Conference — Motion Design Reference
+# Source: Descriptive analysis of Stripe conference visuals (manual)
+
+id: "stripe_sessions"
+brand: "Stripe Sessions"
+category: "motion_design_conference"
+essence: "Premium developer conference — financial infrastructure made beautiful"
+
+color_system:
+  primary_bg: "#0A2540"        # Deep navy — not pure black
+  secondary_bg: "#425466"      # Muted slate
+  text_white: "#FFFFFF"
+  accent_green: "#00D924"      # Stripe brand green
+  gradient_forbidden_here: false  # Stripe uses gradients — AIOX does not, extract motion only
+
+typography:
+  family: "Sohne or GT America"
+  weights: [300, 400, 600]
+  headline_technique: "oversized, bleeds off screen"
+  data_visualization_font: "monospace for numbers"
+
+motion_signatures:
+  perspective_shift:
+    description: "3D card/plane rotation revealing new information layer"
+    technique: "rotateY 0→90deg on exit, -90→0deg on entry"
+    duration_ms: 500
+    easing: "cubic-bezier(0.16, 1, 0.3, 1)"
+
+  typographic_choreography:
+    description: "Characters animate independently — each letter springs in"
+    stagger_per_char_ms: 20
+    spring: { stiffness: 200, damping: 20 }
+    use: "hero words in turbulence act"
+
+  data_cascade:
+    description: "Numbers count up with spring physics, stopping at exact value"
+    technique: "spring-interpolated counter"
+    use: "data revelation archetype"
+
+  dissolve_cut:
+    description: "Hard cut masked by 2-frame white flash"
+    duration_frames: 2
+    use: "act transitions in dynamic pacing mode"
+
+layout_patterns:
+  - "Full-bleed visuals with text overlay in safe zone"
+  - "Data presented as single oversized number — no charts"
+  - "Brand grid: 12-column, 80px gutter"
+  - "Speaker title appears 2s after speaker face — staggered context"
+
+design_lessons_for_aiox:
+  - "Perspective shift (rotateY) for act transitions — premium feel without gradients"
+  - "Character-level stagger at 20ms: makes words feel alive not mechanical"
+  - "Spring-interpolated counters for any numeric reveal"
+  - "2-frame white flash hard cut — cinematic, not digital"
+  - "Oversized typography bleeding off-screen creates tension and scale"

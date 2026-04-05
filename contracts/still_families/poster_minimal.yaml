@@ -1,0 +1,12 @@
+id: poster_minimal
+description: "Maximum restraint. One word. One line. Black field."
+base: null
+background: solid_dark
+typography_system: editorial_minimal
+composition_grid: golden_section
+grammar: monumental
+accent: single_rule_line
+negative_space_min: 0.60
+max_text_elements: 2
+max_visual_elements: 1
+grain: 0.06

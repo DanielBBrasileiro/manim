@@ -1,0 +1,36 @@
+id: starter
+title: AIOX quality starter golden set
+description: Small benchmark set for calibration, regression checks, and preview-loop impact tracking.
+cases:
+  - case_id: linkedin_feed_silent
+    target: linkedin_feed_4_5
+    briefing: briefings/creative_seed.yaml
+    style_pack: silent_luxury
+    artifact_class: still
+    expected_quality_focus:
+      - hierarchy_strength
+      - poster_impact
+      - spatial_intelligence
+    notes: Canonical premium hero still in restrained mode.
+
+  - case_id: linkedin_feed_kinetic
+    target: linkedin_feed_4_5
+    briefing: briefings/creative_seed.yaml
+    style_pack: kinetic_editorial
+    artifact_class: still
+    expected_quality_focus:
+      - typographic_craft
+      - poster_impact
+      - originality
+    notes: Same intent, higher editorial energy for creative-range comparison.
+
+  - case_id: short_cinematic_silent
+    target: short_cinematic_vertical
+    briefing: briefings/creative_seed.yaml
+    style_pack: silent_luxury
+    artifact_class: motion
+    expected_quality_focus:
+      - temporal_rhythm
+      - silence_quality
+      - motion_coherence
+    notes: Motion benchmark centered on breath, restraint, and act separation.

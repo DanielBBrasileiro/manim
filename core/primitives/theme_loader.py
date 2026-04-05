@@ -81,6 +81,8 @@ class IntelligenceLoader:
         return {
             "entropy": raw_entropy,
             "interpretation": imported_entropy,  # Regime, rhythm, motion_signature
+            "timeline": self._data.get("timeline", []),
+            "render_manifest": self._data.get("render_manifest", {}),
             "creative": {
                 "archetype": tech_plan.get("archetype", "emergence"),
                 "aesthetic_family": design.get("aesthetic_family", "aiox_default")

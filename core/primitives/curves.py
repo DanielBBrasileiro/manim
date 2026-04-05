@@ -24,7 +24,7 @@ class LivingCurve(VMobject):
         self.growth_progress = growth_progress
         self.entropy = entropy
         # Reutiliza campo externo (para consistência entre frames) ou cria novo
-        self._noise = noise_field or AIOXNoiseField(entropy=entropy)
+        self._noise = noise_field or AIOXNoiseField(signature=_signature_from_entropy(entropy))
         self._build_curve()
 
     def _build_curve(self):
@@ -64,3 +64,11 @@ class LivingCurve(VMobject):
             stroke_color=self.get_stroke_color(),
             stroke_width=self.get_stroke_width()
         ).match_style(self)
+
+
+def _signature_from_entropy(entropy: float) -> str:
+    if entropy >= 0.72:
+        return "chaotic_dispersion"
+    if entropy >= 0.45:
+        return "oscillatory_wave"
+    return "breathing_field"

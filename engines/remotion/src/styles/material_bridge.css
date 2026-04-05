@@ -1,0 +1,50 @@
+/** 
+ * material_bridge.css
+ * Core infrastructure mapping between dynamic HCT Tokens and the Remotion UI Engine.
+ * Does not require Web Components overhead. Fully CSS native M4 accelerated.
+ */
+
+ :root {
+    /* 
+      1. Semantics Base (Overrides will be injected by the orchestrator per-brand) 
+      Defaults are set to standard baseline.
+    */
+    --md-sys-color-primary: #000000;
+    --md-sys-color-on-primary: #ffffff;
+    --md-sys-color-surface: #fdfdfd;
+    --md-sys-color-on-surface: #1a1a1a;
+    --md-sys-color-surface-variant: #e0e0e0;
+    --md-sys-color-outline: #79747e;
+    
+    /* 2. Shape Tokens */
+    --md-sys-shape-corner-none: 0px;
+    --md-sys-shape-corner-extra-small: 4px;
+    --md-sys-shape-corner-small: 8px;
+    --md-sys-shape-corner-medium: 12px;
+    --md-sys-shape-corner-large: 16px;
+    --md-sys-shape-corner-extra-large: 28px;
+    --md-sys-shape-corner-full: 9999px;
+  
+    /* 3. State Layer Opacities (Material 3 Constants) */
+    --md-sys-state-hover: 0.08;
+    --md-sys-state-focus: 0.12;
+    --md-sys-state-pressed: 0.12;
+    --md-sys-state-dragged: 0.16;
+  
+    /* 4. Surface Tinting / Elevation Logic 
+       Shadows defined by umbra, penumbra, ambient spread coordinates. 
+       Level 0 is no elevation. 
+    */
+    --md-sys-elevation-level1: 0px 1px 2px 0px rgba(0,0,0,0.3), 0px 1px 3px 1px rgba(0,0,0,0.15);
+    --md-sys-elevation-level2: 0px 1px 2px 0px rgba(0,0,0,0.3), 0px 2px 6px 2px rgba(0,0,0,0.15);
+    --md-sys-elevation-level3: 0px 1px 3px 0px rgba(0,0,0,0.3), 0px 4px 8px 3px rgba(0,0,0,0.15);
+    --md-sys-elevation-level4: 0px 2px 3px 0px rgba(0,0,0,0.3), 0px 6px 10px 4px rgba(0,0,0,0.15);
+    --md-sys-elevation-level5: 0px 4px 4px 0px rgba(0,0,0,0.3), 0px 8px 12px 6px rgba(0,0,0,0.15);
+  
+    /* Modern MD3 Surface Tint mixing */
+    --md-sys-surface-tint-1: color-mix(in srgb, var(--md-sys-color-primary) 5%, var(--md-sys-color-surface));
+    --md-sys-surface-tint-2: color-mix(in srgb, var(--md-sys-color-primary) 8%, var(--md-sys-color-surface));
+    --md-sys-surface-tint-3: color-mix(in srgb, var(--md-sys-color-primary) 11%, var(--md-sys-color-surface));
+    --md-sys-surface-tint-4: color-mix(in srgb, var(--md-sys-color-primary) 12%, var(--md-sys-color-surface));
+    --md-sys-surface-tint-5: color-mix(in srgb, var(--md-sys-color-primary) 14%, var(--md-sys-color-surface));
+  }
