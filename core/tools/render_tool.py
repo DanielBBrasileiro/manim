@@ -1,9 +1,17 @@
+import hashlib
+import json
 import os
-import subprocess
 import shutil
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
+
+
+def _derive_seed(data: dict) -> int:
+    """Deterministic integer seed derived from a dict via SHA-256."""
+    key = json.dumps(data, sort_keys=True, default=str)
+    return int(hashlib.sha256(key.encode()).hexdigest()[:16], 16) & 0x7FFFFFFFFFFFFFFF
 
 def run_manim(scene_name: str, script_path: str):
     print(f"💎 [Manim Tool] Renderizando geometria de {scene_name}...")
@@ -31,22 +39,24 @@ def render_pipeline(plan: dict):
     scene_name = "EntropyDemo"
     script_path = "scenes/cde_entropy_demo.py"
     
-    # Simula gravação do tech_plan para a cena ler
-    import json
+    # Write dynamic_data.json — contract: tech_plan + design_overlay + seed only
+    entropy_package = plan["interpretation"].copy()
+    entropy_package["raw"] = plan["entropy"]
+    dynamic_payload = {
+        "tech_plan": {
+            "archetype": plan["archetype"],
+            "entropy": entropy_package,
+        },
+        "design_overlay": {
+            "aesthetic_family": plan["aesthetic_family"],
+        },
+        "seed": plan.get("rng_seed") or _derive_seed({
+            "archetype": plan["archetype"],
+            "entropy": plan["entropy"],
+        }),
+    }
     with open(ROOT / "assets" / "brand" / "dynamic_data.json", "w") as f:
-        # Retrocompatibilidade com IntelligenceLoader
-        entropy_package = plan["interpretation"].copy()
-        entropy_package["raw"] = plan["entropy"]
-        
-        json.dump({
-            "tech_plan": {
-                "archetype": plan["archetype"],
-                "entropy": entropy_package
-            },
-            "design_overlay": {
-                "aesthetic_family": plan["aesthetic_family"]
-            }
-        }, f, indent=2)
+        json.dump(dynamic_payload, f, indent=2)
 
     try:
         run_manim(scene_name, script_path)

@@ -71,20 +71,23 @@ class IntelligenceLoader:
             }
 
         tech_plan = self._data.get("tech_plan", {})
-        design = self._data.get("design_overlay", {})
-        
-        # dynamic_data.json atual tem tech_plan.entropy misturado. Vamos extrair "raw" para formar "entropy".
-        imported_entropy = tech_plan.get("entropy", {})
-        raw_entropy = imported_entropy.pop("raw", {"physical": 0.5, "structural": 0.5, "aesthetic": 0.5})
-        
-        # Retorna o modelo V2 de Inteligência
+        # Accept both key names for backwards compatibility with old files.
+        design = self._data.get("design_overlay") or self._data.get("design", {})
+
+        # Extract "raw" entropy without mutating the loaded dict.
+        stored_entropy = tech_plan.get("entropy", {})
+        raw_entropy = stored_entropy.get("raw", {"physical": 0.5, "structural": 0.5, "aesthetic": 0.5})
+        interpretation = {k: v for k, v in stored_entropy.items() if k != "raw"}
+
         return {
             "entropy": raw_entropy,
-            "interpretation": imported_entropy,  # Regime, rhythm, motion_signature
+            "interpretation": interpretation,  # regime, rhythm, motion_signature
             "creative": {
                 "archetype": tech_plan.get("archetype", "emergence"),
-                "aesthetic_family": design.get("aesthetic_family", "aiox_default")
-            }
+                "aesthetic_family": design.get("aesthetic_family", "aiox_default"),
+            },
+            # Seed propagated from briefing so particle systems are reproducible.
+            "seed": self._data.get("seed"),
         }
 
 # Expor o dicionário unificado diretamente

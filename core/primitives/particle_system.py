@@ -139,6 +139,7 @@ class ParticlePool(VGroup):
         bounds=(-7, 7, -4, 4),
         gravity=None,
         damping: float = 0.15,
+        seed: Optional[int] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -162,6 +163,8 @@ class ParticlePool(VGroup):
         self._alive = np.zeros(max_particles, dtype=bool)
         self._emit_accumulator = 0.0
         self._time = 0.0
+        # Seeded RNG — reproducible when seed is provided, random otherwise
+        self._rng = np.random.default_rng(seed)
 
         # Conecta a Inteligência Semântica da Zona Zara
         from core.primitives.theme_loader import intelligence
@@ -197,28 +200,26 @@ class ParticlePool(VGroup):
 
     def _emit_particle(self, index: int):
         spread = self.emitter_spread
-        rng = np.random
-        self._positions[index] = self.emitter_pos + rng.uniform(-spread, spread, 3) * [1, 1, 0]
-        
+        self._positions[index] = self.emitter_pos + self._rng.uniform(-spread, spread, 3) * [1, 1, 0]
+
         # Velocidade atrelada à entropia física bruta (a intensidade verdadeira)
         phys = self._intelligence.get("entropy", {}).get("physical", 0.5)
         speed = np.interp(phys, [0, 1], [0.3, 2.5])
-        
+
         # O Regime Comportamental e flow direcionam a dispersão
         flow = self._intelligence.get("interpretation", {}).get("flow", "nonlinear")
         if flow == "linear":
-            # Emissão direcional
-            angle = rng.uniform(-np.pi/16, np.pi/16)
+            angle = self._rng.uniform(-np.pi / 16, np.pi / 16)
         else:
-            angle = rng.uniform(0, 2 * np.pi)
-            
+            angle = self._rng.uniform(0, 2 * np.pi)
+
         self._velocities[index] = np.array([
-            np.cos(angle) * speed * rng.uniform(0.5, 1.5),
-            np.sin(angle) * speed * rng.uniform(0.5, 1.5),
-            0
+            np.cos(angle) * speed * self._rng.uniform(0.5, 1.5),
+            np.sin(angle) * speed * self._rng.uniform(0.5, 1.5),
+            0,
         ])
         lmin, lmax = self.lifetime_range
-        self._lifetimes[index] = rng.uniform(lmin, lmax)
+        self._lifetimes[index] = self._rng.uniform(lmin, lmax)
         self._alive[index] = True
 
     def _find_dead(self) -> Optional[int]:
@@ -310,6 +311,7 @@ class TrailPool(VGroup):
         bounds=(-7, 7, -4, 4),
         gravity=None,
         damping: float = 0.1,
+        seed: Optional[int] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -322,6 +324,7 @@ class TrailPool(VGroup):
         self.trail_color = color
         self.bounds_arr = np.array(bounds, dtype=float)
         self.gravity_vec = np.array(gravity if gravity is not None else [0, 0, 0], dtype=float)
+        self._rng = np.random.default_rng(seed)
         self.damping = damping
 
         self._positions = np.zeros((max_particles, 3))
@@ -358,12 +361,12 @@ class TrailPool(VGroup):
 
     def _emit(self, idx: int):
         spread = float(np.interp(self.entropy, [0, 1], [0.1, 0.6]))
-        self._positions[idx] = self.emitter_pos + np.random.uniform(-spread, spread, 3) * [1, 1, 0]
+        self._positions[idx] = self.emitter_pos + self._rng.uniform(-spread, spread, 3) * [1, 1, 0]
         speed = float(np.interp(self.entropy, [0, 1], [0.5, 2.5]))
-        angle = np.random.uniform(0, 2 * np.pi)
+        angle = self._rng.uniform(0, 2 * np.pi)
         self._velocities[idx] = [np.cos(angle) * speed, np.sin(angle) * speed, 0]
         lmin, lmax = self.lifetime_range
-        self._lifetimes[idx] = np.random.uniform(lmin, lmax)
+        self._lifetimes[idx] = self._rng.uniform(lmin, lmax)
         self._alive[idx] = True
         self._history[idx] = self._positions[idx]
 

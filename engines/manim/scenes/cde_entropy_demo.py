@@ -22,6 +22,9 @@ class EntropyDemo(Scene):
         pt_radius = 0.04 if stability == "high" else 0.02
         emit_rate = 40 if stability == "high" else 150
         
+        # Seed from briefing — ensures same briefing always produces same particle layout
+        render_seed = intelligence.get("seed")
+
         # A própria ParticlePool puxa o motion_signature no seu construtor
         pool = ParticlePool(
             max_particles=400,
@@ -29,6 +32,7 @@ class EntropyDemo(Scene):
             dot_radius=pt_radius,
             color=theme.accent_color,
             lifetime_range=(1.5, 4.0),
+            seed=render_seed,
         )
         
         self.add(pool)
