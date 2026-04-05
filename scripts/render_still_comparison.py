@@ -14,8 +14,8 @@ except ImportError as exc:  # pragma: no cover
 
 ROOT = Path(__file__).resolve().parent.parent
 BRIEFING_PATH = ROOT / "briefings" / "creative_seed.yaml"
-ENTRY_POINT = ROOT / "engines" / "remotion" / "src" / "still-comparison-page.tsx"
-REMOTION_SHIM = ROOT / "engines" / "remotion" / "src" / "remotion-still-shim.tsx"
+ENTRY_POINT = ROOT / "engines" / "remotion" / "debug" / "still-comparison-page.tsx"
+REMOTION_SHIM = ROOT / "engines" / "remotion" / "debug" / "remotion-still-shim.tsx"
 ESBUILD_BIN = ROOT / "engines" / "remotion" / "node_modules" / "@esbuild" / "darwin-arm64" / "bin" / "esbuild"
 OUTPUT_DIR = ROOT / "output" / "stills" / "comparison_2026_04_02"
 BUNDLE_JS = OUTPUT_DIR / "still-comparison.js"

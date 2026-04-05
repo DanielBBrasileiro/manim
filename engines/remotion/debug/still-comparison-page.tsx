@@ -1,6 +1,6 @@
 import React from 'react';
 import {createRoot} from 'react-dom/client';
-import {StillComposer, type StillComposerProps} from './compositions/StillComposer';
+import {StillComposer, type StillComposerProps} from '../src/compositions/StillComposer';
 import {VideoConfigProvider} from './remotion-still-shim';
 
 declare global {
