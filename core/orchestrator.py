@@ -114,9 +114,8 @@ class AgenticOrchestrator:
         
         with open(ROOT / "assets" / "brand" / "dynamic_data.json", "w") as f:
             json.dump({
-                "strategy": strategy,
                 "tech_plan": tech_plan,
-                "design": design
+                "design_overlay": design,
             }, f, indent=2)
             
         return tech_plan
