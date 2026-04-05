@@ -1,0 +1,12 @@
+id: asymmetric_corner
+description: "High tension diagonal. Opposing corner anchors."
+base: editorial_photo
+background: photo_with_veil
+typography_system: editorial_dense
+composition_grid: diagonal_thirds
+grammar: asymmetric
+accent: frame_crop
+negative_space_min: 0.4
+max_text_elements: 3
+max_visual_elements: 2
+grain: 0.08

@@ -1,3 +1,31 @@
-pattern: random_outward
-rhythm: irregular
+# contracts/motion/signatures/chaotic_dispersion.yaml
+pattern: random_scatter
+rhythm: fast
 stability: low
+
+spring:
+  stiffness: 280
+  damping: 8
+  mass: 0.6
+
+easing:
+  name: "snap"
+  curve: "cubic-bezier(0.87, 0, 0.13, 1)"
+  description: "Aggressive acceleration, near-instant settle"
+
+temporal_signature:
+  acceleration_profile: "impulse"
+  burst_duration_ms: 120
+  settle_duration_ms: 400
+  randomness_factor: 0.85  # high variance in trajectories
+
+narrative_acts:
+  primary: "turbulence"
+  secondary: "genesis"
+  avoid: "resolution"
+  reason: "Chaos incompatible with resolution's convergence"
+
+use_cases:
+  - "Element exit during act transitions"
+  - "Data fragmentation before reorder"
+  - "Emphasis through controlled explosion"

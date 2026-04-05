@@ -1,0 +1,18 @@
+id: kinetic_editorial
+description: "Stripe/Linear-inspired. Precise, rhythmic, information-rich."
+principles:
+  - "motion carries information"
+  - "stagger creates reading order"
+  - "spring physics everywhere — no linear interpolation"
+timing:
+  minimum_hold_ms: 200
+  maximum_simultaneous: 3
+  silence_between_phrases_ms: [100, 400]
+rhythm: syncopated
+stagger: [0, 1, 1, 2, 1]
+transitions:
+  act_to_act: push
+  within_act: crossfade
+camera:
+  default: track_subject
+  all_acts: [static_breathe, track_subject]

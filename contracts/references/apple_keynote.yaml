@@ -1,0 +1,50 @@
+# contracts/references/apple_keynote.yaml
+# Apple Keynote — Visual Narrative Reference
+# Source: Descriptive analysis of Apple event presentations (manual)
+
+id: "apple_keynote"
+brand: "Apple"
+category: "cinematic_narrative_premium"
+essence: "Every reveal is a story. Every story is inevitable."
+
+visual_language:
+  background: "pure black #000000"
+  text: "pure white #FFFFFF"
+  accent: "product hero color (varies)"
+  philosophy: "The product is the hero. Everything else is negative space."
+
+timing_patterns:
+  opening_hold_sec: 3.0      # Logo or key phrase held in silence
+  word_reveal_gap_sec: 0.4   # Between word-by-word reveals
+  act_transition_sec: 0.8    # Cross-dissolve between major sections
+  final_hold_sec: 2.5        # Hold on conclusion before next segment
+  silence_before_climax_sec: 1.2  # Beat of silence before key reveal
+
+typographic_choreography:
+  technique: "word-by-word reveal with spring entry"
+  max_words_simultaneously: 1
+  weight_for_revelation: 300  # Whisper weight for maximum drama
+  weight_for_statement: 500
+  size_hierarchy:
+    headline: "72-96px"
+    subtext: "24-32px"
+  rule: "One thought. One screen. Full pause before next."
+
+narrative_structure:
+  opening: "Establish the world with a single, powerful visual"
+  problem: "Name the friction — never explain it, show it"
+  solution: "The product enters like a character, not a feature"
+  proof: "Data as poetry — one number, maximum weight"
+  close: "The promise — always forward-looking, never complete"
+
+negative_space_doctrine:
+  rule: "Emptiness is not absence — it is pressure"
+  minimum_pct: 60
+  usage: "Force viewer attention to the single element present"
+
+design_lessons_for_aiox:
+  - "3-second opening hold creates expectation — adopt for genesis act"
+  - "Word-by-word reveals with 400ms gap maximize impact of each word"
+  - "1.2s silence before climax creates the maximum anticipation beat"
+  - "Weight 300 for revelation: paradox of light weight = heavy meaning"
+  - "One number per screen rule — never two data points simultaneously"

@@ -1,0 +1,54 @@
+# contracts/references/linear_app.yaml
+# Linear App — Design Reference
+# Source: Descriptive analysis of Linear's design language (manual extraction)
+
+id: "linear_app"
+brand: "Linear"
+category: "product_design_premium"
+essence: "Speed, precision, and calm — the IDE for project management"
+
+palette:
+  background: "#0F0F0F"
+  foreground: "#FFFFFF"
+  surface: "#1A1A1A"
+  border: "rgba(255,255,255,0.08)"
+  accent_purple: "#5E6AD2"
+  accent_blue: "#0077FF"
+  text_secondary: "rgba(255,255,255,0.50)"
+
+typography:
+  primary_family: "Inter"
+  headline_weight: 500
+  body_weight: 400
+  mono_family: "JetBrains Mono"
+  max_headline_words: 6
+  letterspacing_headline: "-0.03em"
+
+animation_principles:
+  - "Spring-based entries — stiffness 120, damping 14"
+  - "Micro-interactions at 150ms with ease-out"
+  - "List items stagger at 30ms intervals"
+  - "Page transitions: fade + 8px Y translate, 200ms"
+  - "No bounce on UI controls — only spring on hero elements"
+  spring_signature:
+    stiffness: 120
+    damping: 14
+    mass: 1.0
+
+spacing_system:
+  base_unit_px: 4
+  fibonacci_applied: true
+  grid: "8px baseline"
+  component_padding: "12px / 16px / 24px"
+
+layout_patterns:
+  - "Sidebar navigation 220px fixed width"
+  - "Content area: centered max 960px"
+  - "Dense information without clutter — 8px row heights"
+  - "Keyboard-first design — shortcuts visible inline"
+
+design_lessons_for_aiox:
+  - "Spring animations at stiffness 120 feel fast but organic — adopt for turbulence act"
+  - "Stagger 30ms per element for list reveals"
+  - "Near-black (#0F0F0F) has warmth vs pure black — use for surface layers"
+  - "Micro-typography refinement: -0.03em tracking on headlines"

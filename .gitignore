@@ -39,6 +39,9 @@ yarn-error.log*
 .npm
 .yarn/
 
+# Remotion bundle cache (persistent cross-session, rebuilt on src change)
+engines/remotion/.bundle-cache/
+
 # Manim
 media/
 __pycache__/
@@ -69,3 +72,15 @@ webm/
 .agents/
 .claudecode/
 .planning/
+
+# Local agent/session state
+.claude/
+.claude-flow/
+.sessions/
+.swarm/
+CLAUDE.md
+
+# Local smoke/debug artifacts
+core/memory/*.smoke.jsonl
+core/memory/decision_records.jsonl
+_contexto_*.txt

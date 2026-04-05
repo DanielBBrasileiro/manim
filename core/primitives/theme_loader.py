@@ -79,15 +79,16 @@ class IntelligenceLoader:
         raw_entropy = stored_entropy.get("raw", {"physical": 0.5, "structural": 0.5, "aesthetic": 0.5})
         interpretation = {k: v for k, v in stored_entropy.items() if k != "raw"}
 
+        # Retorna o modelo V2 de Inteligência
         return {
             "entropy": raw_entropy,
-            "interpretation": interpretation,  # regime, rhythm, motion_signature
+            "interpretation": imported_entropy,  # Regime, rhythm, motion_signature
+            "timeline": self._data.get("timeline", []),
+            "render_manifest": self._data.get("render_manifest", {}),
             "creative": {
                 "archetype": tech_plan.get("archetype", "emergence"),
                 "aesthetic_family": design.get("aesthetic_family", "aiox_default"),
             },
-            # Seed propagated from briefing so particle systems are reproducible.
-            "seed": self._data.get("seed"),
         }
 
 # Expor o dicionário unificado diretamente

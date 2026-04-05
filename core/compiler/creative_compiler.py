@@ -6,11 +6,16 @@ import json
 import random as _random_module
 
 from .intent_parser import parse_intent
+from .reference_direction import apply_reference_direction_to_plan, resolve_reference_native_direction
+from .project_profile import apply_project_profile_to_plan
+from .render_manifest import build_artifact_plan, build_render_manifest
 from .rule_engine import apply_rules
 from .mutation_engine import mutate_entropy, mutate_motion
 from .scoring_engine import novelty_score, coherence_score
 from .signature_simulator import simulate_signature
-from core.agents import zara, kael
+from .archetype_loader import get_archetype_timeline
+from core.agents import aria, kael, zara
+from core.intelligence.model_router import TASK_PLAN
 
 
 def _rng_from_seed(seed: dict) -> _random_module.Random:
@@ -23,10 +28,93 @@ def _rng_from_seed(seed: dict) -> _random_module.Random:
     seed_int = int(hashlib.sha256(key.encode()).hexdigest()[:16], 16) & 0x7FFFFFFFFFFFFFFF
     return _random_module.Random(seed_int)
 
-def enrich_with_entropy(plan: dict) -> dict:
+BEHAVIOR_BY_PRIMITIVE = {
+    "living_curve": "coherent_flow",
+    "particle_system": "chaotic_burst",
+    "physics_field": "vortex_pull",
+    "fbm_noise": "oscillatory_wave",
+    "neural_grid": "laminar_flow",
+    "narrative_container": "convergence_field",
+    "storage_hex": "convergence_field",
+}
+
+TENSION_BY_EFFECT = {
+    "grain_overlay": "medium",
+    "motion_blur": "medium",
+    "color_inversion": "high",
+    "post_glitch_light": "high",
+    "diagonal_accent": "medium",
+}
+
+
+def apply_scene_plan_guidance(plan: dict, scene_plan: dict) -> dict:
+    guided = copy.deepcopy(plan)
+    guided["duration"] = scene_plan.get("duration", guided.get("duration", 12))
+    guided["assets"] = scene_plan.get("assets", {})
+    guided["effects"] = scene_plan.get("effects", [])
+    guided["targets"] = scene_plan.get("targets", guided.get("targets", []))
+
+    scenes = scene_plan.get("scenes", [])
+    if not isinstance(scenes, list) or not scenes:
+        return guided
+
+    total_duration = sum(float(scene.get("duration", 0) or 0) for scene in scenes) or 1.0
+    cursor = 0.0
+    timeline = []
+
+    for scene in scenes:
+        scene_duration = float(scene.get("duration", 0) or 0)
+        phase_start = cursor / total_duration
+        cursor += scene_duration
+        phase_end = min(1.0, cursor / total_duration)
+
+        primitives = scene.get("primitives", []) if isinstance(scene.get("primitives"), list) else []
+        effects = guided["effects"]
+        behavior = _behavior_from_scene(primitives)
+        tension = _tension_from_scene(primitives, effects)
+
+        timeline.append(
+            {
+                "phase": [round(phase_start, 3), round(phase_end, 3)],
+                "behavior": behavior,
+                "tension": tension,
+            }
+        )
+
+    if timeline:
+        timeline[-1]["phase"][1] = 1.0
+        guided["timeline"] = timeline
+
+    return guided
+
+
+def _behavior_from_scene(primitives: list) -> str:
+    for primitive in primitives:
+        behavior = BEHAVIOR_BY_PRIMITIVE.get(str(primitive).lower())
+        if behavior:
+            return behavior
+    return "coherent_flow"
+
+
+def _tension_from_scene(primitives: list, effects: list) -> str:
+    for effect in effects:
+        tension = TENSION_BY_EFFECT.get(str(effect).lower())
+        if tension == "high":
+            return tension
+
+    primitive_set = {str(item).lower() for item in primitives}
+    if {"particle_system", "fbm_noise"} & primitive_set:
+        return "high"
+    if {"living_curve", "neural_grid"} & primitive_set:
+        return "low"
+    return "medium"
+
+
+def enrich_with_entropy(plan: dict, intent_text: str = "") -> dict:
     """Invoca as personas físicas reais (Zara/Kael) com o arquétipo já escolhido pela Rule Engine."""
     archetype = plan.get("archetype", "emergence")
-    
+    total_duration = float(plan.get("duration", 12) or 12.0)
+
     # Define entropia numérica bruta via regra ZARA
     entropy_base = zara.define_entropy(archetype)
     plan["entropy"] = entropy_base
@@ -39,47 +127,30 @@ def enrich_with_entropy(plan: dict) -> dict:
     bias = zara.resolve_motion_bias(archetype)
     if bias:
         interpretation["motion_signature"] = bias
-        
+
     plan["interpretation"] = interpretation
+    plan["entropy_profile"] = entropy_base
+    plan["pacing_profile"] = kael.define_pacing(intent_text, archetype, total_duration_sec=total_duration)
+    poster_warnings = aria.poster_test(archetype)
+    plan["poster_test"] = {
+        "passed": not poster_warnings,
+        "warnings": poster_warnings,
+    }
+    plan["quality_mode"] = "absolute"
     
     # ---------------------------------------------
     # FASE 1 (ELITE): A Linguagem Temporal (Timeline)
     # ---------------------------------------------
-    timeline = []
-    if archetype == "emergence":
-        timeline = [
-             {"phase": [0.0, 0.4], "behavior": "coherent_flow", "tension": "low"},
-             {"phase": [0.4, 0.8], "behavior": bias or "scattered_to_aligned", "tension": "medium"},
-             {"phase": [0.8, 1.0], "behavior": "convergence_field", "tension": "high"}
-        ]
-    elif archetype == "chaos_to_order":
-        timeline = [
-             {"phase": [0.0, 0.3], "behavior": "chaotic_burst", "tension": "high"},
-             {"phase": [0.3, 0.7], "behavior": bias or "vortex_pull", "tension": "medium"},
-             {"phase": [0.7, 1.0], "behavior": "laminar_flow", "tension": "low"}
-        ]
-    elif archetype == "order_to_chaos":
-        timeline = [
-             {"phase": [0.0, 0.4], "behavior": "laminar_flow", "tension": "low"},
-             {"phase": [0.4, 0.7], "behavior": bias or "oscillatory_wave", "tension": "medium"},
-             {"phase": [0.7, 1.0], "behavior": "chaotic_dispersion", "tension": "high"}
-        ]
-    else:
-        timeline = [
-             {"phase": [0.0, 0.5], "behavior": bias or "laminar_flow", "tension": "medium"},
-             {"phase": [0.5, 1.0], "behavior": "breathing_field", "tension": "medium"}
-        ]
-        
+    timeline = get_archetype_timeline(archetype, bias)
     plan["timeline"] = timeline
     
     return plan
 
-def negotiate(plan: dict, rng: _random_module.Random | None = None) -> dict:
-    """Fase 4 (Elite): Negociação Multi-Agente Darwiniana.
+def negotiate(plan: dict) -> dict:
+    """Fase 4 (Elite): Negociação Multi-Agente Darwiniana."""
+    if float(plan.get("llm_confidence", 0.0)) >= 0.85:
+        return copy.deepcopy(plan)
 
-    *rng* is a seeded :class:`random.Random` threaded from :func:`compile_seed`
-    so that mutation outcomes are deterministic for a given briefing seed.
-    """
     best_plan = copy.deepcopy(plan)
     max_score = 0.0
 
@@ -110,34 +181,46 @@ def negotiate(plan: dict, rng: _random_module.Random | None = None) -> dict:
 
     return best_plan
 
-def compile_seed(seed: dict, identity: str = "aiox_default") -> dict:
-    """Ponto de Entrada Mestre do AIOX OS v5 (Autonomia Elite).
+def compile_seed(
+    seed: dict,
+    identity: str = 'aiox_default',
+    asset_registry: dict | None = None,
+    task_type: str = TASK_PLAN,
+):
+    """Ponto de Entrada Mestre do AIOX OS v5 (Autonomia Elite)."""
 
-    Derives a deterministic RNG from *seed* so that every mutation in the
-    Darwinian negotiation loop produces the same result for the same briefing.
-    The derived integer seed is returned in the manifest for traceability.
-    """
-    rng = _rng_from_seed(seed)
-    rng_seed_int = int(
-        hashlib.sha256(json.dumps(seed, sort_keys=True, default=str).encode())
-        .hexdigest()[:16],
-        16,
-    ) & 0x7FFFFFFFFFFFFFFF
-
-    intent = parse_intent(seed)
+    intent = parse_intent(seed, asset_registry=asset_registry, task_type=task_type)
     plan = apply_rules(intent, identity)
-    plan = enrich_with_entropy(plan)
+    plan = enrich_with_entropy(plan, intent_text=str(intent))
 
-    # 4. Negociação Darwiniana (Crítica Multi-Agente) — seed determinístico
-    plan = negotiate(plan, rng)
+    if getattr(intent, "scene_plan", None):
+        plan["llm_scene_plan"] = intent.scene_plan
+        plan["llm_confidence"] = getattr(intent, "confidence", 0.0)
+        plan["llm_metadata"] = getattr(intent, "llm_metadata", {})
+        plan = apply_scene_plan_guidance(plan, intent.scene_plan)
 
+    reference_direction = resolve_reference_native_direction(seed, brief=seed if isinstance(seed, dict) else None, plan=plan)
+    plan = apply_reference_direction_to_plan(plan, reference_direction, seed=seed if isinstance(seed, dict) else None)
+    
+    # 3.5. Projetos / Direcionamento Editorial
+    project_id = (seed or {}).get("project_id") if isinstance(seed, dict) else None
+    if project_id:
+        plan = apply_project_profile_to_plan(plan, project_id)
+
+    # 4. Negociação Darwiniana (Crítica Multi-Agente)
+    plan = negotiate(plan)
+    artifact_plan = build_artifact_plan(plan, seed)
+    plan["artifact_plan"] = artifact_plan
+    render_manifest = build_render_manifest(plan, seed)
+    plan["render_manifest"] = render_manifest
+    
     # 5. Simulador Final
     signature = simulate_signature(plan)
 
     return {
         "intent": str(intent),
         "creative_plan": plan,
+        "artifact_plan": artifact_plan,
         "output_signature": signature,
-        "render_manifest": plan,
-        "rng_seed": rng_seed_int,
+        "render_manifest": render_manifest
     }

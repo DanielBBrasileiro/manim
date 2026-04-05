@@ -1,0 +1,71 @@
+id: premium_still
+render_mode: still
+artifact_class: premium_still
+prompt_template: StillPosterPrompt
+threshold: 74
+premium_threshold: 82
+craft_floor: 68
+objective_checks:
+  - hard_vetoes
+  - negative_space
+  - text_density
+  - color_purity
+  - grain_window
+correction_focus:
+  - hierarchy_strength
+  - typographic_craft
+  - spatial_intelligence
+  - poster_impact
+dimensions:
+  hierarchy_strength:
+    weight: 0.22
+    criteria:
+      - "Visual hierarchy is instant and primary element is obvious in under 0.5s"
+      - "Scale ratio between dominant and secondary elements feels decisive rather than polite"
+      - "Supporting elements do not compete with the hero message"
+  typographic_craft:
+    weight: 0.18
+    criteria:
+      - "Type scale relationships, measure, tracking, leading, and rag quality feel authored"
+      - "Typography follows the selected typography system instead of generic sizing"
+      - "Line breaks create force and meaning rather than simply fitting the box"
+  spatial_intelligence:
+    weight: 0.16
+    criteria:
+      - "Negative space feels intentional, not leftover"
+      - "Composition has tension and controlled breathing room"
+      - "Empty zones, focal zones, and support zones feel organized and purposeful"
+  poster_impact:
+    weight: 0.16
+    criteria:
+      - "Frame has stop power and scroll-stopping quality"
+      - "Would this still halt a scrolling thumb?"
+      - "The still reads as a poster, not a paused interface"
+  brand_discipline:
+    weight: 0.10
+    criteria:
+      - "Palette is on-brand and anti-patterns are absent"
+      - "Accent is used sparingly and intentionally"
+  material_finish:
+    weight: 0.10
+    criteria:
+      - "Grain quality, texture consistency, and surface feel are premium"
+      - "Finish feels deliberate and clean, not dirty or accidental"
+  emotional_coherence:
+    weight: 0.04
+    criteria:
+      - "Mood matches intent and target audience"
+      - "Emotional tone is legible without explanatory motion"
+  originality:
+    weight: 0.04
+    criteria:
+      - "Within contract bounds, the frame feels authored rather than templated"
+      - "The still avoids generic startup-design tropes"
+hard_vetoes:
+  - text_off_canvas
+  - text_overlap_text
+  - zero_hierarchy
+  - illegible_contrast
+  - empty_frame
+  - gradient_detected
+  - logo_detected
