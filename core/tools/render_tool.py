@@ -2,36 +2,20 @@ import json
 import os
 import shutil
 import subprocess
-import time
-import urllib.error
-import urllib.request
 from pathlib import Path
 from typing import Any
 
+from core.tools.engine_adapter import EngineAdapter
 from core.tools.fallback_artifact_renderer import (
     render_carousel_artifact,
     render_still_artifact,
     render_video_artifact,
 )
+from core.tools.remotion_adapter import RemotionAdapter
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 MANIM_SCENE_NAME = "EntropyDemo"
 MANIM_SCRIPT_PATH = "scenes/cde_entropy_demo.py"
-DEFAULT_RENDER_TIMEOUT = int(os.getenv("AIOX_REMOTION_CLI_TIMEOUT_SECONDS", "45"))
-DEFAULT_DIRECT_TIMEOUT = int(os.getenv("AIOX_REMOTION_DIRECT_TIMEOUT_SECONDS", "180"))
-DEFAULT_STILL_DIRECT_TIMEOUT = int(os.getenv("AIOX_REMOTION_STILL_TIMEOUT_SECONDS", "180"))
-DEFAULT_STILL_CLI_TIMEOUT = int(os.getenv("AIOX_REMOTION_STILL_CLI_TIMEOUT_SECONDS", "180"))
-DEFAULT_VIDEO_DIRECT_TIMEOUT = int(os.getenv("AIOX_REMOTION_VIDEO_TIMEOUT_SECONDS", str(max(DEFAULT_DIRECT_TIMEOUT, 360))))
-DEFAULT_VIDEO_CLI_TIMEOUT = int(os.getenv("AIOX_REMOTION_VIDEO_CLI_TIMEOUT_SECONDS", str(max(DEFAULT_RENDER_TIMEOUT, 360))))
-DEFAULT_BUNDLE_WARM_TIMEOUT = int(
-    os.getenv(
-        "AIOX_REMOTION_BUNDLE_TIMEOUT_SECONDS",
-        str(max(DEFAULT_STILL_DIRECT_TIMEOUT, DEFAULT_VIDEO_DIRECT_TIMEOUT)),
-    )
-)
-REMOTION_DAEMON_PORT = int(os.getenv("REMOTION_DAEMON_PORT", "3333"))
-REMOTION_DAEMON_URL = f"http://127.0.0.1:{REMOTION_DAEMON_PORT}"
-DEFAULT_DAEMON_BOOT_TIMEOUT = int(os.getenv("AIOX_REMOTION_DAEMON_BOOT_TIMEOUT_SECONDS", "15"))
 
 LEGACY_OUTPUT_ALIASES = {
     "short_cinematic_vertical": "CinematicNarrative-v4",
@@ -113,280 +97,6 @@ def bridge_manim_hero_still(scene_name: str = "HeroStillGeometry", script_path: 
         return True
     return False
 
-def _load_remotion_runner() -> str:
-    return str(ROOT / "scripts" / "run_remotion_node.sh")
-
-
-def _load_remotion_env(
-    remotion_props: dict[str, Any] | None = None,
-    *,
-    timeout_seconds: int | None = None,
-    concurrency: int | None = None,
-) -> dict[str, str]:
-    env = dict(os.environ)
-    env.setdefault("AIOX_REMOTION_REUSE_BUNDLE", "1")
-    if remotion_props is not None:
-        env["REMOTION_INPUT_PROPS_JSON"] = json.dumps(remotion_props)
-        # Persistence for Motion Audit
-        try:
-            audit_path = ROOT / "output" / "video" / "audit_manifest.json"
-            os.makedirs(audit_path.parent, exist_ok=True)
-            with open(audit_path, "w") as f:
-                json.dump(remotion_props, f, indent=2)
-        except Exception:
-            pass
-    if timeout_seconds is not None:
-        env["REMOTION_RENDER_TIMEOUT_MS"] = str(max(timeout_seconds, 1) * 1000)
-    if concurrency is not None:
-        env.setdefault("REMOTION_CONCURRENCY", str(concurrency))
-    return env
-
-
-def _prewarm_remotion_bundle(artifact_plan: dict[str, Any]) -> None:
-    """Invoca o bundler do Remotion como warmup para evitar cold starts no render principal."""
-    targets = artifact_plan.get("artifact_plan", {}).get("targets", [])
-    
-    # Bypass para Still-Only: O renderStill já faz bundle, não precisamos travar aqui.
-    if all(str(t.get("render_mode")).lower() == "still" for t in targets if isinstance(t, dict)):
-        print("🪶 [Remotion Tool] Pipeline de stills detectado. Pulando warmup redundante.")
-        return
-
-    print("🔥 [Remotion Tool] Preaquecendo bundle nativo...")
-    try:
-        # Timeout curto para warm-up: se falhar ou travar, o render principal tentará novamente.
-        _run_direct_node_command(["warm"], timeout=180)
-    except Exception as e:
-        print(f"⚠️ [Remotion Tool] Warmup não completou no tempo: {e}. Continuando...")
-
-
-def _run_direct_node_command(args: list[str], timeout: int | None = None) -> subprocess.CompletedProcess:
-    """Executa scripts/remotion_direct.js com Node 20 sem as abstrações de composição/props."""
-    script_path = str(ROOT / "scripts" / "remotion_direct.js")
-    runner = _load_remotion_runner()
-    
-    env = _load_remotion_env()
-    cmd = ["/bin/bash", runner, script_path] + args
-    
-    return subprocess.run(
-        cmd,
-        check=True,
-        cwd=str(ROOT),
-        env=env,
-        timeout=timeout
-    )
-
-
-def _ping_remotion_daemon(timeout_seconds: float = 1.5) -> bool:
-    try:
-        with urllib.request.urlopen(f"{REMOTION_DAEMON_URL}/health", timeout=timeout_seconds) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-            return bool(payload.get("ok"))
-    except Exception:
-        return False
-
-
-def _start_remotion_daemon() -> None:
-    runner = _load_remotion_runner()
-    daemon_script = str(ROOT / "scripts" / "remotion_daemon.js")
-    log_path = ROOT / "output" / "logs" / "remotion_daemon.log"
-    log_path.parent.mkdir(parents=True, exist_ok=True)
-    env = _load_remotion_env(timeout_seconds=max(DEFAULT_VIDEO_DIRECT_TIMEOUT, DEFAULT_DAEMON_BOOT_TIMEOUT))
-    env["REMOTION_DAEMON_PORT"] = str(REMOTION_DAEMON_PORT)
-    with open(log_path, "ab") as log_handle:
-        subprocess.Popen(
-            ["/bin/bash", runner, daemon_script],
-            cwd=str(ROOT),
-            env=env,
-            stdout=log_handle,
-            stderr=log_handle,
-            start_new_session=True,
-        )
-
-
-def _ensure_remotion_daemon(timeout_seconds: int = DEFAULT_DAEMON_BOOT_TIMEOUT) -> bool:
-    if _ping_remotion_daemon():
-        print(f"⚡ [Remotion Tool] Daemon quente detectado em {REMOTION_DAEMON_URL}.")
-        try:
-            req = urllib.request.Request(f"{REMOTION_DAEMON_URL}/warm", data=b"{}", headers={"Content-Type": "application/json"})
-            urllib.request.urlopen(req, timeout=1.5).read()
-        except Exception:
-            pass
-        return True
-
-    print(f"🚀 [Remotion Tool] Iniciando daemon persistente em {REMOTION_DAEMON_URL}...")
-    try:
-        _start_remotion_daemon()
-    except Exception as error:
-        print(f"⚠️ [Remotion Tool] Falha ao iniciar daemon: {error}")
-        return False
-
-    deadline = time.time() + max(timeout_seconds, 1)
-    while time.time() < deadline:
-        if _ping_remotion_daemon():
-            print("✅ [Remotion Tool] Daemon pronto. Próximos renders reutilizarão o bundle quente.")
-            try:
-                req = urllib.request.Request(f"{REMOTION_DAEMON_URL}/warm", data=b"{}", headers={"Content-Type": "application/json"})
-                urllib.request.urlopen(req, timeout=1.5).read()
-            except Exception:
-                pass
-            return True
-        time.sleep(0.25)
-
-    print("⚠️ [Remotion Tool] Daemon não respondeu a tempo. Voltando para renderer subprocess.")
-    return False
-
-
-def _run_remotion_via_daemon(command: str, composition: str, output_path: Path, remotion_props: dict[str, Any] | None, timeout_seconds: int) -> bool:
-    try:
-        if not _ensure_remotion_daemon():
-            return False
-        data = json.dumps({
-            "command": command,
-            "requestedCompositionId": composition,
-            "outputLocation": str(output_path),
-            "inputProps": remotion_props or {}
-        }).encode('utf-8')
-        req = urllib.request.Request(f"{REMOTION_DAEMON_URL}/render", data=data, headers={'Content-Type': 'application/json'})
-        with urllib.request.urlopen(req, timeout=timeout_seconds) as response:
-            res = json.loads(response.read().decode('utf-8'))
-            if not res.get("ok"):
-                print(f"⚠️ [Daemon] Ocorreu erro interno: {res.get('error')}")
-                return False
-            print(f"⚡ [Remotion Tool] {command} concluído via daemon persistente para '{composition}'.")
-            return True
-    except Exception:
-        # Silencioso. Se falhar, o daemon nao esta on. Fallback para CLI.
-        return False
-
-def _run_remotion_command(
-    command: str,
-    composition: str,
-    output_path: Path,
-    remotion_props: dict[str, Any] | None,
-    *,
-    direct_timeout_seconds: int | None = None,
-    cli_timeout_seconds: int | None = None,
-    concurrency: int | None = None,
-) -> None:
-    runner = _load_remotion_runner()
-    render_mode = os.getenv("AIOX_REMOTION_RENDER_MODE", "auto").strip().lower()
-    cli_timeout = cli_timeout_seconds if cli_timeout_seconds is not None else int(
-        os.getenv("AIOX_REMOTION_CLI_TIMEOUT_SECONDS", str(DEFAULT_RENDER_TIMEOUT))
-    )
-    direct_timeout = direct_timeout_seconds if direct_timeout_seconds is not None else int(
-        os.getenv("AIOX_REMOTION_DIRECT_TIMEOUT_SECONDS", str(DEFAULT_DIRECT_TIMEOUT))
-    )
-    effective_timeout = max(cli_timeout, direct_timeout)
-    
-    # ⚡️ THE AIOX 5.0 TURBO MECHANISM: DEMON OPPORTUNISTIC ROUTING
-    if os.getenv("AIOX_SKIP_REMOTION") == "1":
-        print("⏭️ [Remotion Tool] AIOX_SKIP_REMOTION detectado. Forçando fallback engine.")
-        raise RuntimeError("Remotion skipped by user")
-
-    if render_mode in ("auto", "daemon"):
-        if _run_remotion_via_daemon(command, composition, output_path, remotion_props, effective_timeout):
-            return
-
-    env = _load_remotion_env(remotion_props, timeout_seconds=effective_timeout, concurrency=concurrency)
-
-    cli_cmd = [
-        "/bin/zsh",
-        "-lc",
-        f"cd {ROOT / 'engines' / 'remotion'} && {runner} ./node_modules/.bin/remotion {command} src/index.tsx {composition} {output_path.as_posix()} --force",
-    ]
-    direct_cmd = [
-        "/bin/bash",
-        runner,
-        str(ROOT / "scripts" / "remotion_direct.js"),
-        command,
-        composition,
-        str(output_path),
-    ]
-
-    if render_mode == "direct":
-        print(f"🧵 [Remotion Tool] Usando renderer direto subprocess para '{composition}'.")
-        subprocess.run(direct_cmd, check=True, cwd=str(ROOT), env=env, timeout=direct_timeout)
-    elif render_mode == "cli":
-        print(f"🧱 [Remotion Tool] Usando Remotion CLI para '{composition}'.")
-        subprocess.run(cli_cmd, check=True, cwd=str(ROOT), env=env, timeout=cli_timeout)
-    else:
-        try:
-            print(f"🧵 [Remotion Tool] Daemon indisponível. Tentando renderer direto para '{composition}'.")
-            subprocess.run(direct_cmd, check=True, cwd=str(ROOT), env=env, timeout=direct_timeout)
-        except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
-            print("⚠️ [Remotion Tool] Renderer direto falhou. Tentando CLI...")
-            subprocess.run(
-                cli_cmd,
-                check=True,
-                cwd=str(ROOT),
-                env=env,
-                timeout=cli_timeout,
-            )
-
-
-def _validate_output(output_path: Path) -> None:
-    if not output_path.exists():
-        raise RuntimeError(f"Render final nao gerou arquivo: {output_path}")
-
-    current_mtime = output_path.stat().st_mtime
-    if output_path.stat().st_size == 0:
-        raise RuntimeError(f"Render final criou arquivo vazio: {output_path}")
-    if current_mtime <= 0:
-        raise RuntimeError(f"Render final com timestamp invalido: {output_path}")
-
-
-def run_remotion_video(
-    composition: str,
-    output_path: Path,
-    remotion_props: dict[str, Any] | None = None,
-) -> Path:
-    print("🎬 [Remotion Tool] Compondo narrativa final...")
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    previous_mtime = output_path.stat().st_mtime if output_path.exists() else 0
-
-    _run_remotion_command(
-        "render",
-        composition,
-        output_path,
-        remotion_props,
-        direct_timeout_seconds=DEFAULT_VIDEO_DIRECT_TIMEOUT,
-        cli_timeout_seconds=DEFAULT_VIDEO_CLI_TIMEOUT,
-        concurrency=2,
-    )
-    _validate_output(output_path)
-
-    current_mtime = output_path.stat().st_mtime
-    if current_mtime <= previous_mtime:
-        raise RuntimeError(f"Render final nao atualizou o arquivo esperado: {output_path}")
-
-    return output_path
-
-
-def run_remotion_still(
-    composition: str,
-    output_path: Path,
-    remotion_props: dict[str, Any] | None = None,
-) -> Path:
-    print("🖼️ [Remotion Tool] Compondo still premium...")
-    still_output = output_path if output_path.suffix.lower() == ".png" else output_path.with_suffix(".png")
-    still_output.parent.mkdir(parents=True, exist_ok=True)
-    previous_mtime = still_output.stat().st_mtime if still_output.exists() else 0
-
-    _run_remotion_command(
-        "still",
-        composition,
-        still_output,
-        remotion_props,
-        direct_timeout_seconds=DEFAULT_STILL_DIRECT_TIMEOUT,
-        cli_timeout_seconds=DEFAULT_STILL_CLI_TIMEOUT,
-    )
-    _validate_output(still_output)
-
-    current_mtime = still_output.stat().st_mtime
-    if current_mtime <= previous_mtime:
-        raise RuntimeError(f"Still nao atualizou o arquivo esperado: {still_output}")
-
-    return still_output
 
 
 def _write_dynamic_data(
@@ -926,8 +636,9 @@ def render_pipeline(
     degraded_native_still_targets: list[dict[str, Any]] = []
     remotion_unavailable_reason: str | None = None
 
+    adapter: EngineAdapter = RemotionAdapter()
     try:
-        _prewarm_remotion_bundle(artifact_plan)
+        adapter.prepare(artifact_plan)
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, RuntimeError) as error:
         print(f"⚠️ [Render Tool] Prewarm do Remotion falhou: {error}")
         remotion_unavailable_reason = str(error)
@@ -989,7 +700,7 @@ def render_pipeline(
 
         try:
             if render_mode == "still":
-                output = run_remotion_still(composition, canonical_output, remotion_props=remotion_props)
+                output = adapter.render_still(composition, canonical_output, remotion_props or {})
             elif render_mode == "carousel":
                 slides = target.get("slides", [])
                 if not isinstance(slides, list) or not slides:
@@ -1006,7 +717,7 @@ def render_pipeline(
                 for index, slide in enumerate(slides, start=1):
                     slide_props = _slide_to_props(artifact_plan, target, slide if isinstance(slide, dict) else {}, index - 1)
                     slide_path = canonical_output / f"slide_{index:02d}.png"
-                    rendered_slide = run_remotion_still(composition, slide_path, remotion_props=slide_props)
+                    rendered_slide = adapter.render_still(composition, slide_path, slide_props or {})
                     slide_outputs.append(str(rendered_slide))
 
                 output = canonical_output
@@ -1027,7 +738,7 @@ def render_pipeline(
                 )
                 continue
             else:
-                output = run_remotion_video(composition, canonical_output, remotion_props=remotion_props)
+                output = adapter.render_video(composition, canonical_output, remotion_props or {})
 
             _copy_alias_output(output, alias_output)
             outputs.append(
