@@ -2,6 +2,9 @@ import json
 import os
 import shutil
 import subprocess
+import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +29,9 @@ DEFAULT_BUNDLE_WARM_TIMEOUT = int(
         str(max(DEFAULT_STILL_DIRECT_TIMEOUT, DEFAULT_VIDEO_DIRECT_TIMEOUT)),
     )
 )
+REMOTION_DAEMON_PORT = int(os.getenv("REMOTION_DAEMON_PORT", "3333"))
+REMOTION_DAEMON_URL = f"http://127.0.0.1:{REMOTION_DAEMON_PORT}"
+DEFAULT_DAEMON_BOOT_TIMEOUT = int(os.getenv("AIOX_REMOTION_DAEMON_BOOT_TIMEOUT_SECONDS", "15"))
 
 LEGACY_OUTPUT_ALIASES = {
     "short_cinematic_vertical": "CinematicNarrative-v4",
@@ -170,22 +176,83 @@ def _run_direct_node_command(args: list[str], timeout: int | None = None) -> sub
     )
 
 
-def _run_remotion_via_daemon(command: str, composition: str, output_path: Path, remotion_props: dict[str, Any] | None, timeout_seconds: int) -> bool:
-    import urllib.request
-    import json
+def _ping_remotion_daemon(timeout_seconds: float = 1.5) -> bool:
     try:
+        with urllib.request.urlopen(f"{REMOTION_DAEMON_URL}/health", timeout=timeout_seconds) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+            return bool(payload.get("ok"))
+    except Exception:
+        return False
+
+
+def _start_remotion_daemon() -> None:
+    runner = _load_remotion_runner()
+    daemon_script = str(ROOT / "scripts" / "remotion_daemon.js")
+    log_path = ROOT / "output" / "logs" / "remotion_daemon.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    env = _load_remotion_env(timeout_seconds=max(DEFAULT_VIDEO_DIRECT_TIMEOUT, DEFAULT_DAEMON_BOOT_TIMEOUT))
+    env["REMOTION_DAEMON_PORT"] = str(REMOTION_DAEMON_PORT)
+    with open(log_path, "ab") as log_handle:
+        subprocess.Popen(
+            ["/bin/bash", runner, daemon_script],
+            cwd=str(ROOT),
+            env=env,
+            stdout=log_handle,
+            stderr=log_handle,
+            start_new_session=True,
+        )
+
+
+def _ensure_remotion_daemon(timeout_seconds: int = DEFAULT_DAEMON_BOOT_TIMEOUT) -> bool:
+    if _ping_remotion_daemon():
+        print(f"⚡ [Remotion Tool] Daemon quente detectado em {REMOTION_DAEMON_URL}.")
+        try:
+            req = urllib.request.Request(f"{REMOTION_DAEMON_URL}/warm", data=b"{}", headers={"Content-Type": "application/json"})
+            urllib.request.urlopen(req, timeout=1.5).read()
+        except Exception:
+            pass
+        return True
+
+    print(f"🚀 [Remotion Tool] Iniciando daemon persistente em {REMOTION_DAEMON_URL}...")
+    try:
+        _start_remotion_daemon()
+    except Exception as error:
+        print(f"⚠️ [Remotion Tool] Falha ao iniciar daemon: {error}")
+        return False
+
+    deadline = time.time() + max(timeout_seconds, 1)
+    while time.time() < deadline:
+        if _ping_remotion_daemon():
+            print("✅ [Remotion Tool] Daemon pronto. Próximos renders reutilizarão o bundle quente.")
+            try:
+                req = urllib.request.Request(f"{REMOTION_DAEMON_URL}/warm", data=b"{}", headers={"Content-Type": "application/json"})
+                urllib.request.urlopen(req, timeout=1.5).read()
+            except Exception:
+                pass
+            return True
+        time.sleep(0.25)
+
+    print("⚠️ [Remotion Tool] Daemon não respondeu a tempo. Voltando para renderer subprocess.")
+    return False
+
+
+def _run_remotion_via_daemon(command: str, composition: str, output_path: Path, remotion_props: dict[str, Any] | None, timeout_seconds: int) -> bool:
+    try:
+        if not _ensure_remotion_daemon():
+            return False
         data = json.dumps({
             "command": command,
             "requestedCompositionId": composition,
             "outputLocation": str(output_path),
             "inputProps": remotion_props or {}
         }).encode('utf-8')
-        req = urllib.request.Request("http://127.0.0.1:3333/render", data=data, headers={'Content-Type': 'application/json'})
+        req = urllib.request.Request(f"{REMOTION_DAEMON_URL}/render", data=data, headers={'Content-Type': 'application/json'})
         with urllib.request.urlopen(req, timeout=timeout_seconds) as response:
             res = json.loads(response.read().decode('utf-8'))
             if not res.get("ok"):
                 print(f"⚠️ [Daemon] Ocorreu erro interno: {res.get('error')}")
                 return False
+            print(f"⚡ [Remotion Tool] {command} concluído via daemon persistente para '{composition}'.")
             return True
     except Exception:
         # Silencioso. Se falhar, o daemon nao esta on. Fallback para CLI.
@@ -237,11 +304,14 @@ def _run_remotion_command(
     ]
 
     if render_mode == "direct":
+        print(f"🧵 [Remotion Tool] Usando renderer direto subprocess para '{composition}'.")
         subprocess.run(direct_cmd, check=True, cwd=str(ROOT), env=env, timeout=direct_timeout)
     elif render_mode == "cli":
+        print(f"🧱 [Remotion Tool] Usando Remotion CLI para '{composition}'.")
         subprocess.run(cli_cmd, check=True, cwd=str(ROOT), env=env, timeout=cli_timeout)
     else:
         try:
+            print(f"🧵 [Remotion Tool] Daemon indisponível. Tentando renderer direto para '{composition}'.")
             subprocess.run(direct_cmd, check=True, cwd=str(ROOT), env=env, timeout=direct_timeout)
         except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
             print("⚠️ [Remotion Tool] Renderer direto falhou. Tentando CLI...")
