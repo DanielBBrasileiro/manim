@@ -1,18 +1,17 @@
-import themeData from '../../../../assets/brand/theme.json';
+// SSoT: all brand values come from the token bridge (brand.py → aiox_tokens.ts).
+// Do NOT import assets/brand/theme.json here — that path is a competing bypass.
+import { AIOX_TOKENS } from '../generated/aiox_tokens';
 
-// Por padrão, usamos o estado 'dark'. 
-// Futuramente o orquestrador pode injetar 'inverted' via props.
-const activeState = "dark";
-const colors = themeData.brand.color_states[activeState];
+const dark = AIOX_TOKENS.brand.color_states.dark;
+const accent = AIOX_TOKENS.brand.color_states.accent as { color: string };
 
 export const Theme = {
     colors: {
-        background: colors.background, // Usado apenas se não houver vídeo do Manim por baixo
-        textPrimary: colors.text_primary,
-        textSecondary: colors.text_secondary,
-        accent: themeData.brand.color_states.accent.color,
+        background: dark.background,
+        textPrimary: (dark as { text_primary?: string }).text_primary ?? dark.foreground,
+        textSecondary: (dark as { text_secondary?: string }).text_secondary ?? dark.foreground,
+        accent: accent.color,
     },
-    materials: themeData.brand.materials,
-    laws: themeData.laws,
-    identity: themeData.brand.identity
-};
+    materials: AIOX_TOKENS.brand.materials,
+    identity: AIOX_TOKENS.brand.identity,
+} as const;

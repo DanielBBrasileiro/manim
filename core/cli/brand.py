@@ -104,12 +104,14 @@ def sync_identity(identity_name="aiox_default"):
     
     ts_content = f"""// ⚠️ GERADO AUTOMATICAMENTE VIA core/cli/brand.py - NÃO EDITE
 // Pipeline de Governança de Design Física AIOX
+import type {{ AioxTokensShape }} from '../types/tokens';
 
 export const AIOX_TOKENS = {{
   layout: {json.dumps(layout_data, indent=2)},
   motion: {json.dumps(motion_data, indent=2)},
-  brand: {json.dumps(master_theme['brand'], indent=2)}
-}} as const;
+  brand: {json.dumps(master_theme['brand'], indent=2)},
+  laws: {json.dumps(master_theme['laws'], indent=2)}
+}} satisfies AioxTokensShape as const;
 """
     ts_output_file = remotion_gen_dir / "aiox_tokens.ts"
     with open(ts_output_file, 'w', encoding='utf-8') as f:
