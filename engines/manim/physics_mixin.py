@@ -1,208 +1,156 @@
-"""physics_mixin.py — Pymunk rigid-body physics for Manim scenes.
-
-Provides three explicit lifecycle functions:
-
-    space = setup_physics(seed, entropy, regime)   # initialise
-    state = evaluate_physics(space, steps, dt)     # run + extract state
-    teardown_physics(space)                         # explicit cleanup
-
-The extracted :class:`PhysicsState` is written to
-``engines/remotion/src/generated/physics_state.ts`` via
-:func:`write_physics_state` so that Remotion compositions can import
-real physics data at build time without an async fetch.
-
-Gracefully degrades to neutral defaults when pymunk is not installed.
-"""
-
-from __future__ import annotations
-
+import json
 import math
-import random
 from pathlib import Path
-from typing import TypedDict
+from typing import Any, Dict, List, Tuple
 
-try:
-    import pymunk as _pymunk
-
-    _PYMUNK_AVAILABLE = True
-except ImportError:  # pragma: no cover
-    _pymunk = None  # type: ignore[assignment]
-    _PYMUNK_AVAILABLE = False
-
-ROOT = Path(__file__).resolve().parent.parent.parent
-_GENERATED_TS = ROOT / "engines" / "remotion" / "src" / "generated" / "physics_state.ts"
-_N_BODIES = 20  # lightweight — 20 bodies is sufficient for state extraction
-
-
-# ---------------------------------------------------------------------------
-# Result type
-# ---------------------------------------------------------------------------
-
-
-class PhysicsState(TypedDict):
-    dominant_velocity: float   # RMS speed, normalised [0, 1]
-    velocity_x: float          # mean Vx, clamped [-1, 1]
-    velocity_y: float          # mean Vy, clamped [-1, 1]
-    kinetic_energy: float      # total KE, normalised [0, 1]
-    regime: str                # 'laminar' | 'oscillatory' | 'turbulent'
-    seed: int
-    steps_evaluated: int
-
-
-# ---------------------------------------------------------------------------
-# Lifecycle
-# ---------------------------------------------------------------------------
-
-
-def setup_physics(
-    seed: int,
-    entropy: dict,
-    regime: str,
-) -> "pymunk.Space | None":  # type: ignore[name-defined]  # noqa: F821
-    """Create and seed a pymunk :class:`Space` from briefing entropy values.
-
-    Returns ``None`` when pymunk is unavailable (graceful degradation).
+class PhysicsOrchestratorMixin:
     """
-    if not _PYMUNK_AVAILABLE:
-        return None
-
-    phys = float(entropy.get("physical", 0.5))
-    struct = float(entropy.get("structural", 0.5))
-
-    space = _pymunk.Space()
-    space.gravity = (0.0, -struct * 400.0)
-    space.damping = 0.92  # mild air resistance
-
-    rng = random.Random(seed)
-    for _ in range(_N_BODIES):
-        moment = _pymunk.moment_for_circle(1.0, 0, 6)
-        body = _pymunk.Body(mass=1.0, moment=moment)
-        body.position = (rng.uniform(-180.0, 180.0), rng.uniform(-180.0, 180.0))
-
-        speed = phys * 280.0
-        angle = rng.uniform(0.0, 2.0 * math.pi)
-        body.velocity = (math.cos(angle) * speed, math.sin(angle) * speed)
-
-        shape = _pymunk.Circle(body, radius=6)
-        shape.elasticity = max(0.1, 1.0 - struct * 0.6)
-        shape.friction = 0.3
-        space.add(body, shape)
-
-    return space
-
-
-def evaluate_physics(
-    space: "pymunk.Space | None",  # type: ignore[name-defined]  # noqa: F821
-    *,
-    steps: int = 60,
-    dt: float = 1.0 / 60.0,
-    seed: int = 0,
-) -> PhysicsState:
-    """Step the simulation *steps* times and return a :class:`PhysicsState` snapshot.
-
-    Returns neutral defaults when *space* is ``None``.
+    Mixin to convert a Manim Scene/SpaceScene into a deterministic Convergence Engine
+    using Pymunk/manim-physics. Supports Adaptive sub-stepping and Universal Gravitation.
+    
+    Can be used by appending to the class definition:
+    `class ChaosToOrderScene(SpaceScene, PhysicsOrchestratorMixin):`
     """
-    if space is None or not _PYMUNK_AVAILABLE:
-        return PhysicsState(
-            dominant_velocity=0.5,
-            velocity_x=0.0,
-            velocity_y=0.0,
-            kinetic_energy=0.5,
-            regime="laminar",
-            seed=seed,
-            steps_evaluated=0,
+    
+    def setup_physics_environment(self, step_size: float = 1/60.0, sub_steps: int = 10) -> None:
+        """
+        Configures the Space's chronological bounds to avoid high-velocity tunneling constraints
+        on M-series chips.
+        """
+        if not hasattr(self, "space"):
+            self._physics_active = False
+            return
+            
+        self._physics_dt = step_size
+        self._sub_steps = sub_steps
+        self._physics_active = True
+        
+    def add_universal_convergence_field(
+        self, 
+        atoms: List[Any], 
+        singularity_pos: Tuple[float, float], 
+        G: float = 1000.0, 
+        singularity_mass: float = 100.0
+    ) -> None:
+        """
+        Infers an Inverse-Square Law gravitation field pulling scattered atoms 
+        towards the brand singularity.
+        
+        Formula: F = G * (m1 * m2) / r^2
+        """
+        if not getattr(self, "_physics_active", False):
+            return
+            
+        def _apply_gravity(mob: Any, dt: float) -> None:
+            if not hasattr(mob, "body") or mob.body is None:
+                return
+                
+            atom_mass = mob.body.mass
+            rx = singularity_pos[0] - mob.body.position.x
+            ry = singularity_pos[1] - mob.body.position.y
+            
+            r_sq = rx**2 + ry**2
+            if r_sq < 0.1:  # Core softening to prevent infinite acceleration tunneling
+                r_sq = 0.1
+                
+            # Newton's Law of Universal Gravitation
+            force_mag = G * (atom_mass * singularity_mass) / r_sq
+            
+            r_dist = math.sqrt(r_sq)
+            fx = force_mag * (rx / r_dist)
+            fy = force_mag * (ry / r_dist)
+            
+            mob.body.apply_force_at_local_point((fx, fy), (0, 0))
+
+        for atom in atoms:
+            atom.add_updater(_apply_gravity)
+
+    def evaluate_physics_step(self) -> None:
+        """
+        Alternative to default updaters. Allows for explicit decoupled integration.
+        Sub-steps Pymunk logic `self._sub_steps` times per `_physics_dt`.
+        """
+        if getattr(self, "_physics_active", False) and hasattr(self, "space"):
+            sub_dt = self._physics_dt / float(self._sub_steps)
+            for _ in range(self._sub_steps):
+                self.space.step(sub_dt)
+                
+    def get_final_velocity(self, mobject: Any) -> Tuple[float, float]:
+        """
+        Extracts the linear velocity vector (vx, vy) from the Pymunk body
+        at the current simulation state — intended to be called at the last
+        frame of the Genesis act, immediately before act transition.
+        Returns (0.0, 0.0) if no physics body is present.
+        """
+        if not getattr(self, "_physics_active", False):
+            return (0.0, 0.0)
+        if not hasattr(mobject, "body") or mobject.body is None:
+            return (0.0, 0.0)
+        vx, vy = mobject.body.velocity
+        return (float(vx), float(vy))
+
+    def inject_velocity_into_manifest(
+        self,
+        manifest_path: str,
+        mobject: Any,
+        atom_id: str = "genesis_primary",
+    ) -> None:
+        """
+        Writes the final velocity of a Pymunk body into the render_manifest.json
+        under physics_state.initial_velocity. This value is consumed by useAioxSpring
+        on the React side to seed deterministic spring animations with real momentum.
+
+        Layout injected into manifest:
+            physics_state: {
+                initial_velocity: {
+                    vx: float,       # raw Pymunk x-velocity (abstract units)
+                    vy: float,       # raw Pymunk y-velocity (abstract units)
+                    magnitude: float # scalar for useAioxSpring.externalVelocity
+                },
+                atom_id: str         # which atom produced this velocity
+            }
+        """
+        vx, vy = self.get_final_velocity(mobject)
+        magnitude = math.sqrt(vx ** 2 + vy ** 2)
+
+        manifest_file = Path(manifest_path)
+        if not manifest_file.exists():
+            print(
+                f"⚠️ [PhysicsMixin] render_manifest.json não encontrado em "
+                f"{manifest_path} — velocity não injetada."
+            )
+            return
+
+        with open(manifest_file, "r", encoding="utf-8") as f:
+            manifest: Dict[str, Any] = json.load(f)
+
+        manifest["physics_state"] = {
+            "initial_velocity": {
+                "vx": round(vx, 6),
+                "vy": round(vy, 6),
+                "magnitude": round(magnitude, 6),
+            },
+            "atom_id": atom_id,
+        }
+
+        with open(manifest_file, "w", encoding="utf-8") as f:
+            json.dump(manifest, f, indent=2)
+
+        print(
+            f"⚡ [PhysicsMixin] Velocity injetada → atom='{atom_id}' "
+            f"vx={vx:.3f} vy={vy:.3f} |v|={magnitude:.3f}"
         )
 
-    for _ in range(steps):
-        space.step(dt)
-
-    bodies = [b for b in space.bodies if b.body_type == _pymunk.Body.DYNAMIC]
-    if not bodies:
-        return PhysicsState(
-            dominant_velocity=0.0, velocity_x=0.0, velocity_y=0.0,
-            kinetic_energy=0.0, regime="laminar", seed=seed, steps_evaluated=steps,
-        )
-
-    vxs = [b.velocity.x for b in bodies]
-    vys = [b.velocity.y for b in bodies]
-    speeds = [math.sqrt(vx ** 2 + vy ** 2) for vx, vy in zip(vxs, vys)]
-    mean_speed = sum(speeds) / len(speeds)
-    mean_vx = sum(vxs) / len(vxs)
-    mean_vy = sum(vys) / len(vys)
-    ke = sum(0.5 * b.mass * (b.velocity.x ** 2 + b.velocity.y ** 2) for b in bodies)
-
-    # Classify regime by coefficient of variation of speed
-    variance = sum((s - mean_speed) ** 2 for s in speeds) / len(speeds)
-    cv = math.sqrt(variance) / (mean_speed + 1e-9)
-    if cv > 0.7:
-        regime = "turbulent"
-    elif cv < 0.2:
-        regime = "laminar"
-    else:
-        regime = "oscillatory"
-
-    _NORM = 400.0  # max expected speed in units/s
-    _KE_MAX = _N_BODIES * 0.5 * 1.0 * _NORM ** 2
-
-    return PhysicsState(
-        dominant_velocity=min(1.0, mean_speed / _NORM),
-        velocity_x=max(-1.0, min(1.0, mean_vx / _NORM)),
-        velocity_y=max(-1.0, min(1.0, mean_vy / _NORM)),
-        kinetic_energy=min(1.0, ke / _KE_MAX),
-        regime=regime,
-        seed=seed,
-        steps_evaluated=steps,
-    )
-
-
-def teardown_physics(
-    space: "pymunk.Space | None",  # type: ignore[name-defined]  # noqa: F821
-) -> None:
-    """Remove all shapes and bodies from *space* — explicit teardown required."""
-    if space is None or not _PYMUNK_AVAILABLE:
-        return
-    for shape in list(space.shapes):
-        space.remove(shape)
-    for body in list(space.bodies):
-        space.remove(body)
-
-
-# ---------------------------------------------------------------------------
-# Manifest writer
-# ---------------------------------------------------------------------------
-
-
-def write_physics_state(state: PhysicsState) -> Path:
-    """Serialise *state* to ``engines/remotion/src/generated/physics_state.ts``.
-
-    The generated TypeScript constant is imported at Remotion build time by
-    ``NarrativeText`` and ``CinematicNarrative``, making real physics data
-    available without async fetches.
-    """
-    _GENERATED_TS.parent.mkdir(parents=True, exist_ok=True)
-    ts_content = (
-        "// ⚠️ AUTO-GENERATED — DO NOT EDIT\n"
-        "// Written by engines/manim/physics_mixin.py after EntropyDemo evaluation.\n"
-        "\n"
-        "export interface PhysicsState {\n"
-        "  dominantVelocity: number;\n"
-        "  velocityX: number;\n"
-        "  velocityY: number;\n"
-        "  kineticEnergy: number;\n"
-        "  regime: 'laminar' | 'oscillatory' | 'turbulent';\n"
-        "  seed: number;\n"
-        "  stepsEvaluated: number;\n"
-        "}\n"
-        "\n"
-        f"export const PHYSICS_STATE: PhysicsState = {{\n"
-        f"  dominantVelocity: {state['dominant_velocity']:.4f},\n"
-        f"  velocityX: {state['velocity_x']:.4f},\n"
-        f"  velocityY: {state['velocity_y']:.4f},\n"
-        f"  kineticEnergy: {state['kinetic_energy']:.4f},\n"
-        f"  regime: '{state['regime']}',\n"
-        f"  seed: {state['seed']},\n"
-        f"  stepsEvaluated: {state['steps_evaluated']},\n"
-        "}};\n"
-    )
-    _GENERATED_TS.write_text(ts_content, encoding="utf-8")
-    return _GENERATED_TS
+    def teardown_physics(self) -> None:
+        """
+        Scorched earth cleanup policy for physical bodies to prevent memory leaks 
+        during heavy multi-briefing compilation queues.
+        """
+        if getattr(self, "_physics_active", False) and hasattr(self, "space"):
+            if self.space.bodies:
+                self.space.remove(*self.space.bodies)
+            if self.space.shapes:
+                self.space.remove(*self.space.shapes)
+            if self.space.constraints:
+                self.space.remove(*self.space.constraints)
+            self._physics_active = False

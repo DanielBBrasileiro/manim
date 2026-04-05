@@ -1,0 +1,12 @@
+id: editorial_portrait
+description: "Magazine cover energy. Photo base. Bold type."
+base: editorial_photo
+background: photo_with_veil
+typography_system: editorial_dense
+composition_grid: rule_of_thirds
+grammar: editorial_grid
+accent: frame_crop + subtle_counter
+negative_space_min: 0.35
+max_text_elements: 4
+max_visual_elements: 2
+grain: 0.04

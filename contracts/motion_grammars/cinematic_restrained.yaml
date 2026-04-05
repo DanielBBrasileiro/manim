@@ -1,0 +1,18 @@
+id: cinematic_restrained
+description: "Kurosawa-inspired. Long holds. Decisive movements."
+principles:
+  - "stillness is the default state"
+  - "motion is earned — only move when meaning demands it"
+  - "one element moves at a time"
+timing:
+  minimum_hold_ms: 800
+  maximum_simultaneous: 1
+  silence_between_phrases_ms: [400, 1200]
+rhythm: decelerating
+stagger: [0, 3, 5, 8]
+transitions:
+  act_to_act: silence_bridge
+  within_act: cut
+camera:
+  default: static_breathe
+  climax_only: [dramatic_zoom, track_subject]

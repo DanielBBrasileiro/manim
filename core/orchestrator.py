@@ -20,7 +20,18 @@ class AgenticOrchestrator:
             self.brief = yaml.safe_load(f)
 
         self.creative_result = None
-        os.makedirs("assets/brand", exist_ok=True)
+        os.makedirs(ROOT / "assets" / "brand", exist_ok=True)
+
+    def _load_asset_registry(self):
+        registry_path = ROOT / "assets" / "registry.json"
+        if not registry_path.exists():
+            return {}
+        try:
+            with open(registry_path, "r") as f:
+                data = json.load(f)
+            return data if isinstance(data, dict) else {}
+        except Exception:
+            return {}
         
     def run_creative_decision(self):
         """Fase Aria/Zara: Transforma o creative_seed em um plano estruturado via compiler v4.5."""
@@ -32,7 +43,7 @@ class AgenticOrchestrator:
         seed = self.brief.get("creative_seed", {})
         identity = self.brief.get("active_identity") or self.brief.get("meta", {}).get("active_identity", "aiox_default")
 
-        result = compile_seed(seed, identity=identity)
+        result = compile_seed(seed, identity=identity, asset_registry=self._load_asset_registry())
         self.creative_result = result
 
         plan = result["creative_plan"]
@@ -75,7 +86,8 @@ class AgenticOrchestrator:
     def sync_brand(self):
         print("🧬 AIOX: Sincronizando contratos de marca...")
         identity = self.brief.get("meta", {}).get("active_identity", "aiox_default")
-        subprocess.run(["python3", "core/cli/brand.py", identity], check=True)
+        brand_script = ROOT / "core" / "cli" / "brand.py"
+        subprocess.run(["python3", str(brand_script), identity], check=True, cwd=str(ROOT))
 
     def extract_intelligence(self):
         print("🧠 AIOX: Extraindo parâmetros do briefing...")
@@ -100,11 +112,10 @@ class AgenticOrchestrator:
         tech_plan = self.brief["tech_plan"]
         design = self.brief["design_overlay"]
         
-        with open("assets/brand/dynamic_data.json", "w") as f:
+        with open(ROOT / "assets" / "brand" / "dynamic_data.json", "w") as f:
             json.dump({
-                "strategy": strategy,
                 "tech_plan": tech_plan,
-                "design": design
+                "design_overlay": design,
             }, f, indent=2)
             
         return tech_plan
@@ -124,9 +135,9 @@ class AgenticOrchestrator:
             print(f"💎 MANIM: Renderizando geometria de {scene_name}...")
             
             # Passa o PYTHONPATH silenciosamente para a IA não sofrer com ModuleNotFoundError
-            env = dict(os.environ, PYTHONPATH=os.getcwd())
+            env = dict(os.environ, PYTHONPATH=str(ROOT))
             cmd = ["manim", "-f", "-qh", script, scene_name]
-            subprocess.run(cmd, check=True, cwd="engines/manim", env=env)
+            subprocess.run(cmd, check=True, cwd=str(ROOT / "engines" / "manim"), env=env)
         return True
 
     def bridge_engines(self):
@@ -138,8 +149,8 @@ class AgenticOrchestrator:
                 script_path = scene_data.get("script")
                 script_name = Path(script_path).stem
                 
-                manim_output = Path(f"engines/manim/media/videos/{script_name}/1080p60/{scene_name}.mp4")
-                remotion_public = Path("engines/remotion/public/manim_base.mp4")
+                manim_output = ROOT / "engines" / "manim" / "media" / "videos" / script_name / "1080p60" / f"{scene_name}.mp4"
+                remotion_public = ROOT / "engines" / "remotion" / "public" / "manim_base.mp4"
                 
                 if manim_output.exists():
                     print(f"🌉 AIOX PONTE: Injetando vídeo {scene_name} na camada React...")
@@ -152,10 +163,11 @@ class AgenticOrchestrator:
     def run_remotion(self):
         print(f"🎬 REMOTION: Compondo narrativa final...")
         comp = self.brief.get("composition", "Main")
-        os.makedirs("output/renders", exist_ok=True)
+        os.makedirs(ROOT / "output" / "renders", exist_ok=True)
 
-        cmd = ["npx", "remotion", "render", "src/index.tsx", comp, f"../../output/renders/{comp}.mp4", "--force"]
-        subprocess.run(cmd, check=True, cwd="engines/remotion")
+        output_rel = os.path.relpath(ROOT / "output" / "renders" / f"{comp}.mp4", ROOT / "engines" / "remotion")
+        cmd = ["npx", "remotion", "render", "src/index.tsx", comp, output_rel, "--force"]
+        subprocess.run(cmd, check=True, cwd=str(ROOT / "engines" / "remotion"))
         return True
 
     def run_post_processing(self):
@@ -235,13 +247,14 @@ class AgenticOrchestrator:
             print(f"\n📱 Gerando variante social: {variant}...")
             variant_out = str(out_base / "renders" / f"{comp}_{variant}.mp4")
             try:
+                variant_rel = os.path.relpath(ROOT / "output" / "renders" / f"{comp}_{variant}.mp4", ROOT / "engines" / "remotion")
                 cmd = [
                     "npx", "remotion", "render", "src/index.tsx", comp,
-                    f"../../output/renders/{comp}_{variant}.mp4",
+                    variant_rel,
                     "--force",
                     f"--props={{\"social_variant\":\"{variant}\"}}"
                 ]
-                subprocess.run(cmd, check=True, cwd="engines/remotion")
+                subprocess.run(cmd, check=True, cwd=str(ROOT / "engines" / "remotion"))
                 print(f"  ✅ {variant} → {variant_out}")
             except subprocess.CalledProcessError:
                 print(f"  ⚠️  {variant}: render falhou (composição pode não suportar este variant ainda)")
@@ -249,22 +262,42 @@ class AgenticOrchestrator:
     def run_pipeline(self):
         try:
             self.run_creative_decision()
+        except Exception as exc:
+            print(f"\n⚠️ DECISÃO CRIATIVA FALHOU: {exc}")
+            print("Continuando com defaults do briefing...")
+
+        try:
             self.sync_brand()
+        except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+            print(f"\n⚠️ SYNC BRAND FALHOU: {exc}")
+            print("Continuando com tema existente...")
+
+        try:
             tech_plan = self.extract_intelligence()
-            
+        except (ValueError, KeyError) as exc:
+            print(f"\n❌ ERRO NA EXTRAÇÃO DE INTELIGÊNCIA: {exc}")
+            return False
+
+        try:
             if self.run_manim(tech_plan):
                 self.bridge_engines()
-                self.run_remotion()
-                self.run_post_processing()
-                print("\n🏆 AIOX PIPELINE COMPLETE: Seu conteúdo está pronto em output/")
-                return True
-        except subprocess.CalledProcessError as e:
-            print(f"\n❌ ERRO DE RENDERIZAÇÃO: O comando falhou.")
-            print("Antigravity: Por favor, analise o código Manim ou React gerado e corrija-o.")
-            sys.exit(1)
-        except Exception as e:
-            print(f"\n❌ ERRO FATAL: {str(e)}")
-            sys.exit(1)
+        except subprocess.CalledProcessError as exc:
+            print(f"\n⚠️ MANIM RENDER FALHOU: {exc}")
+            print("Continuando sem camada geométrica...")
+
+        try:
+            self.run_remotion()
+        except subprocess.CalledProcessError as exc:
+            print(f"\n❌ REMOTION RENDER FALHOU: {exc}")
+            return False
+
+        try:
+            self.run_post_processing()
+        except Exception as exc:
+            print(f"\n⚠️ PÓS-PROCESSAMENTO FALHOU: {exc}")
+
+        print("\n🏆 AIOX PIPELINE COMPLETE: Seu conteúdo está pronto em output/")
+        return True
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

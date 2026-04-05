@@ -1,13 +1,40 @@
-# contracts/motion.yaml v4
-
 physics:
   default_engine: spring
+  physics_enabled: false            # Generative SpaceScene dynamics (defaults to off)
+  simulation_restitution: 0.2       # "Silent Luxury" Heavy feel, non-bouncy
+  convergence_gravity_G: 1000.0     # Default Universal Gravitation constant for Brand Pull
+
+timing_standards:
+  durations:
+    short: 200     # Micro-interactions
+    medium: 400    # Component entrance
+    long: 700      # Scene transitions / Container Morph
+  easings:
+    emphasized: "cubic-bezier(0.2, 0.0, 0, 1.0)"
+    standard: "cubic-bezier(0.2, 0.0, 0, 1.0)"
+
+  
+
   
   presets:
     gentle_birth: { stiffness: 40, damping: 26, mass: 1.2 }
     tension_build: { stiffness: 160, damping: 10, mass: 0.8 }
     elegant_settle: { stiffness: 80, damping: 22, mass: 1.0 }
     hard_cut: { duration: 0 }        # No transition. Impact.
+    
+    # Fluid Interfaces Standard (v0 enabled for momentum inheritance)
+    premium_editorial:
+      type: fluid_spring
+      stiffness: 300
+      damping: 28
+      mass: 1.0
+      initial_velocity: 0.0
+    silent_luxury_fluid:
+      type: fluid_spring
+      stiffness: 80
+      damping: 20
+      mass: 1.0
+      initial_velocity: 0.0
 
   curve_behaviors:
     sigmoid_growth:

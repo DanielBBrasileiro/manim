@@ -3,19 +3,2329 @@
     "archetype": "emergence",
     "entropy": {
       "regime": "oscillatory",
-      "motion_signature": "oscillatory_wave",
-      "stability": "high",
+      "motion_signature": "scattered_to_aligned",
+      "stability": "medium",
       "rhythm": "periodic",
-      "flow": "linear",
+      "flow": "nonlinear",
       "grid_type": "adaptive",
       "raw": {
-        "physical": 0.5282297918563782,
-        "structural": 0.4677842218570567,
-        "aesthetic": 0.5521301663254443
+        "physical": 0.4410767311011198,
+        "structural": 0.5067628676997792,
+        "aesthetic": 0.43094492676776036
       }
     }
   },
   "design_overlay": {
     "aesthetic_family": "silent_architecture"
+  },
+  "timeline": [
+    {
+      "phase": [
+        0.0,
+        0.25
+      ],
+      "behavior": "void",
+      "tension": "low"
+    },
+    {
+      "phase": [
+        0.25,
+        0.5
+      ],
+      "behavior": "signal",
+      "tension": "low"
+    },
+    {
+      "phase": [
+        0.5,
+        0.75
+      ],
+      "behavior": "inward_to_outward",
+      "tension": "medium"
+    },
+    {
+      "phase": [
+        0.75,
+        1.0
+      ],
+      "behavior": "stabilization",
+      "tension": "medium"
+    }
+  ],
+  "llm_scene_plan": null,
+  "render_manifest": {
+    "duration": 12.0,
+    "duration_in_frames": 720,
+    "fps": 60,
+    "primary_target": {
+      "id": "short_cinematic_vertical",
+      "format_id": "vertical_9_16",
+      "channel": "instagram_reel",
+      "purpose": "short_form_social",
+      "priority": 100,
+      "default": true,
+      "preferred_channels": [
+        "instagram_reel",
+        "tiktok",
+        "youtube_shorts",
+        "instagram_story"
+      ],
+      "legacy_aliases": [
+        "vertical_social",
+        "short_cinematic"
+      ],
+      "width": 1080,
+      "height": 1920,
+      "fps": 60,
+      "safe_zone": 0.1,
+      "layout": {
+        "width": 1080,
+        "height": 1920,
+        "safe_zone": 0.08,
+        "text_zones": {
+          "top": {
+            "y": "15%",
+            "height": "15%"
+          },
+          "bottom": {
+            "y": "70%",
+            "height": "15%"
+          },
+          "center": {
+            "y": "42%",
+            "height": "16%"
+          }
+        }
+      },
+      "alias": "instagram_reel",
+      "render_mode": "video",
+      "composition": "short-cinematic-vertical",
+      "legacy_composition": "CinematicNarrative-v4",
+      "label": "Short Cinematic Vertical",
+      "native_support": true,
+      "output_ext": "",
+      "min_slides": 5,
+      "max_slides": 9,
+      "style_pack": "kinetic_editorial",
+      "typography_system": "editorial_dense",
+      "still_family": null,
+      "motion_grammar": "kinetic_editorial",
+      "color_mode": "desaturated_warm",
+      "negative_space_target": 0.4,
+      "accent_intensity": 0.5,
+      "grain": 0.08,
+      "material_hint": "editorial_flat",
+      "judge_profile": "motion_frame",
+      "summary": "Short cinematic built around 'a living curve teaching matter to align'.",
+      "duration_sec": 12.0,
+      "beats": [
+        {
+          "label": "genesis",
+          "act": "genesis",
+          "start_sec": 0.0,
+          "end_sec": 3.0,
+          "text": "a living curve teaching matter to align"
+        },
+        {
+          "label": "turbulence",
+          "act": "turbulence",
+          "start_sec": 3.0,
+          "end_sec": 8.4,
+          "text": "silence before the surge"
+        },
+        {
+          "label": "resolution",
+          "act": "resolution",
+          "start_sec": 8.4,
+          "end_sec": 12.0,
+          "text": "Clarity"
+        }
+      ],
+      "slides": [],
+      "chapters": [],
+      "story_atoms": {
+        "title": "The Illusion of Time",
+        "tagline": "Invisible Architecture",
+        "thesis": "a living curve teaching matter to align",
+        "audience": "B2B brand and tech audience",
+        "emotional_target": "make hidden order feel inevitable",
+        "visual_metaphor": "a living curve teaching matter to align",
+        "resolve_word": "Clarity"
+      },
+      "still_frame": 518,
+      "plan_archetype": "emergence",
+      "quality_mode": "absolute",
+      "family_spec": "short_cinematic",
+      "act_quality_profile": {
+        "genesis": {
+          "emotion": "curiosity",
+          "tension": "low",
+          "breath_points": [
+            1.83
+          ],
+          "silence_ratio": 0.68,
+          "poster_test": true
+        },
+        "turbulence": {
+          "emotion": "tension",
+          "tension": "low",
+          "breath_points": [
+            5.59,
+            7.43
+          ],
+          "silence_ratio": 0.53,
+          "poster_test": true
+        },
+        "resolution": {
+          "emotion": "mastery",
+          "tension": "medium",
+          "breath_points": [
+            10.42
+          ],
+          "silence_ratio": 0.7,
+          "poster_test": true
+        }
+      },
+      "post_fx_profile": "premium",
+      "qa_sampling_frames": [
+        1.5,
+        5.7,
+        10.2
+      ],
+      "poster_test_frames": [
+        1.5,
+        5.7,
+        10.2
+      ],
+      "editorial_layout": {
+        "family": "short_cinematic",
+        "golden_ratio": 1.618,
+        "baseline_step_px": 21,
+        "safe_margin_px": 64,
+        "hero_zone": {
+          "x": 0.11,
+          "y": 0.68,
+          "w": 0.32,
+          "h": 0.16
+        },
+        "support_zone": {
+          "x": 0.11,
+          "y": 0.14,
+          "w": 0.26,
+          "h": 0.05
+        },
+        "empty_zone": {
+          "x": 0.5,
+          "y": 0.08,
+          "w": 0.36,
+          "h": 0.48
+        },
+        "focal_zone": {
+          "x": 0.08,
+          "y": 0.08,
+          "w": 0.84,
+          "h": 0.8
+        },
+        "curve_box": {
+          "x": 0.08,
+          "y": 0.08,
+          "w": 0.84,
+          "h": 0.8
+        },
+        "eyebrow_box": {
+          "x": 0.11,
+          "y": 0.14,
+          "w": 0.26,
+          "h": 0.05
+        },
+        "title_box": {
+          "x": 0.11,
+          "y": 0.68,
+          "w": 0.32,
+          "h": 0.16
+        },
+        "accent_anchor": {
+          "x": 0.9,
+          "y": 0.14
+        },
+        "asset_crop": {
+          "object_position": "58% 46%",
+          "veil_opacity": 0.34,
+          "grayscale": 1.0,
+          "contrast": 1.18
+        }
+      },
+      "master_asset_strategy": {
+        "role": "supporting_anchor",
+        "source": "manim_hero_bg.png",
+        "inherit_visual_dna": true,
+        "crop_mode": "cover"
+      },
+      "still_base_strategy": {
+        "base": null,
+        "background": "solid_dark",
+        "requires_manim": false,
+        "allow_manim_bypass": true,
+        "use_asset_if_available": false
+      }
+    },
+    "targets": [
+      {
+        "id": "short_cinematic_vertical",
+        "format_id": "vertical_9_16",
+        "channel": "instagram_reel",
+        "purpose": "short_form_social",
+        "priority": 100,
+        "default": true,
+        "preferred_channels": [
+          "instagram_reel",
+          "tiktok",
+          "youtube_shorts",
+          "instagram_story"
+        ],
+        "legacy_aliases": [
+          "vertical_social",
+          "short_cinematic"
+        ],
+        "width": 1080,
+        "height": 1920,
+        "fps": 60,
+        "safe_zone": 0.1,
+        "layout": {
+          "width": 1080,
+          "height": 1920,
+          "safe_zone": 0.08,
+          "text_zones": {
+            "top": {
+              "y": "15%",
+              "height": "15%"
+            },
+            "bottom": {
+              "y": "70%",
+              "height": "15%"
+            },
+            "center": {
+              "y": "42%",
+              "height": "16%"
+            }
+          }
+        },
+        "alias": "instagram_reel",
+        "render_mode": "video",
+        "composition": "short-cinematic-vertical",
+        "legacy_composition": "CinematicNarrative-v4",
+        "label": "Short Cinematic Vertical",
+        "native_support": true,
+        "output_ext": "",
+        "min_slides": 5,
+        "max_slides": 9,
+        "style_pack": "kinetic_editorial",
+        "typography_system": "editorial_dense",
+        "still_family": null,
+        "motion_grammar": "kinetic_editorial",
+        "color_mode": "desaturated_warm",
+        "negative_space_target": 0.4,
+        "accent_intensity": 0.5,
+        "grain": 0.08,
+        "material_hint": "editorial_flat",
+        "judge_profile": "motion_frame",
+        "summary": "Short cinematic built around 'a living curve teaching matter to align'.",
+        "duration_sec": 12.0,
+        "beats": [
+          {
+            "label": "genesis",
+            "act": "genesis",
+            "start_sec": 0.0,
+            "end_sec": 3.0,
+            "text": "a living curve teaching matter to align"
+          },
+          {
+            "label": "turbulence",
+            "act": "turbulence",
+            "start_sec": 3.0,
+            "end_sec": 8.4,
+            "text": "silence before the surge"
+          },
+          {
+            "label": "resolution",
+            "act": "resolution",
+            "start_sec": 8.4,
+            "end_sec": 12.0,
+            "text": "Clarity"
+          }
+        ],
+        "slides": [],
+        "chapters": [],
+        "story_atoms": {
+          "title": "The Illusion of Time",
+          "tagline": "Invisible Architecture",
+          "thesis": "a living curve teaching matter to align",
+          "audience": "B2B brand and tech audience",
+          "emotional_target": "make hidden order feel inevitable",
+          "visual_metaphor": "a living curve teaching matter to align",
+          "resolve_word": "Clarity"
+        },
+        "still_frame": 518,
+        "plan_archetype": "emergence",
+        "quality_mode": "absolute",
+        "family_spec": "short_cinematic",
+        "act_quality_profile": {
+          "genesis": {
+            "emotion": "curiosity",
+            "tension": "low",
+            "breath_points": [
+              1.83
+            ],
+            "silence_ratio": 0.68,
+            "poster_test": true
+          },
+          "turbulence": {
+            "emotion": "tension",
+            "tension": "low",
+            "breath_points": [
+              5.59,
+              7.43
+            ],
+            "silence_ratio": 0.53,
+            "poster_test": true
+          },
+          "resolution": {
+            "emotion": "mastery",
+            "tension": "medium",
+            "breath_points": [
+              10.42
+            ],
+            "silence_ratio": 0.7,
+            "poster_test": true
+          }
+        },
+        "post_fx_profile": "premium",
+        "qa_sampling_frames": [
+          1.5,
+          5.7,
+          10.2
+        ],
+        "poster_test_frames": [
+          1.5,
+          5.7,
+          10.2
+        ],
+        "editorial_layout": {
+          "family": "short_cinematic",
+          "golden_ratio": 1.618,
+          "baseline_step_px": 21,
+          "safe_margin_px": 64,
+          "hero_zone": {
+            "x": 0.11,
+            "y": 0.68,
+            "w": 0.32,
+            "h": 0.16
+          },
+          "support_zone": {
+            "x": 0.11,
+            "y": 0.14,
+            "w": 0.26,
+            "h": 0.05
+          },
+          "empty_zone": {
+            "x": 0.5,
+            "y": 0.08,
+            "w": 0.36,
+            "h": 0.48
+          },
+          "focal_zone": {
+            "x": 0.08,
+            "y": 0.08,
+            "w": 0.84,
+            "h": 0.8
+          },
+          "curve_box": {
+            "x": 0.08,
+            "y": 0.08,
+            "w": 0.84,
+            "h": 0.8
+          },
+          "eyebrow_box": {
+            "x": 0.11,
+            "y": 0.14,
+            "w": 0.26,
+            "h": 0.05
+          },
+          "title_box": {
+            "x": 0.11,
+            "y": 0.68,
+            "w": 0.32,
+            "h": 0.16
+          },
+          "accent_anchor": {
+            "x": 0.9,
+            "y": 0.14
+          },
+          "asset_crop": {
+            "object_position": "58% 46%",
+            "veil_opacity": 0.34,
+            "grayscale": 1.0,
+            "contrast": 1.18
+          }
+        },
+        "master_asset_strategy": {
+          "role": "supporting_anchor",
+          "source": "manim_hero_bg.png",
+          "inherit_visual_dna": true,
+          "crop_mode": "cover"
+        },
+        "still_base_strategy": {
+          "base": null,
+          "background": "solid_dark",
+          "requires_manim": false,
+          "allow_manim_bypass": true,
+          "use_asset_if_available": false
+        }
+      }
+    ],
+    "artifact_plan": {
+      "schema_version": 3,
+      "primary_target_id": "short_cinematic_vertical",
+      "primary_target": {
+        "id": "short_cinematic_vertical",
+        "format_id": "vertical_9_16",
+        "channel": "instagram_reel",
+        "purpose": "short_form_social",
+        "priority": 100,
+        "default": true,
+        "preferred_channels": [
+          "instagram_reel",
+          "tiktok",
+          "youtube_shorts",
+          "instagram_story"
+        ],
+        "legacy_aliases": [
+          "vertical_social",
+          "short_cinematic"
+        ],
+        "width": 1080,
+        "height": 1920,
+        "fps": 60,
+        "safe_zone": 0.1,
+        "layout": {
+          "width": 1080,
+          "height": 1920,
+          "safe_zone": 0.08,
+          "text_zones": {
+            "top": {
+              "y": "15%",
+              "height": "15%"
+            },
+            "bottom": {
+              "y": "70%",
+              "height": "15%"
+            },
+            "center": {
+              "y": "42%",
+              "height": "16%"
+            }
+          }
+        },
+        "alias": "instagram_reel",
+        "render_mode": "video",
+        "composition": "short-cinematic-vertical",
+        "legacy_composition": "CinematicNarrative-v4",
+        "label": "Short Cinematic Vertical",
+        "native_support": true,
+        "output_ext": "",
+        "min_slides": 5,
+        "max_slides": 9,
+        "style_pack": "kinetic_editorial",
+        "typography_system": "editorial_dense",
+        "still_family": null,
+        "motion_grammar": "kinetic_editorial",
+        "color_mode": "desaturated_warm",
+        "negative_space_target": 0.4,
+        "accent_intensity": 0.5,
+        "grain": 0.08,
+        "material_hint": "editorial_flat",
+        "judge_profile": "motion_frame",
+        "summary": "Short cinematic built around 'a living curve teaching matter to align'.",
+        "duration_sec": 12.0,
+        "beats": [
+          {
+            "label": "genesis",
+            "act": "genesis",
+            "start_sec": 0.0,
+            "end_sec": 3.0,
+            "text": "a living curve teaching matter to align"
+          },
+          {
+            "label": "turbulence",
+            "act": "turbulence",
+            "start_sec": 3.0,
+            "end_sec": 8.4,
+            "text": "silence before the surge"
+          },
+          {
+            "label": "resolution",
+            "act": "resolution",
+            "start_sec": 8.4,
+            "end_sec": 12.0,
+            "text": "Clarity"
+          }
+        ],
+        "slides": [],
+        "chapters": [],
+        "story_atoms": {
+          "title": "The Illusion of Time",
+          "tagline": "Invisible Architecture",
+          "thesis": "a living curve teaching matter to align",
+          "audience": "B2B brand and tech audience",
+          "emotional_target": "make hidden order feel inevitable",
+          "visual_metaphor": "a living curve teaching matter to align",
+          "resolve_word": "Clarity"
+        },
+        "still_frame": 518,
+        "plan_archetype": "emergence",
+        "quality_mode": "absolute",
+        "family_spec": "short_cinematic",
+        "act_quality_profile": {
+          "genesis": {
+            "emotion": "curiosity",
+            "tension": "low",
+            "breath_points": [
+              1.83
+            ],
+            "silence_ratio": 0.68,
+            "poster_test": true
+          },
+          "turbulence": {
+            "emotion": "tension",
+            "tension": "low",
+            "breath_points": [
+              5.59,
+              7.43
+            ],
+            "silence_ratio": 0.53,
+            "poster_test": true
+          },
+          "resolution": {
+            "emotion": "mastery",
+            "tension": "medium",
+            "breath_points": [
+              10.42
+            ],
+            "silence_ratio": 0.7,
+            "poster_test": true
+          }
+        },
+        "post_fx_profile": "premium",
+        "qa_sampling_frames": [
+          1.5,
+          5.7,
+          10.2
+        ],
+        "poster_test_frames": [
+          1.5,
+          5.7,
+          10.2
+        ],
+        "editorial_layout": {
+          "family": "short_cinematic",
+          "golden_ratio": 1.618,
+          "baseline_step_px": 21,
+          "safe_margin_px": 64,
+          "hero_zone": {
+            "x": 0.11,
+            "y": 0.68,
+            "w": 0.32,
+            "h": 0.16
+          },
+          "support_zone": {
+            "x": 0.11,
+            "y": 0.14,
+            "w": 0.26,
+            "h": 0.05
+          },
+          "empty_zone": {
+            "x": 0.5,
+            "y": 0.08,
+            "w": 0.36,
+            "h": 0.48
+          },
+          "focal_zone": {
+            "x": 0.08,
+            "y": 0.08,
+            "w": 0.84,
+            "h": 0.8
+          },
+          "curve_box": {
+            "x": 0.08,
+            "y": 0.08,
+            "w": 0.84,
+            "h": 0.8
+          },
+          "eyebrow_box": {
+            "x": 0.11,
+            "y": 0.14,
+            "w": 0.26,
+            "h": 0.05
+          },
+          "title_box": {
+            "x": 0.11,
+            "y": 0.68,
+            "w": 0.32,
+            "h": 0.16
+          },
+          "accent_anchor": {
+            "x": 0.9,
+            "y": 0.14
+          },
+          "asset_crop": {
+            "object_position": "58% 46%",
+            "veil_opacity": 0.34,
+            "grayscale": 1.0,
+            "contrast": 1.18
+          }
+        },
+        "master_asset_strategy": {
+          "role": "supporting_anchor",
+          "source": "manim_hero_bg.png",
+          "inherit_visual_dna": true,
+          "crop_mode": "cover"
+        },
+        "still_base_strategy": {
+          "base": null,
+          "background": "solid_dark",
+          "requires_manim": false,
+          "allow_manim_bypass": true,
+          "use_asset_if_available": false
+        }
+      },
+      "targets": [
+        {
+          "id": "short_cinematic_vertical",
+          "format_id": "vertical_9_16",
+          "channel": "instagram_reel",
+          "purpose": "short_form_social",
+          "priority": 100,
+          "default": true,
+          "preferred_channels": [
+            "instagram_reel",
+            "tiktok",
+            "youtube_shorts",
+            "instagram_story"
+          ],
+          "legacy_aliases": [
+            "vertical_social",
+            "short_cinematic"
+          ],
+          "width": 1080,
+          "height": 1920,
+          "fps": 60,
+          "safe_zone": 0.1,
+          "layout": {
+            "width": 1080,
+            "height": 1920,
+            "safe_zone": 0.08,
+            "text_zones": {
+              "top": {
+                "y": "15%",
+                "height": "15%"
+              },
+              "bottom": {
+                "y": "70%",
+                "height": "15%"
+              },
+              "center": {
+                "y": "42%",
+                "height": "16%"
+              }
+            }
+          },
+          "alias": "instagram_reel",
+          "render_mode": "video",
+          "composition": "short-cinematic-vertical",
+          "legacy_composition": "CinematicNarrative-v4",
+          "label": "Short Cinematic Vertical",
+          "native_support": true,
+          "output_ext": "",
+          "min_slides": 5,
+          "max_slides": 9,
+          "style_pack": "kinetic_editorial",
+          "typography_system": "editorial_dense",
+          "still_family": null,
+          "motion_grammar": "kinetic_editorial",
+          "color_mode": "desaturated_warm",
+          "negative_space_target": 0.4,
+          "accent_intensity": 0.5,
+          "grain": 0.08,
+          "material_hint": "editorial_flat",
+          "judge_profile": "motion_frame",
+          "summary": "Short cinematic built around 'a living curve teaching matter to align'.",
+          "duration_sec": 12.0,
+          "beats": [
+            {
+              "label": "genesis",
+              "act": "genesis",
+              "start_sec": 0.0,
+              "end_sec": 3.0,
+              "text": "a living curve teaching matter to align"
+            },
+            {
+              "label": "turbulence",
+              "act": "turbulence",
+              "start_sec": 3.0,
+              "end_sec": 8.4,
+              "text": "silence before the surge"
+            },
+            {
+              "label": "resolution",
+              "act": "resolution",
+              "start_sec": 8.4,
+              "end_sec": 12.0,
+              "text": "Clarity"
+            }
+          ],
+          "slides": [],
+          "chapters": [],
+          "story_atoms": {
+            "title": "The Illusion of Time",
+            "tagline": "Invisible Architecture",
+            "thesis": "a living curve teaching matter to align",
+            "audience": "B2B brand and tech audience",
+            "emotional_target": "make hidden order feel inevitable",
+            "visual_metaphor": "a living curve teaching matter to align",
+            "resolve_word": "Clarity"
+          },
+          "still_frame": 518,
+          "plan_archetype": "emergence",
+          "quality_mode": "absolute",
+          "family_spec": "short_cinematic",
+          "act_quality_profile": {
+            "genesis": {
+              "emotion": "curiosity",
+              "tension": "low",
+              "breath_points": [
+                1.83
+              ],
+              "silence_ratio": 0.68,
+              "poster_test": true
+            },
+            "turbulence": {
+              "emotion": "tension",
+              "tension": "low",
+              "breath_points": [
+                5.59,
+                7.43
+              ],
+              "silence_ratio": 0.53,
+              "poster_test": true
+            },
+            "resolution": {
+              "emotion": "mastery",
+              "tension": "medium",
+              "breath_points": [
+                10.42
+              ],
+              "silence_ratio": 0.7,
+              "poster_test": true
+            }
+          },
+          "post_fx_profile": "premium",
+          "qa_sampling_frames": [
+            1.5,
+            5.7,
+            10.2
+          ],
+          "poster_test_frames": [
+            1.5,
+            5.7,
+            10.2
+          ],
+          "editorial_layout": {
+            "family": "short_cinematic",
+            "golden_ratio": 1.618,
+            "baseline_step_px": 21,
+            "safe_margin_px": 64,
+            "hero_zone": {
+              "x": 0.11,
+              "y": 0.68,
+              "w": 0.32,
+              "h": 0.16
+            },
+            "support_zone": {
+              "x": 0.11,
+              "y": 0.14,
+              "w": 0.26,
+              "h": 0.05
+            },
+            "empty_zone": {
+              "x": 0.5,
+              "y": 0.08,
+              "w": 0.36,
+              "h": 0.48
+            },
+            "focal_zone": {
+              "x": 0.08,
+              "y": 0.08,
+              "w": 0.84,
+              "h": 0.8
+            },
+            "curve_box": {
+              "x": 0.08,
+              "y": 0.08,
+              "w": 0.84,
+              "h": 0.8
+            },
+            "eyebrow_box": {
+              "x": 0.11,
+              "y": 0.14,
+              "w": 0.26,
+              "h": 0.05
+            },
+            "title_box": {
+              "x": 0.11,
+              "y": 0.68,
+              "w": 0.32,
+              "h": 0.16
+            },
+            "accent_anchor": {
+              "x": 0.9,
+              "y": 0.14
+            },
+            "asset_crop": {
+              "object_position": "58% 46%",
+              "veil_opacity": 0.34,
+              "grayscale": 1.0,
+              "contrast": 1.18
+            }
+          },
+          "master_asset_strategy": {
+            "role": "supporting_anchor",
+            "source": "manim_hero_bg.png",
+            "inherit_visual_dna": true,
+            "crop_mode": "cover"
+          },
+          "still_base_strategy": {
+            "base": null,
+            "background": "solid_dark",
+            "requires_manim": false,
+            "allow_manim_bypass": true,
+            "use_asset_if_available": false
+          }
+        }
+      ],
+      "requested_targets": [],
+      "format": "vertical_9_16",
+      "story_atoms": {
+        "title": "The Illusion of Time",
+        "tagline": "Invisible Architecture",
+        "thesis": "a living curve teaching matter to align",
+        "audience": "B2B brand and tech audience",
+        "emotional_target": "make hidden order feel inevitable",
+        "visual_metaphor": "a living curve teaching matter to align",
+        "resolve_word": "Clarity"
+      },
+      "style_pack": "kinetic_editorial",
+      "style_pack_ids": [],
+      "motion_grammar": "kinetic_editorial",
+      "typography_system": "editorial_dense",
+      "still_family": null,
+      "color_mode": "desaturated_warm",
+      "negative_space_target": 0.4,
+      "accent_intensity": 0.5,
+      "grain": 0.08,
+      "material_hint": "editorial_flat",
+      "quality_constraints": {
+        "text_minimum_gap": 1.5,
+        "max_words_per_screen": 5,
+        "silence_ratio": 0.62,
+        "negative_space_target": 0.4,
+        "max_colors": 2,
+        "contrast_floor": 4.5,
+        "typography_conformance": "strict",
+        "qa_frames": 5,
+        "auto_iterate_max": 1
+      },
+      "quality_tier": "lab_absolute",
+      "quality_mode": "absolute",
+      "premium_targets": [
+        "short_cinematic_vertical"
+      ],
+      "qa_frames": 5,
+      "auto_iterate_max": 1,
+      "judge_stack": [
+        "brand_precheck",
+        "structural_gate",
+        "visual_judge_fast",
+        "objective_metrics",
+        "visual_judge_heavy",
+        "variant_ranker"
+      ],
+      "brand_veto_policy": {
+        "hero_target": "strict",
+        "video_targets": "degrade_to_fallback_pass",
+        "fallback_never_premium": true
+      },
+      "variants": [
+        {
+          "id": "variant_01",
+          "label": "Variant 1",
+          "style_pack_id": "brand_core",
+          "composition_mode": "poster_focus",
+          "typography_behavior": "quiet_hierarchy",
+          "shot_grammar": "single_curve",
+          "resolve_word": "Clarity",
+          "thesis": "a living curve teaching matter to align",
+          "archetype": "emergence",
+          "hero_target": "linkedin_feed_4_5"
+        },
+        {
+          "id": "variant_02",
+          "label": "Variant 2",
+          "style_pack_id": "masterize_mid_path",
+          "composition_mode": "single_metaphor",
+          "typography_behavior": "thesis_poster",
+          "shot_grammar": "contained_break",
+          "resolve_word": "Clarity",
+          "thesis": "a living curve teaching matter to align",
+          "archetype": "emergence",
+          "hero_target": "linkedin_feed_4_5"
+        },
+        {
+          "id": "variant_03",
+          "label": "Variant 3",
+          "style_pack_id": "editorial_precision",
+          "composition_mode": "editorial_spine",
+          "typography_behavior": "whisper_to_resolve",
+          "shot_grammar": "mid_event_flip",
+          "resolve_word": "Clarity",
+          "thesis": "a living curve teaching matter to align",
+          "archetype": "emergence",
+          "hero_target": "linkedin_feed_4_5"
+        }
+      ],
+      "variant_scores": {
+        "variant_01": {
+          "score": 90.0,
+          "reasons": [
+            "hero_target_alignment",
+            "composition_mode_premium",
+            "typography_behavior_premium",
+            "shot_grammar_signal"
+          ]
+        },
+        "variant_02": {
+          "score": 90.0,
+          "reasons": [
+            "hero_target_alignment",
+            "composition_mode_premium",
+            "typography_behavior_premium",
+            "shot_grammar_signal"
+          ]
+        },
+        "variant_03": {
+          "score": 70.0,
+          "reasons": [
+            "hero_target_alignment",
+            "shot_grammar_signal"
+          ]
+        }
+      },
+      "chosen_variant": "variant_01",
+      "chosen_variant_reason": "hero_target_alignment,composition_mode_premium,typography_behavior_premium,shot_grammar_signal",
+      "review_session_id": null,
+      "reference_native_direction": {},
+      "reference_evidence": [],
+      "style_retrieval_results": [
+        {
+          "pack_id": "apple_keynote",
+          "path": "/Users/daniel/Documents/Bordeless/manim/contracts/references/apple_keynote.yaml",
+          "style_classification": "",
+          "tags": [],
+          "mood": "",
+          "component_motifs": [],
+          "motion_motifs": [],
+          "confidence": 0.0,
+          "score": 0.0,
+          "matched_terms": []
+        },
+        {
+          "pack_id": "linear_app",
+          "path": "/Users/daniel/Documents/Bordeless/manim/contracts/references/linear_app.yaml",
+          "style_classification": "",
+          "tags": [],
+          "mood": "",
+          "component_motifs": [],
+          "motion_motifs": [],
+          "confidence": 0.0,
+          "score": 0.0,
+          "matched_terms": []
+        },
+        {
+          "pack_id": "stripe_com",
+          "path": "/Users/daniel/Documents/Bordeless/manim/contracts/references/stripe_com.yaml",
+          "style_classification": "editorial_minimal",
+          "tags": [],
+          "mood": "clean, confident, spacious, technical_but_approachable",
+          "component_motifs": [],
+          "motion_motifs": [],
+          "confidence": 0.0,
+          "score": 0.0,
+          "matched_terms": []
+        },
+        {
+          "pack_id": "stripe_sessions",
+          "path": "/Users/daniel/Documents/Bordeless/manim/contracts/references/stripe_sessions.yaml",
+          "style_classification": "",
+          "tags": [],
+          "mood": "",
+          "component_motifs": [],
+          "motion_motifs": [],
+          "confidence": 0.0,
+          "score": 0.0,
+          "matched_terms": []
+        }
+      ],
+      "objective_metrics": {
+        "still_aesthetic_model": "hpsv2_optional",
+        "video_benchmark": "vbench_subset_optional"
+      },
+      "family_spec": {
+        "short_cinematic_vertical": "short_cinematic"
+      },
+      "motion_system": {
+        "cadence_profile": "premium_lab",
+        "negative_space_regime": "strict",
+        "resolve_hold_sec": 1.5
+      },
+      "preview_policy": {
+        "enabled": true,
+        "max_iterations": 2,
+        "accept_score": 72.0,
+        "plateau_delta": 2.5
+      },
+      "copy_budget": {
+        "max_words_per_frame": 5,
+        "target_silence_ratio": 0.62
+      },
+      "renderer_contracts": {
+        "short_cinematic_vertical": {
+          "target_id": "short_cinematic_vertical",
+          "composition": "short-cinematic-vertical",
+          "render_mode": "video",
+          "style_pack": "kinetic_editorial",
+          "motion_grammar": "kinetic_editorial",
+          "color_mode": "desaturated_warm",
+          "native_engine": "remotion",
+          "fallback_engine": "fallback_artifact_renderer",
+          "requires_base_video": true,
+          "native_support": true
+        }
+      },
+      "fallback_policy": {
+        "mode": "native_then_fallback",
+        "hero_target": "linkedin_feed_4_5",
+        "max_native_attempts": 1,
+        "fallback_on_timeout": true,
+        "fallback_on_render_error": true
+      },
+      "metrics_hooks": [
+        "llm_latency_ms",
+        "native_render_success",
+        "fallback_rate",
+        "artifact_updated",
+        "negative_space_target",
+        "judge_disagreement_rate",
+        "premium_success_rate"
+      ],
+      "beat_map": {
+        "short_cinematic_vertical": [
+          "genesis",
+          "turbulence",
+          "resolution"
+        ]
+      },
+      "distribution_mode": "single_target",
+      "brief": {
+        "title": "The Illusion of Time",
+        "tagline": null,
+        "format": null,
+        "platform": null,
+        "audience": null,
+        "thesis": null,
+        "output_targets": []
+      },
+      "project_id": null,
+      "project_profile_id": null
+    },
+    "story_atoms": {
+      "title": "The Illusion of Time",
+      "tagline": "Invisible Architecture",
+      "thesis": "a living curve teaching matter to align",
+      "audience": "B2B brand and tech audience",
+      "emotional_target": "make hidden order feel inevitable",
+      "visual_metaphor": "a living curve teaching matter to align",
+      "resolve_word": "Clarity"
+    },
+    "style_pack": "kinetic_editorial",
+    "style_pack_ids": [],
+    "motion_grammar": "kinetic_editorial",
+    "typography_system": "editorial_dense",
+    "still_family": null,
+    "color_mode": "desaturated_warm",
+    "negative_space_target": 0.4,
+    "accent_intensity": 0.5,
+    "grain": 0.08,
+    "material_hint": "editorial_flat",
+    "quality_constraints": {
+      "text_minimum_gap": 1.5,
+      "max_words_per_screen": 5,
+      "silence_ratio": 0.62,
+      "negative_space_target": 0.4,
+      "max_colors": 2,
+      "contrast_floor": 4.5,
+      "typography_conformance": "strict",
+      "qa_frames": 5,
+      "auto_iterate_max": 1
+    },
+    "quality_mode": "absolute",
+    "premium_targets": [
+      "short_cinematic_vertical"
+    ],
+    "preview_policy": {
+      "enabled": true,
+      "max_iterations": 2,
+      "accept_score": 72.0,
+      "plateau_delta": 2.5
+    },
+    "reference_native_direction": {},
+    "reference_evidence": [],
+    "qa_frames": 5,
+    "auto_iterate_max": 1,
+    "brand_veto_policy": {
+      "hero_target": "strict",
+      "video_targets": "degrade_to_fallback_pass",
+      "fallback_never_premium": true
+    },
+    "render_inputs": {
+      "short_cinematic_vertical": {
+        "target_id": "short_cinematic_vertical",
+        "format_id": "vertical_9_16",
+        "channel": "instagram_reel",
+        "purpose": "short_form_social",
+        "priority": 100,
+        "label": "Short Cinematic Vertical",
+        "render_mode": "video",
+        "composition": "short-cinematic-vertical",
+        "width": 1080,
+        "height": 1920,
+        "fps": 60,
+        "safe_zone": 0.1,
+        "layout": {
+          "width": 1080,
+          "height": 1920,
+          "safe_zone": 0.08,
+          "text_zones": {
+            "top": {
+              "y": "15%",
+              "height": "15%"
+            },
+            "bottom": {
+              "y": "70%",
+              "height": "15%"
+            },
+            "center": {
+              "y": "42%",
+              "height": "16%"
+            }
+          }
+        },
+        "duration": 12.0,
+        "duration_in_frames": 720,
+        "acts": [
+          {
+            "id": "genesis",
+            "start_sec": 0.0,
+            "end_sec": 3.0,
+            "overlap_buffer_ms": 0,
+            "transition_pattern": "entrance",
+            "emotion": "curiosity",
+            "behavior": "void",
+            "tension": "low",
+            "camera": "static_breathe",
+            "visual_primitives": [
+              "living_curve"
+            ],
+            "text_cues": []
+          },
+          {
+            "id": "turbulence",
+            "start_sec": 3.0,
+            "end_sec": 8.4,
+            "overlap_buffer_ms": 300,
+            "transition_pattern": "fade_through",
+            "emotion": "tension",
+            "behavior": "signal",
+            "tension": "low",
+            "camera": "track_subject",
+            "visual_primitives": [
+              "particle_system"
+            ],
+            "text_cues": [
+              {
+                "act": "turbulence",
+                "at_sec": 3.9,
+                "text": "silence before the surge",
+                "position": "top_zone",
+                "role": "hook",
+                "weight": 320,
+                "color_state": "default"
+              },
+              {
+                "act": "turbulence",
+                "at_sec": 6.8,
+                "text": "The Illusion of Time",
+                "position": "bottom_zone",
+                "role": "narration",
+                "weight": 420,
+                "color_state": "default"
+              }
+            ]
+          },
+          {
+            "id": "resolution",
+            "start_sec": 8.4,
+            "end_sec": 12.0,
+            "overlap_buffer_ms": 300,
+            "transition_pattern": "fade_through",
+            "emotion": "mastery",
+            "behavior": "stabilization",
+            "tension": "medium",
+            "camera": "static_breathe",
+            "visual_primitives": [
+              "living_curve",
+              "neural_grid"
+            ],
+            "text_cues": [
+              {
+                "act": "resolution",
+                "at_sec": 10.0,
+                "text": "Clarity",
+                "position": "center_climax",
+                "role": "resolve",
+                "weight": 560,
+                "color_state": "default"
+              }
+            ]
+          }
+        ],
+        "text_cues": [
+          {
+            "act": "turbulence",
+            "at_sec": 3.9,
+            "text": "silence before the surge",
+            "position": "top_zone",
+            "role": "hook",
+            "weight": 320,
+            "color_state": "default"
+          },
+          {
+            "act": "turbulence",
+            "at_sec": 6.8,
+            "text": "The Illusion of Time",
+            "position": "bottom_zone",
+            "role": "narration",
+            "weight": 420,
+            "color_state": "default"
+          },
+          {
+            "act": "resolution",
+            "at_sec": 10.0,
+            "text": "Clarity",
+            "position": "center_climax",
+            "role": "resolve",
+            "weight": 560,
+            "color_state": "default"
+          }
+        ],
+        "beats": [
+          {
+            "label": "genesis",
+            "act": "genesis",
+            "start_sec": 0.0,
+            "end_sec": 3.0,
+            "text": "a living curve teaching matter to align"
+          },
+          {
+            "label": "turbulence",
+            "act": "turbulence",
+            "start_sec": 3.0,
+            "end_sec": 8.4,
+            "text": "silence before the surge"
+          },
+          {
+            "label": "resolution",
+            "act": "resolution",
+            "start_sec": 8.4,
+            "end_sec": 12.0,
+            "text": "Clarity"
+          }
+        ],
+        "slides": [],
+        "chapters": [],
+        "story_atoms": {
+          "title": "The Illusion of Time",
+          "tagline": "Invisible Architecture",
+          "thesis": "a living curve teaching matter to align",
+          "audience": "B2B brand and tech audience",
+          "emotional_target": "make hidden order feel inevitable",
+          "visual_metaphor": "a living curve teaching matter to align",
+          "resolve_word": "Clarity"
+        },
+        "style_pack": "kinetic_editorial",
+        "style_pack_ids": [],
+        "motion_grammar": "kinetic_editorial",
+        "typography_system": "editorial_dense",
+        "still_family": null,
+        "color_mode": "desaturated_warm",
+        "negative_space_target": 0.4,
+        "accent_intensity": 0.5,
+        "grain": 0.08,
+        "material_hint": "editorial_flat",
+        "quality_constraints": {
+          "text_minimum_gap": 1.5,
+          "max_words_per_screen": 5,
+          "silence_ratio": 0.62,
+          "negative_space_target": 0.4,
+          "max_colors": 2,
+          "contrast_floor": 4.5,
+          "typography_conformance": "strict",
+          "qa_frames": 5,
+          "auto_iterate_max": 1
+        },
+        "quality_mode": "absolute",
+        "premium_targets": [
+          "short_cinematic_vertical"
+        ],
+        "qa_frames": 5,
+        "auto_iterate_max": 1,
+        "brand_veto_policy": {
+          "hero_target": "strict",
+          "video_targets": "degrade_to_fallback_pass",
+          "fallback_never_premium": true
+        },
+        "act_quality_profile": {
+          "genesis": {
+            "emotion": "curiosity",
+            "tension": "low",
+            "breath_points": [
+              1.83
+            ],
+            "silence_ratio": 0.68,
+            "poster_test": true
+          },
+          "turbulence": {
+            "emotion": "tension",
+            "tension": "low",
+            "breath_points": [
+              5.59,
+              7.43
+            ],
+            "silence_ratio": 0.53,
+            "poster_test": true
+          },
+          "resolution": {
+            "emotion": "mastery",
+            "tension": "medium",
+            "breath_points": [
+              10.42
+            ],
+            "silence_ratio": 0.7,
+            "poster_test": true
+          }
+        },
+        "post_fx_profile": "premium",
+        "qa_sampling_frames": [
+          1.5,
+          5.7,
+          10.2
+        ],
+        "poster_test_frames": [
+          1.5,
+          5.7,
+          10.2
+        ],
+        "brief": {
+          "title": "The Illusion of Time",
+          "tagline": null,
+          "platform": null,
+          "format": null,
+          "output_targets": []
+        },
+        "plan": {
+          "archetype": "emergence",
+          "pacing": "cinematic",
+          "emotion": "make hidden order feel inevitable"
+        },
+        "reference_native_direction": {},
+        "reference_evidence": []
+      }
+    },
+    "title": "The Illusion of Time",
+    "tagline": "Invisible Architecture",
+    "emotional_target": "make hidden order feel inevitable",
+    "visual_metaphor": "a living curve teaching matter to align",
+    "resolve_word": "Clarity",
+    "acts": [
+      {
+        "id": "genesis",
+        "start_sec": 0.0,
+        "end_sec": 3.0,
+        "overlap_buffer_ms": 0,
+        "transition_pattern": "entrance",
+        "emotion": "curiosity",
+        "behavior": "void",
+        "tension": "low",
+        "camera": "static_breathe",
+        "visual_primitives": [
+          "living_curve"
+        ],
+        "text_cues": []
+      },
+      {
+        "id": "turbulence",
+        "start_sec": 3.0,
+        "end_sec": 8.4,
+        "overlap_buffer_ms": 300,
+        "transition_pattern": "fade_through",
+        "emotion": "tension",
+        "behavior": "signal",
+        "tension": "low",
+        "camera": "track_subject",
+        "visual_primitives": [
+          "particle_system"
+        ],
+        "text_cues": [
+          {
+            "act": "turbulence",
+            "at_sec": 3.9,
+            "text": "silence before the surge",
+            "position": "top_zone",
+            "role": "hook",
+            "weight": 320,
+            "color_state": "default"
+          },
+          {
+            "act": "turbulence",
+            "at_sec": 6.8,
+            "text": "The Illusion of Time",
+            "position": "bottom_zone",
+            "role": "narration",
+            "weight": 420,
+            "color_state": "default"
+          }
+        ]
+      },
+      {
+        "id": "resolution",
+        "start_sec": 8.4,
+        "end_sec": 12.0,
+        "overlap_buffer_ms": 300,
+        "transition_pattern": "fade_through",
+        "emotion": "mastery",
+        "behavior": "stabilization",
+        "tension": "medium",
+        "camera": "static_breathe",
+        "visual_primitives": [
+          "living_curve",
+          "neural_grid"
+        ],
+        "text_cues": [
+          {
+            "act": "resolution",
+            "at_sec": 10.0,
+            "text": "Clarity",
+            "position": "center_climax",
+            "role": "resolve",
+            "weight": 560,
+            "color_state": "default"
+          }
+        ]
+      }
+    ],
+    "text_cues": [
+      {
+        "act": "turbulence",
+        "at_sec": 3.9,
+        "text": "silence before the surge",
+        "position": "top_zone",
+        "role": "hook",
+        "weight": 320,
+        "color_state": "default"
+      },
+      {
+        "act": "turbulence",
+        "at_sec": 6.8,
+        "text": "The Illusion of Time",
+        "position": "bottom_zone",
+        "role": "narration",
+        "weight": 420,
+        "color_state": "default"
+      },
+      {
+        "act": "resolution",
+        "at_sec": 10.0,
+        "text": "Clarity",
+        "position": "center_climax",
+        "role": "resolve",
+        "weight": 560,
+        "color_state": "default"
+      }
+    ],
+    "audio": {
+      "enabled": true,
+      "bed": "audio/aiox_signal_bed.m4a",
+      "gain": 0.3
+    },
+    "layout": {
+      "width": 1080,
+      "height": 1920,
+      "safe_zone": 0.08,
+      "text_zones": {
+        "top": {
+          "y": "15%",
+          "height": "15%"
+        },
+        "bottom": {
+          "y": "70%",
+          "height": "15%"
+        },
+        "center": {
+          "y": "42%",
+          "height": "16%"
+        }
+      }
+    },
+    "seed": "{'title': 'The Illusion of Time', 'slug': 'time_minimalist', 'target_duration': 10, 'narrative': {'acts': {'genesis': {'duration_ratio': 0.3, 'emotion': 'contemplative', 'text_cues': ['Time is not a line.']}, 'turbulence': {'duration_ratio': 0.4, 'emotion': 'analytical', 'text_cues': [\"It's a continuous dimension.\", 'We just perceive it in slices.']}, 'resolution': {'duration_ratio': 0.3, 'emotion': 'luxurious', 'text_cues': ['Every slice matters.']}}}, 'visuals': {'motion_preset': 'silent_luxury_fluid', 'theme_override': 'aiox_default'}}"
+  },
+  "artifact_plan": {
+    "schema_version": 3,
+    "primary_target_id": "short_cinematic_vertical",
+    "primary_target": {
+      "id": "short_cinematic_vertical",
+      "format_id": "vertical_9_16",
+      "channel": "instagram_reel",
+      "purpose": "short_form_social",
+      "priority": 100,
+      "default": true,
+      "preferred_channels": [
+        "instagram_reel",
+        "tiktok",
+        "youtube_shorts",
+        "instagram_story"
+      ],
+      "legacy_aliases": [
+        "vertical_social",
+        "short_cinematic"
+      ],
+      "width": 1080,
+      "height": 1920,
+      "fps": 60,
+      "safe_zone": 0.1,
+      "layout": {
+        "width": 1080,
+        "height": 1920,
+        "safe_zone": 0.08,
+        "text_zones": {
+          "top": {
+            "y": "15%",
+            "height": "15%"
+          },
+          "bottom": {
+            "y": "70%",
+            "height": "15%"
+          },
+          "center": {
+            "y": "42%",
+            "height": "16%"
+          }
+        }
+      },
+      "alias": "instagram_reel",
+      "render_mode": "video",
+      "composition": "short-cinematic-vertical",
+      "legacy_composition": "CinematicNarrative-v4",
+      "label": "Short Cinematic Vertical",
+      "native_support": true,
+      "output_ext": "",
+      "min_slides": 5,
+      "max_slides": 9,
+      "style_pack": "kinetic_editorial",
+      "typography_system": "editorial_dense",
+      "still_family": null,
+      "motion_grammar": "kinetic_editorial",
+      "color_mode": "desaturated_warm",
+      "negative_space_target": 0.4,
+      "accent_intensity": 0.5,
+      "grain": 0.08,
+      "material_hint": "editorial_flat",
+      "judge_profile": "motion_frame",
+      "summary": "Short cinematic built around 'a living curve teaching matter to align'.",
+      "duration_sec": 12.0,
+      "beats": [
+        {
+          "label": "genesis",
+          "act": "genesis",
+          "start_sec": 0.0,
+          "end_sec": 3.0,
+          "text": "a living curve teaching matter to align"
+        },
+        {
+          "label": "turbulence",
+          "act": "turbulence",
+          "start_sec": 3.0,
+          "end_sec": 8.4,
+          "text": "silence before the surge"
+        },
+        {
+          "label": "resolution",
+          "act": "resolution",
+          "start_sec": 8.4,
+          "end_sec": 12.0,
+          "text": "Clarity"
+        }
+      ],
+      "slides": [],
+      "chapters": [],
+      "story_atoms": {
+        "title": "The Illusion of Time",
+        "tagline": "Invisible Architecture",
+        "thesis": "a living curve teaching matter to align",
+        "audience": "B2B brand and tech audience",
+        "emotional_target": "make hidden order feel inevitable",
+        "visual_metaphor": "a living curve teaching matter to align",
+        "resolve_word": "Clarity"
+      },
+      "still_frame": 518,
+      "plan_archetype": "emergence",
+      "quality_mode": "absolute",
+      "family_spec": "short_cinematic",
+      "act_quality_profile": {
+        "genesis": {
+          "emotion": "curiosity",
+          "tension": "low",
+          "breath_points": [
+            1.83
+          ],
+          "silence_ratio": 0.68,
+          "poster_test": true
+        },
+        "turbulence": {
+          "emotion": "tension",
+          "tension": "low",
+          "breath_points": [
+            5.59,
+            7.43
+          ],
+          "silence_ratio": 0.53,
+          "poster_test": true
+        },
+        "resolution": {
+          "emotion": "mastery",
+          "tension": "medium",
+          "breath_points": [
+            10.42
+          ],
+          "silence_ratio": 0.7,
+          "poster_test": true
+        }
+      },
+      "post_fx_profile": "premium",
+      "qa_sampling_frames": [
+        1.5,
+        5.7,
+        10.2
+      ],
+      "poster_test_frames": [
+        1.5,
+        5.7,
+        10.2
+      ],
+      "editorial_layout": {
+        "family": "short_cinematic",
+        "golden_ratio": 1.618,
+        "baseline_step_px": 21,
+        "safe_margin_px": 64,
+        "hero_zone": {
+          "x": 0.11,
+          "y": 0.68,
+          "w": 0.32,
+          "h": 0.16
+        },
+        "support_zone": {
+          "x": 0.11,
+          "y": 0.14,
+          "w": 0.26,
+          "h": 0.05
+        },
+        "empty_zone": {
+          "x": 0.5,
+          "y": 0.08,
+          "w": 0.36,
+          "h": 0.48
+        },
+        "focal_zone": {
+          "x": 0.08,
+          "y": 0.08,
+          "w": 0.84,
+          "h": 0.8
+        },
+        "curve_box": {
+          "x": 0.08,
+          "y": 0.08,
+          "w": 0.84,
+          "h": 0.8
+        },
+        "eyebrow_box": {
+          "x": 0.11,
+          "y": 0.14,
+          "w": 0.26,
+          "h": 0.05
+        },
+        "title_box": {
+          "x": 0.11,
+          "y": 0.68,
+          "w": 0.32,
+          "h": 0.16
+        },
+        "accent_anchor": {
+          "x": 0.9,
+          "y": 0.14
+        },
+        "asset_crop": {
+          "object_position": "58% 46%",
+          "veil_opacity": 0.34,
+          "grayscale": 1.0,
+          "contrast": 1.18
+        }
+      },
+      "master_asset_strategy": {
+        "role": "supporting_anchor",
+        "source": "manim_hero_bg.png",
+        "inherit_visual_dna": true,
+        "crop_mode": "cover"
+      },
+      "still_base_strategy": {
+        "base": null,
+        "background": "solid_dark",
+        "requires_manim": false,
+        "allow_manim_bypass": true,
+        "use_asset_if_available": false
+      }
+    },
+    "targets": [
+      {
+        "id": "short_cinematic_vertical",
+        "format_id": "vertical_9_16",
+        "channel": "instagram_reel",
+        "purpose": "short_form_social",
+        "priority": 100,
+        "default": true,
+        "preferred_channels": [
+          "instagram_reel",
+          "tiktok",
+          "youtube_shorts",
+          "instagram_story"
+        ],
+        "legacy_aliases": [
+          "vertical_social",
+          "short_cinematic"
+        ],
+        "width": 1080,
+        "height": 1920,
+        "fps": 60,
+        "safe_zone": 0.1,
+        "layout": {
+          "width": 1080,
+          "height": 1920,
+          "safe_zone": 0.08,
+          "text_zones": {
+            "top": {
+              "y": "15%",
+              "height": "15%"
+            },
+            "bottom": {
+              "y": "70%",
+              "height": "15%"
+            },
+            "center": {
+              "y": "42%",
+              "height": "16%"
+            }
+          }
+        },
+        "alias": "instagram_reel",
+        "render_mode": "video",
+        "composition": "short-cinematic-vertical",
+        "legacy_composition": "CinematicNarrative-v4",
+        "label": "Short Cinematic Vertical",
+        "native_support": true,
+        "output_ext": "",
+        "min_slides": 5,
+        "max_slides": 9,
+        "style_pack": "kinetic_editorial",
+        "typography_system": "editorial_dense",
+        "still_family": null,
+        "motion_grammar": "kinetic_editorial",
+        "color_mode": "desaturated_warm",
+        "negative_space_target": 0.4,
+        "accent_intensity": 0.5,
+        "grain": 0.08,
+        "material_hint": "editorial_flat",
+        "judge_profile": "motion_frame",
+        "summary": "Short cinematic built around 'a living curve teaching matter to align'.",
+        "duration_sec": 12.0,
+        "beats": [
+          {
+            "label": "genesis",
+            "act": "genesis",
+            "start_sec": 0.0,
+            "end_sec": 3.0,
+            "text": "a living curve teaching matter to align"
+          },
+          {
+            "label": "turbulence",
+            "act": "turbulence",
+            "start_sec": 3.0,
+            "end_sec": 8.4,
+            "text": "silence before the surge"
+          },
+          {
+            "label": "resolution",
+            "act": "resolution",
+            "start_sec": 8.4,
+            "end_sec": 12.0,
+            "text": "Clarity"
+          }
+        ],
+        "slides": [],
+        "chapters": [],
+        "story_atoms": {
+          "title": "The Illusion of Time",
+          "tagline": "Invisible Architecture",
+          "thesis": "a living curve teaching matter to align",
+          "audience": "B2B brand and tech audience",
+          "emotional_target": "make hidden order feel inevitable",
+          "visual_metaphor": "a living curve teaching matter to align",
+          "resolve_word": "Clarity"
+        },
+        "still_frame": 518,
+        "plan_archetype": "emergence",
+        "quality_mode": "absolute",
+        "family_spec": "short_cinematic",
+        "act_quality_profile": {
+          "genesis": {
+            "emotion": "curiosity",
+            "tension": "low",
+            "breath_points": [
+              1.83
+            ],
+            "silence_ratio": 0.68,
+            "poster_test": true
+          },
+          "turbulence": {
+            "emotion": "tension",
+            "tension": "low",
+            "breath_points": [
+              5.59,
+              7.43
+            ],
+            "silence_ratio": 0.53,
+            "poster_test": true
+          },
+          "resolution": {
+            "emotion": "mastery",
+            "tension": "medium",
+            "breath_points": [
+              10.42
+            ],
+            "silence_ratio": 0.7,
+            "poster_test": true
+          }
+        },
+        "post_fx_profile": "premium",
+        "qa_sampling_frames": [
+          1.5,
+          5.7,
+          10.2
+        ],
+        "poster_test_frames": [
+          1.5,
+          5.7,
+          10.2
+        ],
+        "editorial_layout": {
+          "family": "short_cinematic",
+          "golden_ratio": 1.618,
+          "baseline_step_px": 21,
+          "safe_margin_px": 64,
+          "hero_zone": {
+            "x": 0.11,
+            "y": 0.68,
+            "w": 0.32,
+            "h": 0.16
+          },
+          "support_zone": {
+            "x": 0.11,
+            "y": 0.14,
+            "w": 0.26,
+            "h": 0.05
+          },
+          "empty_zone": {
+            "x": 0.5,
+            "y": 0.08,
+            "w": 0.36,
+            "h": 0.48
+          },
+          "focal_zone": {
+            "x": 0.08,
+            "y": 0.08,
+            "w": 0.84,
+            "h": 0.8
+          },
+          "curve_box": {
+            "x": 0.08,
+            "y": 0.08,
+            "w": 0.84,
+            "h": 0.8
+          },
+          "eyebrow_box": {
+            "x": 0.11,
+            "y": 0.14,
+            "w": 0.26,
+            "h": 0.05
+          },
+          "title_box": {
+            "x": 0.11,
+            "y": 0.68,
+            "w": 0.32,
+            "h": 0.16
+          },
+          "accent_anchor": {
+            "x": 0.9,
+            "y": 0.14
+          },
+          "asset_crop": {
+            "object_position": "58% 46%",
+            "veil_opacity": 0.34,
+            "grayscale": 1.0,
+            "contrast": 1.18
+          }
+        },
+        "master_asset_strategy": {
+          "role": "supporting_anchor",
+          "source": "manim_hero_bg.png",
+          "inherit_visual_dna": true,
+          "crop_mode": "cover"
+        },
+        "still_base_strategy": {
+          "base": null,
+          "background": "solid_dark",
+          "requires_manim": false,
+          "allow_manim_bypass": true,
+          "use_asset_if_available": false
+        }
+      }
+    ],
+    "requested_targets": [],
+    "format": "vertical_9_16",
+    "story_atoms": {
+      "title": "The Illusion of Time",
+      "tagline": "Invisible Architecture",
+      "thesis": "a living curve teaching matter to align",
+      "audience": "B2B brand and tech audience",
+      "emotional_target": "make hidden order feel inevitable",
+      "visual_metaphor": "a living curve teaching matter to align",
+      "resolve_word": "Clarity"
+    },
+    "style_pack": "kinetic_editorial",
+    "style_pack_ids": [],
+    "motion_grammar": "kinetic_editorial",
+    "typography_system": "editorial_dense",
+    "still_family": null,
+    "color_mode": "desaturated_warm",
+    "negative_space_target": 0.4,
+    "accent_intensity": 0.5,
+    "grain": 0.08,
+    "material_hint": "editorial_flat",
+    "quality_constraints": {
+      "text_minimum_gap": 1.5,
+      "max_words_per_screen": 5,
+      "silence_ratio": 0.62,
+      "negative_space_target": 0.4,
+      "max_colors": 2,
+      "contrast_floor": 4.5,
+      "typography_conformance": "strict",
+      "qa_frames": 5,
+      "auto_iterate_max": 1
+    },
+    "quality_tier": "lab_absolute",
+    "quality_mode": "absolute",
+    "premium_targets": [
+      "short_cinematic_vertical"
+    ],
+    "qa_frames": 5,
+    "auto_iterate_max": 1,
+    "judge_stack": [
+      "brand_precheck",
+      "structural_gate",
+      "visual_judge_fast",
+      "objective_metrics",
+      "visual_judge_heavy",
+      "variant_ranker"
+    ],
+    "brand_veto_policy": {
+      "hero_target": "strict",
+      "video_targets": "degrade_to_fallback_pass",
+      "fallback_never_premium": true
+    },
+    "variants": [
+      {
+        "id": "variant_01",
+        "label": "Variant 1",
+        "style_pack_id": "brand_core",
+        "composition_mode": "poster_focus",
+        "typography_behavior": "quiet_hierarchy",
+        "shot_grammar": "single_curve",
+        "resolve_word": "Clarity",
+        "thesis": "a living curve teaching matter to align",
+        "archetype": "emergence",
+        "hero_target": "linkedin_feed_4_5"
+      },
+      {
+        "id": "variant_02",
+        "label": "Variant 2",
+        "style_pack_id": "masterize_mid_path",
+        "composition_mode": "single_metaphor",
+        "typography_behavior": "thesis_poster",
+        "shot_grammar": "contained_break",
+        "resolve_word": "Clarity",
+        "thesis": "a living curve teaching matter to align",
+        "archetype": "emergence",
+        "hero_target": "linkedin_feed_4_5"
+      },
+      {
+        "id": "variant_03",
+        "label": "Variant 3",
+        "style_pack_id": "editorial_precision",
+        "composition_mode": "editorial_spine",
+        "typography_behavior": "whisper_to_resolve",
+        "shot_grammar": "mid_event_flip",
+        "resolve_word": "Clarity",
+        "thesis": "a living curve teaching matter to align",
+        "archetype": "emergence",
+        "hero_target": "linkedin_feed_4_5"
+      }
+    ],
+    "variant_scores": {
+      "variant_01": {
+        "score": 90.0,
+        "reasons": [
+          "hero_target_alignment",
+          "composition_mode_premium",
+          "typography_behavior_premium",
+          "shot_grammar_signal"
+        ]
+      },
+      "variant_02": {
+        "score": 90.0,
+        "reasons": [
+          "hero_target_alignment",
+          "composition_mode_premium",
+          "typography_behavior_premium",
+          "shot_grammar_signal"
+        ]
+      },
+      "variant_03": {
+        "score": 70.0,
+        "reasons": [
+          "hero_target_alignment",
+          "shot_grammar_signal"
+        ]
+      }
+    },
+    "chosen_variant": "variant_01",
+    "chosen_variant_reason": "hero_target_alignment,composition_mode_premium,typography_behavior_premium,shot_grammar_signal",
+    "review_session_id": "review_1775346144_cc36786c",
+    "reference_native_direction": {},
+    "reference_evidence": [],
+    "style_retrieval_results": [
+      {
+        "pack_id": "apple_keynote",
+        "path": "/Users/daniel/Documents/Bordeless/manim/contracts/references/apple_keynote.yaml",
+        "style_classification": "",
+        "tags": [],
+        "mood": "",
+        "component_motifs": [],
+        "motion_motifs": [],
+        "confidence": 0.0,
+        "score": 0.0,
+        "matched_terms": []
+      },
+      {
+        "pack_id": "linear_app",
+        "path": "/Users/daniel/Documents/Bordeless/manim/contracts/references/linear_app.yaml",
+        "style_classification": "",
+        "tags": [],
+        "mood": "",
+        "component_motifs": [],
+        "motion_motifs": [],
+        "confidence": 0.0,
+        "score": 0.0,
+        "matched_terms": []
+      },
+      {
+        "pack_id": "stripe_com",
+        "path": "/Users/daniel/Documents/Bordeless/manim/contracts/references/stripe_com.yaml",
+        "style_classification": "editorial_minimal",
+        "tags": [],
+        "mood": "clean, confident, spacious, technical_but_approachable",
+        "component_motifs": [],
+        "motion_motifs": [],
+        "confidence": 0.0,
+        "score": 0.0,
+        "matched_terms": []
+      },
+      {
+        "pack_id": "stripe_sessions",
+        "path": "/Users/daniel/Documents/Bordeless/manim/contracts/references/stripe_sessions.yaml",
+        "style_classification": "",
+        "tags": [],
+        "mood": "",
+        "component_motifs": [],
+        "motion_motifs": [],
+        "confidence": 0.0,
+        "score": 0.0,
+        "matched_terms": []
+      }
+    ],
+    "objective_metrics": {
+      "still_aesthetic_model": "hpsv2_optional",
+      "video_benchmark": "vbench_subset_optional"
+    },
+    "family_spec": {
+      "short_cinematic_vertical": "short_cinematic"
+    },
+    "motion_system": {
+      "cadence_profile": "premium_lab",
+      "negative_space_regime": "strict",
+      "resolve_hold_sec": 1.5
+    },
+    "preview_policy": {
+      "enabled": true,
+      "max_iterations": 2,
+      "accept_score": 72.0,
+      "plateau_delta": 2.5
+    },
+    "copy_budget": {
+      "max_words_per_frame": 5,
+      "target_silence_ratio": 0.62
+    },
+    "renderer_contracts": {
+      "short_cinematic_vertical": {
+        "target_id": "short_cinematic_vertical",
+        "composition": "short-cinematic-vertical",
+        "render_mode": "video",
+        "style_pack": "kinetic_editorial",
+        "motion_grammar": "kinetic_editorial",
+        "color_mode": "desaturated_warm",
+        "native_engine": "remotion",
+        "fallback_engine": "fallback_artifact_renderer",
+        "requires_base_video": true,
+        "native_support": true
+      }
+    },
+    "fallback_policy": {
+      "mode": "native_then_fallback",
+      "hero_target": "linkedin_feed_4_5",
+      "max_native_attempts": 1,
+      "fallback_on_timeout": true,
+      "fallback_on_render_error": true
+    },
+    "metrics_hooks": [
+      "llm_latency_ms",
+      "native_render_success",
+      "fallback_rate",
+      "artifact_updated",
+      "negative_space_target",
+      "judge_disagreement_rate",
+      "premium_success_rate"
+    ],
+    "beat_map": {
+      "short_cinematic_vertical": [
+        "genesis",
+        "turbulence",
+        "resolution"
+      ]
+    },
+    "distribution_mode": "single_target",
+    "brief": {
+      "title": "The Illusion of Time",
+      "tagline": null,
+      "format": null,
+      "platform": null,
+      "audience": null,
+      "thesis": null,
+      "output_targets": []
+    },
+    "project_id": null,
+    "project_profile_id": null
+  },
+  "briefing": {
+    "title": "The Illusion of Time",
+    "slug": "time_minimalist",
+    "target_duration": 10,
+    "narrative": {
+      "acts": {
+        "genesis": {
+          "duration_ratio": 0.3,
+          "emotion": "contemplative",
+          "text_cues": [
+            "Time is not a line."
+          ]
+        },
+        "turbulence": {
+          "duration_ratio": 0.4,
+          "emotion": "analytical",
+          "text_cues": [
+            "It's a continuous dimension.",
+            "We just perceive it in slices."
+          ]
+        },
+        "resolution": {
+          "duration_ratio": 0.3,
+          "emotion": "luxurious",
+          "text_cues": [
+            "Every slice matters."
+          ]
+        }
+      }
+    },
+    "visuals": {
+      "motion_preset": "silent_luxury_fluid",
+      "theme_override": "aiox_default"
+    }
+  },
+  "quality_report": {
+    "ok": true,
+    "errors": [],
+    "warnings": [
+      "text_block_above_word_limit:short_cinematic_vertical:a living curve teaching matter to align"
+    ],
+    "stats": {
+      "target_count": 1,
+      "variant_count": 3,
+      "max_words_per_screen": 5,
+      "negative_space_target": 0.4,
+      "premium_target_count": 1
+    }
   }
 }

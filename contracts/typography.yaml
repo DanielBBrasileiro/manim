@@ -13,14 +13,26 @@ fonts:
     use: "Only for final resolve logo"
 
 rules:
-  sizing:
-    vertical_9_16:
-      narrative_text: "clamp(1.5rem, 4vw, 2.5rem)"
-      brand_text: "0.875rem"
-    wide_16_9:
-      narrative_text: "clamp(1.2rem, 3vw, 2rem)"
-      brand_text: "0.75rem"
-      
+  semantic_sizing:
+    COMPACT:
+      display_large: "clamp(3rem, 10vw, 4rem)"
+      headline_large: "clamp(2rem, 6vw, 2.5rem)"
+      headline_small: "clamp(1.5rem, 5vw, 2rem)"
+      body_medium: "clamp(1rem, 4vw, 1.25rem)"
+      label_small: "0.875rem"
+    MEDIUM:
+      display_large: "clamp(3.5rem, 8vw, 4.5rem)"
+      headline_large: "clamp(2.25rem, 5vw, 3rem)"
+      headline_small: "clamp(1.75rem, 4vw, 2.25rem)"
+      body_medium: "1.25rem"
+      label_small: "0.875rem"
+    EXPANDED:
+      display_large: "clamp(4.5rem, 6vw, 6rem)"
+      headline_large: "clamp(3rem, 5vw, 4rem)"
+      headline_small: "clamp(2rem, 3vw, 2.75rem)"
+      body_medium: "1.5rem"
+      label_small: "1rem"
+
   behavior:
     entrance: "fade_up_8px"        # Never snap. Always ease.
     exit: "fade_down_4px"

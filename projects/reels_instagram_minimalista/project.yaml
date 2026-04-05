@@ -1,0 +1,12 @@
+id: reels_instagram_minimalista
+description: "Minimalismo extremo e vácuo editorial para Reels."
+default_targets:
+  - short_cinematic_vertical
+default_style_pack: blueprint_cold
+default_typography_system: editorial_minimal
+default_still_family: poster_minimal
+default_motion_grammar: cinematic_restrained
+default_negative_space_target: 0.75
+default_accent_intensity: 0.05
+default_grain: 0.02
+default_reference_ids: []

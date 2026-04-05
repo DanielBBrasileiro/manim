@@ -1,0 +1,55 @@
+# Local LLM routing for AIOX Studio on Apple Silicon
+
+# Ollama endpoint
+OLLAMA_URL=http://127.0.0.1:11434/api/generate
+
+# Text planning models
+OLLAMA_TEXT_MODEL=qwen2.5:7b-instruct-q4_K_M
+OLLAMA_TEXT_FAST_MODEL=qwen3:4b-instruct-2507-q4_K_M
+OLLAMA_TEXT_QUALITY_MODEL=qwen2.5:14b-instruct-q4_K_M
+
+# Vision planning model for future image/keyframe/reference flows
+OLLAMA_VISION_MODEL=qwen3-vl:4b-instruct-q4_K_M
+
+# Request timing
+OLLAMA_TIMEOUT_SECONDS=14
+OLLAMA_RETRY_TIMEOUT_SECONDS=22
+OLLAMA_TIMEOUT_FAST_SECONDS=14
+OLLAMA_RETRY_TIMEOUT_FAST_SECONDS=22
+OLLAMA_TIMEOUT_PLAN_SECONDS=18
+OLLAMA_RETRY_TIMEOUT_PLAN_SECONDS=30
+OLLAMA_TIMEOUT_QUALITY_SECONDS=45
+OLLAMA_RETRY_TIMEOUT_QUALITY_SECONDS=70
+OLLAMA_TIMEOUT_VISION_SECONDS=30
+OLLAMA_RETRY_TIMEOUT_VISION_SECONDS=45
+
+# Keep-alive strategy
+OLLAMA_KEEP_ALIVE_TEXT=8m
+OLLAMA_KEEP_ALIVE_FAST=4m
+OLLAMA_KEEP_ALIVE_QUALITY=0
+OLLAMA_KEEP_ALIVE_VISION=0
+
+# Planning policy
+AIOX_LLM_CONFIDENCE_THRESHOLD=0.70
+AIOX_LLM_ROUTING_MODE=auto
+AIOX_LLM_FORCE_MODEL=
+AIOX_LLM_QUALITY_FALLBACK_MODE=explicit
+AIOX_LLM_DISABLE_QUALITY_FALLBACK=0
+
+# Cache and diagnostics
+AIOX_LLM_ENABLE_CACHE=1
+AIOX_LLM_CACHE_DIR=output/cache/llm
+AIOX_LLM_DEBUG=0
+
+# Notes
+# - OLLAMA_TEXT_MODEL: default planning model for normal Scene Plan generation.
+# - OLLAMA_TEXT_FAST_MODEL: low-cost model for explore/lab/preview ideation.
+# - OLLAMA_TEXT_QUALITY_MODEL: quality route for explicit runs or optional auto fallback.
+# - OLLAMA_VISION_MODEL: reserve for image/keyframe analysis, not regular text planning.
+# - OLLAMA_TIMEOUT_*_SECONDS: per-route time budget; use PLAN/QUALITY overrides on slower hardware.
+# - OLLAMA_KEEP_ALIVE_*: how long each model should remain warm in Ollama.
+# - OLLAMA_KEEP_ALIVE_QUALITY=0: unload the 14B route aggressively after use on memory-constrained Macs.
+# - AIOX_LLM_FORCE_MODEL: optional hard override for debugging or benchmarking.
+# - AIOX_LLM_QUALITY_FALLBACK_MODE: explicit (default), auto or off.
+# - AIOX_LLM_DISABLE_QUALITY_FALLBACK: set to 1 to disable the quality route entirely.
+# - AIOX_LLM_ENABLE_CACHE: set to 0 to disable on-disk Scene Plan caching.
