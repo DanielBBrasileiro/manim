@@ -26,12 +26,17 @@ class EntropyDemo(Scene):
     """
     Cena guiada 100% pela Inteligência Física da Zara (CDE).
     Não há hardcodes de física; o Motion Signature é injetado via `intelligence.entropy`.
+
+    Physics lifecycle (PR-10):
+      1. setup_physics()     — creates seeded pymunk Space
+      2. evaluate_physics()  — steps simulation, extracts PhysicsState
+      3. teardown_physics()  — explicit cleanup (always runs via finally)
+      4. write_physics_state() — writes TS constant for Remotion to import
     """
-    def construct(self):
-        # Fundo dinâmico da marca
+
+    def construct(self) -> None:
         self.camera.background_color = theme.colors["background"]
-        
-        # 🧠 O NOVO PARADIGMA: Lendo interpretações, não apenas números
+
         interp = intelligence.get("interpretation", {})
         stability = interp.get("stability", "high")
         signature = interp.get("motion_signature", "breathing_field")
