@@ -17,7 +17,7 @@ export const CompositionPrimitive: React.FC<CompositionPrimitiveProps> = ({
 	weight,
 	opacity,
 	tension,
-	color = '#FFFFFF',
+	color,
 	style,
 }) => {
 	const rendered = useMemo(() => {

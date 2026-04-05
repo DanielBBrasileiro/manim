@@ -26,11 +26,7 @@ def render_still_artifact(
     style = _load_style_pack(artifact_plan)
     palette = style.get("palette", {})
 
-    image = _vertical_gradient(
-        (width, height),
-        _hex(palette.get("background", "#050505")),
-        _hex(palette.get("surface", "#0B0B0D")),
-    )
+    image = Image.new("RGB", (width, height), _hex(palette.get("background", "#050505")))
     image = _add_texture(image)
     draw = ImageDraw.Draw(image)
 
@@ -57,9 +53,11 @@ def render_still_artifact(
     resolve_word = str(story_atoms.get("resolve_word") or "AIOX")
 
     draw.text((card[0], int(height * 0.18)), archetype, fill=accent, font=kicker_font)
-    _draw_wrapped_text(draw, title, title_font, fill=(245, 245, 245), box=(card[0], int(height * 0.31), card[2], int(height * 0.52)), line_gap=14)
-    _draw_wrapped_text(draw, body, body_font, fill=(210, 210, 215), box=(card[0], int(height * 0.58), card[2], int(height * 0.73)), line_gap=10)
-    draw.text((card[0], int(height * 0.77)), resolve_word, fill=(250, 250, 250), font=resolve_font)
+    text_primary = _hex(palette.get("foreground", "#F5F5F5"))
+    text_secondary = _hex(palette.get("ink", "#D2D2D7"))
+    _draw_wrapped_text(draw, title, title_font, fill=text_primary, box=(card[0], int(height * 0.31), card[2], int(height * 0.52)), line_gap=14)
+    _draw_wrapped_text(draw, body, body_font, fill=text_secondary, box=(card[0], int(height * 0.58), card[2], int(height * 0.73)), line_gap=10)
+    draw.text((card[0], int(height * 0.77)), resolve_word, fill=text_primary, font=resolve_font)
 
     image.save(output)
     return output
