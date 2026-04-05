@@ -18,6 +18,7 @@ drawsvg>=2.3.0                 # SVG vector export
 # ── Phase 3: Physics & Math ───────────────────
 opensimplex>=0.4.5             # FBM noise — substitui harmônico em fields.py
 numba>=0.59.0                  # JIT acceleration para ParticlePool (10k+ partículas)
+pymunk>=6.6.0                  # Rigid-body physics — active in EntropyDemo via physics_mixin.py
 
 # ── Phase 4: Shaders/GPU ──────────────────────
 moderngl>=5.10.0               # GLSL shaders headless (ShaderLayer — fallback numpy se ausente)
