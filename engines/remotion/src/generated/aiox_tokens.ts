@@ -1,5 +1,6 @@
 // ⚠️ GERADO AUTOMATICAMENTE VIA core/cli/brand.py - NÃO EDITE
 // Pipeline de Governança de Design Física AIOX
+import type { AioxTokensShape } from '../types/tokens';
 
 export const AIOX_TOKENS = {
   layout: {
@@ -464,19 +465,35 @@ export const AIOX_TOKENS = {
     "outline": "#cccccc",
     "tones": {
       "tone_0": "#000000",
-      "tone_10": "#797979",
-      "tone_20": "#a5a5a5",
-      "tone_25": "#bcbcbc",
-      "tone_30": "#d2d2d2",
-      "tone_40": "#ffffff",
-      "tone_50": "#ffffff",
-      "tone_60": "#ffffff",
-      "tone_70": "#ffffff",
-      "tone_80": "#ffffff",
-      "tone_90": "#ffffff",
-      "tone_95": "#ffffff",
+      "tone_10": "#484848",
+      "tone_20": "#636363",
+      "tone_25": "#707070",
+      "tone_30": "#7e7e7e",
+      "tone_40": "#999999",
+      "tone_50": "#aaaaaa",
+      "tone_60": "#bbbbbb",
+      "tone_70": "#cccccc",
+      "tone_80": "#dddddd",
+      "tone_90": "#eeeeee",
+      "tone_95": "#f6f6f6",
       "tone_100": "#ffffff"
     }
   }
+},
+  laws: {
+  "min_negative_space": 0.4,
+  "max_colors": 2,
+  "typography": {
+    "max_weights": 2,
+    "forbidden": [
+      "serif",
+      "uppercase_prose"
+    ]
+  },
+  "anti_patterns": [
+    "no_gradients",
+    "no_logos",
+    "no_shadows"
+  ]
 }
-} as const;
+} satisfies AioxTokensShape as const;
