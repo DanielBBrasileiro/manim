@@ -74,7 +74,22 @@ class HCTColorEngine:
         # aiming to closely mimic the luminance distribution for MD3 constraints.
         tones = {}
         target_steps = [0, 10, 20, 25, 30, 40, 50, 60, 70, 80, 90, 95, 100]
-        
+
+        # Chrome Guard: prevent "White Hole" collapse when primary is near-white.
+        # When primary_lum > 0.90, adjust_tone(primary, factor > 1.0) saturates to #ffffff
+        # for all steps above 40, making the entire upper range perceptually indistinguishable.
+        # Fix: use a T60 neutral anchor (#999999, ≈0.33 relative luminance) as the
+        # tonal generation pivot to enforce minimum visual distinction and WCAG contrast.
+        _WHITE_HOLE_THRESHOLD = 0.90
+        tonal_anchor = primary if primary_lum <= _WHITE_HOLE_THRESHOLD else "#999999"
+
+        if primary_lum > _WHITE_HOLE_THRESHOLD:
+            print(
+                f"⚠️ [HCTColorEngine] Chrome Guard ativado: primary_lum={primary_lum:.3f} > "
+                f"{_WHITE_HOLE_THRESHOLD}. Usando tonal_anchor T60 (#999999) para evitar "
+                f"colapso da escala tonal (White Hole)."
+            )
+
         # M3 assigns Tone 40 as the primary baseline for light themes, and Tone 80 for dark.
         # We estimate a curve where 0 is black, 100 is white, and the brand color sits near 40.
         for step in target_steps:
@@ -83,16 +98,14 @@ class HCTColorEngine:
             elif step == 100:
                 tones[f"tone_{step}"] = "#ffffff"
             elif step == 40:
-                tones[f"tone_{step}"] = primary
+                tones[f"tone_{step}"] = tonal_anchor
             else:
-                # Calculate simple blending to approach black or white
-                ratio = step / 100.0
                 if step < 40:
                     darkness = step / 40.0
-                    tones[f"tone_{step}"] = adjust_tone(primary, 0.3 + (darkness * 0.7))
+                    tones[f"tone_{step}"] = adjust_tone(tonal_anchor, 0.3 + (darkness * 0.7))
                 else:
                     lightness = (step - 40) / 60.0
-                    tones[f"tone_{step}"] = adjust_tone(primary, 1.0 + lightness)
+                    tones[f"tone_{step}"] = adjust_tone(tonal_anchor, 1.0 + lightness)
 
         return {
             "primary": primary,

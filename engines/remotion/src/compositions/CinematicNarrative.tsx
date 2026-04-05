@@ -285,13 +285,14 @@ const GrainOverlay: React.FC<{opacity: number}> = ({opacity}) => (
 	/>
 );
 
-const StaticBackdrop: React.FC<{frame: number; targetKind?: string; profile: TargetVisualProfile; bgSrc?: string | null; editorialLayout?: EditorialLayout; stylePack: ResolvedStylePackFields}> = ({
+const StaticBackdrop: React.FC<{frame: number; targetKind?: string; profile: TargetVisualProfile; bgSrc?: string | null; editorialLayout?: EditorialLayout; stylePack: ResolvedStylePackFields; seed: string}> = ({
 	frame,
 	targetKind,
 	profile,
 	bgSrc,
 	editorialLayout,
 	stylePack,
+	seed,
 }) => {
 	const drift = Math.sin(frame / 24) * profile.driftStrength;
 	const glow = Math.cos(frame / 38) * 0.06 + 0.18;
@@ -326,7 +327,7 @@ const StaticBackdrop: React.FC<{frame: number; targetKind?: string; profile: Tar
 							opacity: 0.62,
 						}}
 					/>
-					<div style={{position: 'absolute', inset: 0, background: '#000000', opacity: veilOpacity}} />
+					<div style={{position: 'absolute', inset: 0, background: palette.background, opacity: veilOpacity}} />
 				</>
 			) : null}
 				<AbsoluteFill
@@ -388,7 +389,8 @@ const PosterHeroBackdrop: React.FC<{
 	bgSrc?: string | null;
 	editorialLayout?: EditorialLayout;
 	stylePack: ResolvedStylePackFields;
-}> = ({frame, profile, storyAtoms, activeVariant, targetId, bgSrc, editorialLayout, stylePack}) => {
+	seed: string;
+}> = ({frame, profile, storyAtoms, activeVariant, targetId, bgSrc, editorialLayout, stylePack, seed}) => {
 	const drift = Math.sin(frame / 52) * 1.1;
 	const titleWord = wordCap(storyAtoms?.resolve_word ?? storyAtoms?.resolveWord ?? 'AIOX', 1) || 'AIOX';
 	const accentLabel = wordCap(storyAtoms?.tagline ?? activeVariant?.label ?? 'Signal', 2);
@@ -484,7 +486,7 @@ const PosterHeroBackdrop: React.FC<{
 				<div
 					style={{
 						...boxStyle(titleBox),
-						color: '#FFFFFF',
+						color: palette.ink,
 						fontFamily: tokens.typography.fonts.narrative.family,
 						opacity: titleOpacity,
 					}}
@@ -836,6 +838,7 @@ export const CinematicNarrative: React.FC<CinematicNarrativeProps> = (props) => 
 						bgSrc={bgSrc}
 						editorialLayout={editorialLayout}
 						stylePack={resolvedStylePack}
+						seed={seed}
 					/>
 				) : (
 					<StaticBackdrop
@@ -845,6 +848,7 @@ export const CinematicNarrative: React.FC<CinematicNarrativeProps> = (props) => 
 						bgSrc={bgSrc}
 						editorialLayout={editorialLayout}
 						stylePack={resolvedStylePack}
+						seed={seed}
 					/>
 				)}
 			</AbsoluteFill>

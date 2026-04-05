@@ -48,8 +48,34 @@ def sync_identity(identity_name="aiox_default"):
     layout_data = load_yaml(contracts_dir / "layout.yaml")
     
     if not brand_data:
-        print(f"⚠️ Aviso: Nenhum brand.yaml encontrado para '{identity_name}'.")
-        
+        raise KeyError(
+            f"brand.yaml ausente para identidade '{identity_name}' em {identity_dir}. "
+            "Crie contracts/identities/{identity_name}/brand.yaml antes de compilar."
+        )
+
+    # Valida chaves obrigatórias — falha rápida antes de gerar tokens corrompidos
+    _required_paths = [
+        ["color_states"],
+        ["color_states", "dark"],
+        ["color_states", "dark", "background"],
+        ["color_states", "dark", "foreground"],
+    ]
+    for key_path in _required_paths:
+        node = brand_data
+        for k in key_path:
+            if not isinstance(node, dict) or k not in node:
+                raise KeyError(
+                    f"Chave obrigatória ausente em brand.yaml [{identity_name}]: "
+                    f"{' > '.join(key_path)}"
+                )
+            node = node[k]
+
+    if "constraints" not in global_laws:
+        raise KeyError(
+            "global_laws.yaml está ausente ou não contém a chave 'constraints'. "
+            "Verifique contracts/global_laws.yaml."
+        )
+
     # Generate HCT Color Palettes
     primary_color = brand_data.get("color_states", {}).get("dark", {}).get("primary", "#ffffff")
     generated_colors = HCTColorEngine.generate_semantic_tokens(primary_color)

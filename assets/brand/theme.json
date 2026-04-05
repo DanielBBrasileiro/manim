@@ -60,7 +60,30 @@
       "NEVER show tech logos (Python, Postgres, etc.)",
       "NEVER use serif fonts",
       "NEVER use text-transform: uppercase (except brand name)"
-    ]
+    ],
+    "colors": {
+      "primary": "#ffffff",
+      "on_primary": "#1a1a1a",
+      "surface": "#ffffff",
+      "on_surface": "#1a1a1a",
+      "surface_variant": "#e5e5e5",
+      "outline": "#cccccc",
+      "tones": {
+        "tone_0": "#000000",
+        "tone_10": "#797979",
+        "tone_20": "#a5a5a5",
+        "tone_25": "#bcbcbc",
+        "tone_30": "#d2d2d2",
+        "tone_40": "#ffffff",
+        "tone_50": "#ffffff",
+        "tone_60": "#ffffff",
+        "tone_70": "#ffffff",
+        "tone_80": "#ffffff",
+        "tone_90": "#ffffff",
+        "tone_95": "#ffffff",
+        "tone_100": "#ffffff"
+      }
+    }
   },
   "audio": {
     "voice_profile": {
