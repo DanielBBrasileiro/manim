@@ -49,6 +49,24 @@ export interface AioxColorState {
   [key: string]: unknown;
 }
 
+/** M3 tonal palette: keys are "tone_0" through "tone_100" (13 standard steps). */
+export type AioxTonalPalette = Record<string, string>;
+
+export interface AioxBrandColors {
+  primary: string;
+  on_primary: string;
+  surface: string;
+  on_surface: string;
+  surface_variant: string;
+  outline: string;
+  /** Primary tonal palette — genuine OKLCH-generated M3 tones. */
+  tones: AioxTonalPalette;
+  /** Neutral palette for surface/background roles. */
+  tones_neutral: AioxTonalPalette;
+  /** Neutral variant palette for outlines and surface variants. */
+  tones_neutral_variant: AioxTonalPalette;
+}
+
 export interface AioxBrand {
   color_states: {
     dark: AioxColorState;
@@ -57,6 +75,7 @@ export interface AioxBrand {
   };
   materials: Record<string, unknown>;
   identity: Record<string, unknown>;
+  colors?: AioxBrandColors;
   [key: string]: unknown;
 }
 
