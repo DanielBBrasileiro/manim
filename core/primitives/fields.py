@@ -17,6 +17,10 @@ except ImportError:
     _HAS_SIMPLEX = False
 
 
+def _stable_signature_seed(signature: str) -> int:
+    return sum((index + 1) * ord(char) for index, char in enumerate(signature)) & 0x7FFFFFFF
+
+
 class AIOXNoiseField:
     """
     Campo vetorial procedural baseado em FBM (Fractal Brownian Motion).
@@ -100,14 +104,14 @@ class AIOXNoiseField:
             self.strength = strength_override
 
         if _HAS_SIMPLEX:
-            _seed = seed if seed is not None else np.random.randint(0, 2**31)
+            _seed = seed if seed is not None else _stable_signature_seed(signature)
             # Um gerador por dimensão para evitar correlações
             self._nx = OpenSimplex(_seed)
             self._ny = OpenSimplex(_seed + 1)
             self._nz = OpenSimplex(_seed + 2)
         else:
             # Fallback harmônico — mantém compatibilidade total
-            rng = np.random.default_rng(seed)
+            rng = np.random.default_rng(seed if seed is not None else _stable_signature_seed(signature))
             self.offsets = rng.uniform(-100, 100, (self.octaves, 3))
             self.frequencies = [1.5 ** i for i in range(self.octaves)]
             self.amplitudes = [0.8 ** i for i in range(self.octaves)]
@@ -240,15 +244,16 @@ class AIOXNoiseField:
 
 class TemporalNoiseField:
     """Motor Temporal (Fase 2): Interpola vetores FBM baseados numa Timeline DSL Contínua."""
-    def __init__(self, timeline: list, duration: float = 10.0):
+    def __init__(self, timeline: list, duration: float = 10.0, seed: int | None = None):
         self.timeline = timeline
         self.duration = duration
         self.fields = {}
         
-        for block in timeline:
+        for index, block in enumerate(timeline):
             sig = block.get("behavior")
             if sig and sig not in self.fields:
-                self.fields[sig] = AIOXNoiseField(signature=sig)
+                field_seed = (seed + index * 1009) if seed is not None else None
+                self.fields[sig] = AIOXNoiseField(signature=sig, seed=field_seed)
                 
     def get_vector(self, point, time: float = 0.0) -> np.ndarray:
         t_norm = (time % self.duration) / self.duration

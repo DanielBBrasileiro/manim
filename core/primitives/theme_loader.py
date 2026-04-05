@@ -67,28 +67,28 @@ class IntelligenceLoader:
             return {
                 "entropy": {"physical": 0.5, "structural": 0.5, "aesthetic": 0.5},
                 "interpretation": {"regime": "laminar", "motion_signature": "coherent_flow", "stability": "high", "rhythm": "regular", "flow": "linear"},
-                "creative": {"archetype": "emergence", "aesthetic_family": "aiox_default"}
+                "creative": {"archetype": "emergence", "aesthetic_family": "aiox_default"},
+                "timeline": [],
+                "seed": 42,
             }
 
         tech_plan = self._data.get("tech_plan", {})
-        # Accept both key names for backwards compatibility with old files.
-        design = self._data.get("design_overlay") or self._data.get("design", {})
-
-        # Extract "raw" entropy without mutating the loaded dict.
-        stored_entropy = tech_plan.get("entropy", {})
-        raw_entropy = stored_entropy.get("raw", {"physical": 0.5, "structural": 0.5, "aesthetic": 0.5})
-        interpretation = {k: v for k, v in stored_entropy.items() if k != "raw"}
-
+        design = self._data.get("design_overlay", {})
+        
+        # dynamic_data.json atual tem tech_plan.entropy misturado. Vamos extrair "raw" para formar "entropy".
+        imported_entropy = tech_plan.get("entropy", {})
+        raw_entropy = imported_entropy.pop("raw", {"physical": 0.5, "structural": 0.5, "aesthetic": 0.5})
+        
         # Retorna o modelo V2 de Inteligência
         return {
             "entropy": raw_entropy,
             "interpretation": imported_entropy,  # Regime, rhythm, motion_signature
-            "timeline": self._data.get("timeline", []),
-            "render_manifest": self._data.get("render_manifest", {}),
             "creative": {
                 "archetype": tech_plan.get("archetype", "emergence"),
-                "aesthetic_family": design.get("aesthetic_family", "aiox_default"),
+                "aesthetic_family": design.get("aesthetic_family", "aiox_default")
             },
+            "timeline": self._data.get("timeline", []),
+            "seed": int(tech_plan.get("seed", 42) or 42),
         }
 
 # Expor o dicionário unificado diretamente

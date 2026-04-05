@@ -1,9 +1,10 @@
+import hashlib
 import json
 import os
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, TypedDict
 
 from core.tools.engine_adapter import EngineAdapter
 from core.tools.fallback_artifact_renderer import (
@@ -16,6 +17,7 @@ from core.tools.remotion_adapter import RemotionAdapter
 ROOT = Path(__file__).resolve().parent.parent.parent
 MANIM_SCENE_NAME = "EntropyDemo"
 MANIM_SCRIPT_PATH = "scenes/cde_entropy_demo.py"
+PHYSICS_STATE_PATH = ROOT / "output" / "context" / "physics_state.json"
 
 LEGACY_OUTPUT_ALIASES = {
     "short_cinematic_vertical": "CinematicNarrative-v4",
@@ -25,12 +27,48 @@ LEGACY_OUTPUT_ALIASES = {
     "youtube_thumbnail_16_9": "Thumbnail-v4",
 }
 
+RenderMode = Literal["still", "video", "carousel"]
+
+
+class DegradedTarget(TypedDict):
+    target: str
+    mode: str
+    reason: str
+    output: str
+
+
+class RenderOutput(TypedDict, total=False):
+    target: str
+    mode: RenderMode
+    composition: str
+    output: str
+    alias_output: str | None
+    slides: list[str]
+    render_backend: str
+    fallback: bool
+    hero_prepass_used: bool
+    validation_status: str
+    native_validation_passed: bool
+    native_failure_reason: str
+    remotion_skipped: bool
+
+
+class RenderPipelineResult(TypedDict, total=False):
+    ok: bool
+    status: str
+    native_validation_passed: bool
+    errors: list[str]
+    degraded_targets: list[DegradedTarget]
+    outputs: list[RenderOutput]
+
 
 def run_manim(scene_name: str, script_path: str, timeout: int = 120) -> None:
     if os.getenv("AIOX_SKIP_MANIM_PREPASS") == "1":
         print(f"⏩ [Manim Tool] Pulo manual detectado. Ignorando {scene_name}...")
         return
     print(f"💎 [Manim Tool] Renderizando geometria de {scene_name}...")
+    if PHYSICS_STATE_PATH.exists():
+        PHYSICS_STATE_PATH.unlink()
     env = dict(os.environ, PYTHONPATH=str(ROOT))
     cmd = ["manim", "-f", "-qh", script_path, scene_name]
     try:
@@ -98,16 +136,87 @@ def bridge_manim_hero_still(scene_name: str = "HeroStillGeometry", script_path: 
     return False
 
 
+def _load_physics_state_snapshot() -> dict[str, Any] | None:
+    if not PHYSICS_STATE_PATH.exists():
+        return None
+    try:
+        with open(PHYSICS_STATE_PATH, "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+        return data if isinstance(data, dict) else None
+    except Exception:
+        return None
+
+
+def _coerce_seed_value(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value & 0x7FFFFFFF
+    if isinstance(value, float) and value.is_integer():
+        return int(value) & 0x7FFFFFFF
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return None
+        try:
+            return int(stripped) & 0x7FFFFFFF
+        except ValueError:
+            return None
+    return None
+
+
+def _stable_seed_from_payload(payload: Any) -> int:
+    normalized = json.dumps(payload, sort_keys=True, ensure_ascii=True, default=str)
+    digest = hashlib.sha256(normalized.encode("utf-8")).digest()
+    return int.from_bytes(digest[:8], "big") & 0x7FFFFFFF
+
+
+def _derive_runtime_seed(
+    plan: dict[str, Any],
+    artifact_plan: dict[str, Any],
+    briefing: dict[str, Any] | None,
+) -> int:
+    candidates = (
+        (briefing or {}).get("seed"),
+        ((briefing or {}).get("meta") or {}).get("seed"),
+        ((briefing or {}).get("creative_seed") or {}).get("seed"),
+        plan.get("seed"),
+        plan.get("runtime_seed"),
+        artifact_plan.get("seed"),
+    )
+    for candidate in candidates:
+        explicit = _coerce_seed_value(candidate)
+        if explicit is not None:
+            return explicit
+
+    if briefing:
+        payload = {
+            "briefing": briefing,
+            "artifact_plan": artifact_plan.get("primary_target_id"),
+            "targets": artifact_plan.get("requested_targets", []),
+        }
+        return _stable_seed_from_payload(payload)
+
+    payload = {
+        "plan": plan,
+        "artifact_plan": artifact_plan.get("primary_target_id"),
+    }
+    return _stable_seed_from_payload(payload)
+
+
 
 def _write_dynamic_data(
-    plan: dict,
-    artifact_plan: dict | None,
-    render_manifest: dict | None,
-    briefing: dict | None,
-    quality_report: dict | None,
+    plan: dict[str, Any],
+    artifact_plan: dict[str, Any] | None,
+    render_manifest: dict[str, Any] | None,
+    briefing: dict[str, Any] | None,
+    quality_report: dict[str, Any] | None,
+    runtime_seed: int,
 ) -> None:
     dynamic_data_path = ROOT / "assets" / "brand" / "dynamic_data.json"
     dynamic_data_path.parent.mkdir(parents=True, exist_ok=True)
+    context_dir = ROOT / "output" / "context"
+    context_dir.mkdir(parents=True, exist_ok=True)
 
     entropy_package = dict((plan.get("interpretation") or {}))
     if "entropy" in plan:
@@ -117,20 +226,31 @@ def _write_dynamic_data(
         "tech_plan": {
             "archetype": plan.get("archetype"),
             "entropy": entropy_package,
+            "seed": runtime_seed,
         },
         "design_overlay": {
             "aesthetic_family": plan.get("aesthetic_family"),
         },
-        "timeline": plan.get("timeline", []),
-        "llm_scene_plan": plan.get("llm_scene_plan"),
-        "render_manifest": render_manifest or plan.get("render_manifest", {}),
-        "artifact_plan": artifact_plan or plan.get("artifact_plan", {}),
-        "briefing": briefing or {},
-        "quality_report": quality_report or {},
     }
+    timeline = plan.get("timeline", [])
+    if isinstance(timeline, list) and timeline:
+        payload["timeline"] = timeline
 
     with open(dynamic_data_path, "w", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=2)
+
+    snapshots = {
+        "llm_scene_plan.json": plan.get("llm_scene_plan"),
+        "render_manifest.json": render_manifest or plan.get("render_manifest", {}),
+        "artifact_plan.json": artifact_plan or plan.get("artifact_plan", {}),
+        "briefing.json": briefing or {},
+        "quality_report.json": quality_report or {},
+    }
+    for filename, snapshot in snapshots.items():
+        if snapshot in (None, {}, []):
+            continue
+        with open(context_dir / filename, "w", encoding="utf-8") as handle:
+            json.dump(snapshot, handle, indent=2)
 
 
 def _load_style_packs(artifact_plan: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -398,6 +518,7 @@ def _build_target_props(target: dict[str, Any], artifact_plan: dict[str, Any], r
             **(render_manifest.get("audio") or {}),
             "enabled": bool(_target_uses_base_video(target)),
         },
+        "seed": render_manifest.get("seed"),
     }
     if not _target_uses_base_video(target):
         manifest["videoSrc"] = None
@@ -411,6 +532,7 @@ def _build_target_props(target: dict[str, Any], artifact_plan: dict[str, Any], r
         "target": target_id,
         "targetId": target_id,
         "targetKind": target_kind,
+        "seed": render_manifest.get("seed"),
         "frameOverride": target.get("still_frame") if target_kind == "still" else None,
         "resolveWord": story_atoms.get("resolve_word"),
         "postFxProfile": target.get("post_fx_profile"),
@@ -547,7 +669,7 @@ def _fallback_target_render(
     target: dict[str, Any],
     artifact_plan: dict[str, Any],
     canonical_output: Path,
-) -> dict[str, Any]:
+) -> RenderOutput:
     target_id = str(target.get("id", "target")).strip() or "target"
     render_mode = str(target.get("render_mode", "video")).strip().lower()
     manim_base = ROOT / "engines" / "remotion" / "public" / "manim_base.mp4"
@@ -576,14 +698,18 @@ def _fallback_target_render(
 
 
 def render_pipeline(
-    plan: dict,
-    artifact_plan: dict | None = None,
-    briefing: dict | None = None,
-    quality_report: dict | None = None,
-):
+    plan: dict[str, Any],
+    artifact_plan: dict[str, Any] | None = None,
+    briefing: dict[str, Any] | None = None,
+    quality_report: dict[str, Any] | None = None,
+) -> RenderPipelineResult:
     """Encapsula a mecânica dura do antigo Orchestrator."""
     artifact_plan = artifact_plan or plan.get("artifact_plan") or {}
     render_manifest = plan.get("render_manifest") or {}
+    runtime_seed = _derive_runtime_seed(plan, artifact_plan, briefing)
+    plan["runtime_seed"] = runtime_seed
+    if isinstance(render_manifest, dict):
+        render_manifest["seed"] = runtime_seed
 
     if isinstance(quality_report, dict):
         errors = quality_report.get("errors") or []
@@ -591,7 +717,7 @@ def render_pipeline(
             print(f"❌ [Render Tool] Quality gate bloqueou o render: {', '.join(errors)}")
             return {"ok": False, "errors": errors}
 
-    _write_dynamic_data(plan, artifact_plan, render_manifest, briefing, quality_report)
+    _write_dynamic_data(plan, artifact_plan, render_manifest, briefing, quality_report, runtime_seed)
 
     targets = artifact_plan.get("targets", []) if isinstance(artifact_plan, dict) else []
     if not targets:
@@ -606,6 +732,9 @@ def render_pipeline(
         try:
             run_manim(MANIM_SCENE_NAME, MANIM_SCRIPT_PATH)
             bridge_engines(MANIM_SCENE_NAME, MANIM_SCRIPT_PATH)
+            physics_state = _load_physics_state_snapshot()
+            if physics_state is not None:
+                render_manifest["physics_state"] = physics_state
         except subprocess.CalledProcessError as error:
             print(f"❌ [Render Tool] Falha no pre-render do Manim: {error}")
             return {"ok": False, "errors": [str(error)]}
@@ -632,8 +761,8 @@ def render_pipeline(
     else:
         print("🪶 [Render Tool] Nenhum still/carousel ativo exige hero prepass do Manim.")
 
-    outputs: list[dict[str, Any]] = []
-    degraded_native_still_targets: list[dict[str, Any]] = []
+    outputs: list[RenderOutput] = []
+    degraded_native_still_targets: list[DegradedTarget] = []
     remotion_unavailable_reason: str | None = None
 
     adapter: EngineAdapter = RemotionAdapter()

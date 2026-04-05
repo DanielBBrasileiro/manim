@@ -1,156 +1,128 @@
 import json
-import math
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any
+
+import numpy as np
+import pymunk
+
+
+ROOT = Path(__file__).resolve().parent.parent.parent
+
 
 class PhysicsOrchestratorMixin:
-    """
-    Mixin to convert a Manim Scene/SpaceScene into a deterministic Convergence Engine
-    using Pymunk/manim-physics. Supports Adaptive sub-stepping and Universal Gravitation.
-    
-    Can be used by appending to the class definition:
-    `class ChaosToOrderScene(SpaceScene, PhysicsOrchestratorMixin):`
-    """
-    
-    def setup_physics_environment(self, step_size: float = 1/60.0, sub_steps: int = 10) -> None:
-        """
-        Configures the Space's chronological bounds to avoid high-velocity tunneling constraints
-        on M-series chips.
-        """
-        if not hasattr(self, "space"):
-            self._physics_active = False
-            return
-            
-        self._physics_dt = step_size
-        self._sub_steps = sub_steps
-        self._physics_active = True
-        
-    def add_universal_convergence_field(
-        self, 
-        atoms: List[Any], 
-        singularity_pos: Tuple[float, float], 
-        G: float = 1000.0, 
-        singularity_mass: float = 100.0
-    ) -> None:
-        """
-        Infers an Inverse-Square Law gravitation field pulling scattered atoms 
-        towards the brand singularity.
-        
-        Formula: F = G * (m1 * m2) / r^2
-        """
-        if not getattr(self, "_physics_active", False):
-            return
-            
-        def _apply_gravity(mob: Any, dt: float) -> None:
-            if not hasattr(mob, "body") or mob.body is None:
-                return
-                
-            atom_mass = mob.body.mass
-            rx = singularity_pos[0] - mob.body.position.x
-            ry = singularity_pos[1] - mob.body.position.y
-            
-            r_sq = rx**2 + ry**2
-            if r_sq < 0.1:  # Core softening to prevent infinite acceleration tunneling
-                r_sq = 0.1
-                
-            # Newton's Law of Universal Gravitation
-            force_mag = G * (atom_mass * singularity_mass) / r_sq
-            
-            r_dist = math.sqrt(r_sq)
-            fx = force_mag * (rx / r_dist)
-            fy = force_mag * (ry / r_dist)
-            
-            mob.body.apply_force_at_local_point((fx, fy), (0, 0))
+    """Pequeno orquestrador Pymunk para cenas Manim com teardown explícito."""
 
-        for atom in atoms:
-            atom.add_updater(_apply_gravity)
+    _physics_space: pymunk.Space | None = None
+    _physics_bodies: list[pymunk.Body]
+    _physics_shapes: list[pymunk.Shape]
+    _physics_constraints: list[pymunk.Constraint]
+    _physics_seed: int | None = None
+    _physics_rng: np.random.Generator | None = None
 
-    def evaluate_physics_step(self) -> None:
-        """
-        Alternative to default updaters. Allows for explicit decoupled integration.
-        Sub-steps Pymunk logic `self._sub_steps` times per `_physics_dt`.
-        """
-        if getattr(self, "_physics_active", False) and hasattr(self, "space"):
-            sub_dt = self._physics_dt / float(self._sub_steps)
-            for _ in range(self._sub_steps):
-                self.space.step(sub_dt)
-                
-    def get_final_velocity(self, mobject: Any) -> Tuple[float, float]:
-        """
-        Extracts the linear velocity vector (vx, vy) from the Pymunk body
-        at the current simulation state — intended to be called at the last
-        frame of the Genesis act, immediately before act transition.
-        Returns (0.0, 0.0) if no physics body is present.
-        """
-        if not getattr(self, "_physics_active", False):
-            return (0.0, 0.0)
-        if not hasattr(mobject, "body") or mobject.body is None:
-            return (0.0, 0.0)
-        vx, vy = mobject.body.velocity
-        return (float(vx), float(vy))
-
-    def inject_velocity_into_manifest(
+    def setup_physics_environment(
         self,
-        manifest_path: str,
-        mobject: Any,
-        atom_id: str = "genesis_primary",
-    ) -> None:
-        """
-        Writes the final velocity of a Pymunk body into the render_manifest.json
-        under physics_state.initial_velocity. This value is consumed by useAioxSpring
-        on the React side to seed deterministic spring animations with real momentum.
+        *,
+        seed: int,
+        gravity: tuple[float, float] = (0.0, 0.0),
+        damping: float = 0.985,
+        bounds: tuple[float, float, float, float] = (-6.4, 6.4, -3.6, 3.6),
+    ) -> pymunk.Space:
+        self._physics_seed = int(seed)
+        self._physics_rng = np.random.default_rng(self._physics_seed)
+        self._physics_bodies = []
+        self._physics_shapes = []
+        self._physics_constraints = []
 
-        Layout injected into manifest:
-            physics_state: {
-                initial_velocity: {
-                    vx: float,       # raw Pymunk x-velocity (abstract units)
-                    vy: float,       # raw Pymunk y-velocity (abstract units)
-                    magnitude: float # scalar for useAioxSpring.externalVelocity
-                },
-                atom_id: str         # which atom produced this velocity
-            }
-        """
-        vx, vy = self.get_final_velocity(mobject)
-        magnitude = math.sqrt(vx ** 2 + vy ** 2)
+        space = pymunk.Space(threaded=False)
+        space.gravity = gravity
+        space.damping = damping
+        self._physics_space = space
+        self._add_world_bounds(bounds)
+        return space
 
-        manifest_file = Path(manifest_path)
-        if not manifest_file.exists():
-            print(
-                f"⚠️ [PhysicsMixin] render_manifest.json não encontrado em "
-                f"{manifest_path} — velocity não injetada."
-            )
-            return
+    def _add_world_bounds(self, bounds: tuple[float, float, float, float]) -> None:
+        if self._physics_space is None:
+            raise RuntimeError("Physics environment not initialized.")
+        xmin, xmax, ymin, ymax = bounds
+        static_body = self._physics_space.static_body
+        segments = [
+            pymunk.Segment(static_body, (xmin, ymin), (xmax, ymin), 0.05),
+            pymunk.Segment(static_body, (xmax, ymin), (xmax, ymax), 0.05),
+            pymunk.Segment(static_body, (xmax, ymax), (xmin, ymax), 0.05),
+            pymunk.Segment(static_body, (xmin, ymax), (xmin, ymin), 0.05),
+        ]
+        for segment in segments:
+            segment.elasticity = 0.82
+            segment.friction = 0.12
+        self._physics_space.add(*segments)
+        self._physics_shapes.extend(segments)
 
-        with open(manifest_file, "r", encoding="utf-8") as f:
-            manifest: Dict[str, Any] = json.load(f)
+    def create_probe_body(
+        self,
+        *,
+        position: tuple[float, float],
+        velocity: tuple[float, float],
+        mass: float = 1.0,
+        radius: float = 0.18,
+        elasticity: float = 0.82,
+        friction: float = 0.12,
+    ) -> pymunk.Body:
+        if self._physics_space is None:
+            raise RuntimeError("Physics environment not initialized.")
+        moment = pymunk.moment_for_circle(mass, 0.0, radius)
+        body = pymunk.Body(mass, moment)
+        body.position = position
+        body.velocity = velocity
+        shape = pymunk.Circle(body, radius)
+        shape.elasticity = elasticity
+        shape.friction = friction
+        self._physics_space.add(body, shape)
+        self._physics_bodies.append(body)
+        self._physics_shapes.append(shape)
+        return body
 
-        manifest["physics_state"] = {
-            "initial_velocity": {
-                "vx": round(vx, 6),
-                "vy": round(vy, 6),
-                "magnitude": round(magnitude, 6),
+    def evaluate_physics_step(self, *, dt: float, steps: int = 1) -> None:
+        if self._physics_space is None:
+            raise RuntimeError("Physics environment not initialized.")
+        for _ in range(max(steps, 1)):
+            self._physics_space.step(dt)
+
+    def capture_physics_state(self, body: pymunk.Body, *, label: str = "probe") -> dict[str, Any]:
+        vx, vy = float(body.velocity.x), float(body.velocity.y)
+        speed = float(np.hypot(vx, vy))
+        return {
+            "label": label,
+            "seed": self._physics_seed,
+            "position": {
+                "x": float(body.position.x),
+                "y": float(body.position.y),
             },
-            "atom_id": atom_id,
+            "velocity": {
+                "x": vx,
+                "y": vy,
+                "magnitude": speed,
+            },
+            "normalized_velocity": float(np.clip(speed / 420.0, 0.0, 1.0)),
         }
 
-        with open(manifest_file, "w", encoding="utf-8") as f:
-            json.dump(manifest, f, indent=2)
-
-        print(
-            f"⚡ [PhysicsMixin] Velocity injetada → atom='{atom_id}' "
-            f"vx={vx:.3f} vy={vy:.3f} |v|={magnitude:.3f}"
-        )
+    def export_physics_state(self, payload: dict[str, Any]) -> Path:
+        output_path = ROOT / "output" / "context" / "physics_state.json"
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_path, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, indent=2)
+        return output_path
 
     def teardown_physics(self) -> None:
-        """
-        Scorched earth cleanup policy for physical bodies to prevent memory leaks 
-        during heavy multi-briefing compilation queues.
-        """
-        if getattr(self, "_physics_active", False) and hasattr(self, "space"):
-            if self.space.bodies:
-                self.space.remove(*self.space.bodies)
-            if self.space.shapes:
-                self.space.remove(*self.space.shapes)
-            if self.space.constraints:
-                self.space.remove(*self.space.constraints)
-            self._physics_active = False
+        if self._physics_space is None:
+            return
+        removable = [*self._physics_constraints, *self._physics_shapes, *self._physics_bodies]
+        if removable:
+            try:
+                self._physics_space.remove(*removable)
+            except Exception:
+                pass
+        self._physics_constraints = []
+        self._physics_shapes = []
+        self._physics_bodies = []
+        self._physics_space = None
+        self._physics_rng = None

@@ -163,17 +163,15 @@ class ParticlePool(VGroup):
         self._alive = np.zeros(max_particles, dtype=bool)
         self._emit_accumulator = 0.0
         self._time = 0.0
-        self._timeline_duration = 8.0
-        self._active_signature = None
 
         # Conecta a Inteligência Semântica da Zona Zara
         from core.primitives.theme_loader import intelligence
         self._intelligence = intelligence
+        self._seed = int(seed if seed is not None else self._intelligence.get("seed", 42))
+        self._rng = np.random.default_rng(self._seed)
         
         signature = self._intelligence.get("interpretation", {}).get("motion_signature", "breathing_field")
         timeline = self._intelligence.get("timeline")
-        self._base_signature = signature
-        self._timeline = timeline
         
         # Ajustes orgânicos baseados na "Personality" do movimento inicial
         if signature == "elastic_snap":
@@ -181,7 +179,14 @@ class ParticlePool(VGroup):
         elif signature == "breathing_field":
             self.damping *= 1.5  # Mais arrasto, lento
             
-        self._set_noise_source(signature, use_timeline=bool(timeline))
+        # Noise field para variância orgânica (Assinatura Semântica Temporal ou Baseline)
+        from core.primitives.fields import AIOXNoiseField, TemporalNoiseField
+        
+        if timeline:
+            print("⏳ [TemporalEngine] Inicializando motor contínuo 0s~10s na piscina de partículas.")
+            self._noise = TemporalNoiseField(timeline=timeline, duration=8.0, seed=self._seed)
+        else:
+            self._noise = AIOXNoiseField(signature=signature, seed=self._seed)
 
         # Dots Manim pré-alocados (pool estático para performance)
         self._dots = [
@@ -193,127 +198,30 @@ class ParticlePool(VGroup):
 
         self.add_updater(self._update)
 
-    def _set_noise_source(self, signature: str, use_timeline: bool = False):
-        """Atualiza a fonte de ruído sem reinicializar o pool."""
-        from core.primitives.fields import AIOXNoiseField, TemporalNoiseField
-
-        if use_timeline and self._timeline:
-            print("⏳ [TemporalEngine] Inicializando motor contínuo 0s~10s na piscina de partículas.")
-            self._noise = TemporalNoiseField(timeline=self._timeline, duration=self._timeline_duration)
-            self._active_signature = "timeline"
-        else:
-            self._noise = AIOXNoiseField(signature=signature)
-            self._active_signature = signature
-
-    def set_particle_color(self, color) -> "ParticlePool":
-        self.particle_color = color
-        for dot in self._dots:
-            dot.set_color(color)
-        return self
-
-    def set_motion_signature(self, signature: str, use_timeline: bool = False) -> "ParticlePool":
-        self._set_noise_source(signature, use_timeline=use_timeline)
-        return self
-
-    def set_act_profile(
-        self,
-        act_name: str,
-        *,
-        signature: Optional[str] = None,
-        emit_rate: Optional[float] = None,
-        emitter_spread: Optional[float] = None,
-        damping: Optional[float] = None,
-        gravity=None,
-        lifetime_range: Optional[tuple] = None,
-        bounds=None,
-        color=None,
-    ) -> "ParticlePool":
-        """
-        Reconfigura o pool para um ato narrativo sem recriar as partículas.
-
-        Perfis default:
-          - genesis: nascente, coeso, baixa densidade
-          - turbulence: expansão, ruptura, alta energia
-          - resolution: convergência, disciplina e limpeza
-        """
-        presets = {
-            "genesis": {
-                "signature": "breathing_field",
-                "emit_rate": 24,
-                "emitter_spread": 0.14,
-                "damping": 0.22,
-                "gravity": [0.0, 0.02, 0.0],
-                "lifetime_range": (2.4, 4.8),
-            },
-            "turbulence": {
-                "signature": "chaotic_burst",
-                "emit_rate": 110,
-                "emitter_spread": 1.8,
-                "damping": 0.05,
-                "gravity": [0.0, -0.08, 0.0],
-                "lifetime_range": (1.1, 3.2),
-            },
-            "resolution": {
-                "signature": "convergence_field",
-                "emit_rate": 36,
-                "emitter_spread": 0.28,
-                "damping": 0.28,
-                "gravity": [0.0, 0.0, 0.0],
-                "lifetime_range": (1.6, 3.8),
-            },
-        }
-        config = dict(presets.get(act_name, {}))
-        overrides = {
-            "signature": signature,
-            "emit_rate": emit_rate,
-            "emitter_spread": emitter_spread,
-            "damping": damping,
-            "gravity": gravity,
-            "lifetime_range": lifetime_range,
-            "bounds": bounds,
-            "color": color,
-        }
-        for key, value in overrides.items():
-            if value is not None:
-                config[key] = value
-
-        next_signature = config.get("signature", self._base_signature)
-        self.set_motion_signature(next_signature)
-        self.emit_rate = config.get("emit_rate", self.emit_rate)
-        self.emitter_spread = config.get("emitter_spread", self.emitter_spread)
-        self.damping = config.get("damping", self.damping)
-        if "gravity" in config:
-            self.gravity_vec = np.array(config["gravity"], dtype=float)
-        if "lifetime_range" in config:
-            self.lifetime_range = tuple(config["lifetime_range"])
-        if "bounds" in config:
-            self.bounds = np.array(config["bounds"], dtype=float)
-        if "color" in config:
-            self.set_particle_color(config["color"])
-        return self
-
     def _emit_particle(self, index: int):
         spread = self.emitter_spread
-        self._positions[index] = self.emitter_pos + self._rng.uniform(-spread, spread, 3) * [1, 1, 0]
-
+        rng = self._rng
+        self._positions[index] = self.emitter_pos + rng.uniform(-spread, spread, 3) * [1, 1, 0]
+        
         # Velocidade atrelada à entropia física bruta (a intensidade verdadeira)
         phys = self._intelligence.get("entropy", {}).get("physical", 0.5)
         speed = np.interp(phys, [0, 1], [0.3, 2.5])
-
+        
         # O Regime Comportamental e flow direcionam a dispersão
         flow = self._intelligence.get("interpretation", {}).get("flow", "nonlinear")
         if flow == "linear":
-            angle = self._rng.uniform(-np.pi / 16, np.pi / 16)
+            # Emissão direcional
+            angle = rng.uniform(-np.pi/16, np.pi/16)
         else:
-            angle = self._rng.uniform(0, 2 * np.pi)
-
+            angle = rng.uniform(0, 2 * np.pi)
+            
         self._velocities[index] = np.array([
-            np.cos(angle) * speed * self._rng.uniform(0.5, 1.5),
-            np.sin(angle) * speed * self._rng.uniform(0.5, 1.5),
-            0,
+            np.cos(angle) * speed * rng.uniform(0.5, 1.5),
+            np.sin(angle) * speed * rng.uniform(0.5, 1.5),
+            0
         ])
         lmin, lmax = self.lifetime_range
-        self._lifetimes[index] = self._rng.uniform(lmin, lmax)
+        self._lifetimes[index] = rng.uniform(lmin, lmax)
         self._alive[index] = True
 
     def _find_dead(self) -> Optional[int]:
@@ -378,12 +286,133 @@ class ParticlePool(VGroup):
     def engine(self) -> str:
         return "numba_jit" if _HAS_NUMBA else "numpy"
 
-__all__ = ["ParticlePool", "TrailPool"]
 
+# ── Trail Pool ────────────────────────────────────────────────────────────────
 
-def __getattr__(name: str):
-    if name == "TrailPool":
-        from .trail_pool import TrailPool as extracted_trail_pool
+class TrailPool(VGroup):
+    """
+    Variante do ParticlePool com rastros temporais.
+    Cada partícula deixa uma trilha de pontos que fadeia com o tempo.
 
-        return extracted_trail_pool
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    Ideal para: fluxo de dados, trajetórias de partículas, wind trails.
+
+    Args:
+        trail_length: Número de pontos no rastro de cada partícula.
+        (demais args idênticos ao ParticlePool)
+    """
+
+    def __init__(
+        self,
+        max_particles: int = 80,
+        trail_length: int = 12,
+        emitter_pos=None,
+        entropy: float = 0.5,
+        lifetime_range: tuple = (3.0, 6.0),
+        emit_rate: float = 15,
+        color=WHITE,
+        bounds=(-7, 7, -4, 4),
+        gravity=None,
+        damping: float = 0.1,
+        seed: Optional[int] = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.max_particles = max_particles
+        self.trail_length = trail_length
+        self.emitter_pos = np.array(emitter_pos if emitter_pos is not None else [0, 0, 0], dtype=float)
+        self.entropy = entropy
+        self.lifetime_range = lifetime_range
+        self.emit_rate = emit_rate
+        self.trail_color = color
+        self.bounds_arr = np.array(bounds, dtype=float)
+        self.gravity_vec = np.array(gravity if gravity is not None else [0, 0, 0], dtype=float)
+        self.damping = damping
+
+        self._positions = np.zeros((max_particles, 3))
+        self._velocities = np.zeros((max_particles, 3))
+        self._lifetimes = np.zeros(max_particles)
+        self._alive = np.zeros(max_particles, dtype=bool)
+        # Histórico de posições para o rastro
+        self._history = np.zeros((max_particles, trail_length, 3))
+        self._emit_acc = 0.0
+        self._time = 0.0
+
+        from core.primitives.theme_loader import intelligence
+        self._seed = int(seed if seed is not None else intelligence.get("seed", 42))
+        self._rng = np.random.default_rng(self._seed)
+        signature = intelligence.get("interpretation", {}).get("motion_signature", "breathing_field")
+        timeline = intelligence.get("timeline")
+
+        from core.primitives.fields import AIOXNoiseField, TemporalNoiseField
+        if timeline:
+            self._noise = TemporalNoiseField(timeline=timeline, duration=8.0, seed=self._seed)
+        else:
+            self._noise = AIOXNoiseField(signature=signature, seed=self._seed)
+
+        # Pré-aloca linhas de rastro
+        self._trails = [
+            VGroup(*[
+                Dot(radius=0.015, color=color, fill_opacity=0)
+                for _ in range(trail_length)
+            ])
+            for _ in range(max_particles)
+        ]
+        for trail in self._trails:
+            self.add(trail)
+
+        self.add_updater(self._update)
+
+    def _emit(self, idx: int):
+        spread = float(np.interp(self.entropy, [0, 1], [0.1, 0.6]))
+        self._positions[idx] = self.emitter_pos + self._rng.uniform(-spread, spread, 3) * [1, 1, 0]
+        speed = float(np.interp(self.entropy, [0, 1], [0.5, 2.5]))
+        angle = self._rng.uniform(0, 2 * np.pi)
+        self._velocities[idx] = [np.cos(angle) * speed, np.sin(angle) * speed, 0]
+        lmin, lmax = self.lifetime_range
+        self._lifetimes[idx] = self._rng.uniform(lmin, lmax)
+        self._alive[idx] = True
+        self._history[idx] = self._positions[idx]
+
+    def _update(self, mob, dt: float):
+        dt = min(dt, 0.05)
+        self._time += dt
+        self._emit_acc += dt * self.emit_rate
+
+        while self._emit_acc >= 1.0:
+            dead = np.where(~self._alive)[0]
+            if len(dead):
+                self._emit(int(dead[0]))
+            self._emit_acc -= 1.0
+
+        alive_idx = np.where(self._alive)[0]
+        noise_vecs = np.zeros((self.max_particles, 3))
+        for i in alive_idx:
+            noise_vecs[i] = self._noise.get_vector(self._positions[i], self._time)
+
+        _step_particles_jit(
+            self._positions, self._velocities, self._lifetimes, self._alive,
+            self.gravity_vec, noise_vecs, self.damping, dt,
+            self.bounds_arr, 0.5,
+        )
+
+        # Atualiza histórico e rastros visuais
+        for i in alive_idx:
+            # Shift history (mais recente no início)
+            self._history[i] = np.roll(self._history[i], 1, axis=0)
+            self._history[i, 0] = self._positions[i]
+
+            lmin, lmax = self.lifetime_range
+            life_t = np.clip(self._lifetimes[i] / lmax, 0, 1)
+
+            for j, dot in enumerate(self._trails[i]):
+                age = j / max(self.trail_length - 1, 1)
+                opacity = float(np.interp(age, [0, 1], [0.9 * life_t, 0.0]))
+                radius = float(np.interp(age, [0, 1], [0.02, 0.006]))
+                dot.move_to(self._history[i, j])
+                dot.set_fill(opacity=opacity)
+                dot.width = radius * 2
+
+        # Esconde partículas mortas
+        for i in np.where(~self._alive)[0]:
+            for dot in self._trails[i]:
+                dot.set_fill(opacity=0)

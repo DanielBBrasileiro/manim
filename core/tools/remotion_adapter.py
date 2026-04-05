@@ -1,7 +1,9 @@
 """Remotion engine adapter — wraps daemon, CLI and direct subprocess paths."""
 import json
 import os
+import socket
 import subprocess
+import tempfile
 import time
 import urllib.request
 from pathlib import Path
@@ -38,27 +40,41 @@ def _runner() -> str:
 
 
 def _build_env(
-    props: dict[str, Any] | None = None,
+    props_path: Path | None = None,
+    props_json: dict[str, Any] | None = None,
     *,
     timeout_seconds: int | None = None,
     concurrency: int | None = None,
 ) -> dict[str, str]:
     env = dict(os.environ)
     env.setdefault("AIOX_REMOTION_REUSE_BUNDLE", "1")
-    if props is not None:
-        env["REMOTION_INPUT_PROPS_JSON"] = json.dumps(props)
-        try:
-            audit_path = ROOT / "output" / "video" / "audit_manifest.json"
-            audit_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(audit_path, "w") as fh:
-                json.dump(props, fh, indent=2)
-        except Exception:
-            pass
+    if props_path is not None:
+        env["REMOTION_INPUT_PROPS_PATH"] = str(props_path)
+    if props_json is not None:
+        env["REMOTION_INPUT_PROPS_JSON"] = json.dumps(props_json)
     if timeout_seconds is not None:
         env["REMOTION_RENDER_TIMEOUT_MS"] = str(max(timeout_seconds, 1) * 1000)
     if concurrency is not None:
         env.setdefault("REMOTION_CONCURRENCY", str(concurrency))
     return env
+
+
+def _write_props_file(props: dict[str, Any]) -> Path | None:
+    try:
+        props_dir = ROOT / "output" / "remotion_props"
+        props_dir.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            suffix=".json",
+            prefix="props_",
+            dir=props_dir,
+            delete=False,
+        ) as handle:
+            json.dump(props, handle, indent=2)
+            return Path(handle.name)
+    except Exception:
+        return None
 
 
 def _run_direct_node(args: list[str], timeout: int | None = None) -> subprocess.CompletedProcess:
@@ -82,6 +98,15 @@ def _ping_daemon(timeout_seconds: float = 1.5) -> bool:
         return False
 
 
+def _port_is_open(timeout_seconds: float = 0.5) -> bool:
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(timeout_seconds)
+    try:
+        return sock.connect_ex(("127.0.0.1", _DAEMON_PORT)) == 0
+    finally:
+        sock.close()
+
+
 def _start_daemon() -> None:
     runner = _runner()
     daemon_script = str(ROOT / "scripts" / "remotion_daemon.js")
@@ -103,14 +128,18 @@ def _start_daemon() -> None:
 def _ensure_daemon(timeout_seconds: int = _DEFAULT_DAEMON_BOOT_TIMEOUT) -> bool:
     if _ping_daemon():
         print(f"⚡ [Remotion] Daemon quente em {_DAEMON_URL}.")
-        try:
-            req = urllib.request.Request(
-                f"{_DAEMON_URL}/warm", data=b"{}", headers={"Content-Type": "application/json"}
-            )
-            urllib.request.urlopen(req, timeout=1.5).read()
-        except Exception:
-            pass
         return True
+
+    deadline = time.time() + max(timeout_seconds, 1)
+    if _port_is_open():
+        print(f"⏳ [Remotion] Porta {_DAEMON_PORT} já está ocupada. Aguardando daemon existente...")
+        while time.time() < deadline:
+            if _ping_daemon():
+                print(f"⚡ [Remotion] Daemon respondeu em {_DAEMON_URL}.")
+                return True
+            time.sleep(0.25)
+        print("⚠️ [Remotion] Porta ocupada, mas o daemon não respondeu. Voltando para subprocess.")
+        return False
 
     print(f"🚀 [Remotion] Iniciando daemon em {_DAEMON_URL}...")
     try:
@@ -119,17 +148,9 @@ def _ensure_daemon(timeout_seconds: int = _DEFAULT_DAEMON_BOOT_TIMEOUT) -> bool:
         print(f"⚠️ [Remotion] Falha ao iniciar daemon: {err}")
         return False
 
-    deadline = time.time() + max(timeout_seconds, 1)
     while time.time() < deadline:
         if _ping_daemon():
             print("✅ [Remotion] Daemon pronto.")
-            try:
-                req = urllib.request.Request(
-                    f"{_DAEMON_URL}/warm", data=b"{}", headers={"Content-Type": "application/json"}
-                )
-                urllib.request.urlopen(req, timeout=1.5).read()
-            except Exception:
-                pass
             return True
         time.sleep(0.25)
 
@@ -142,6 +163,7 @@ def _run_via_daemon(
     composition: str,
     output_path: Path,
     props: dict[str, Any],
+    props_path: Path | None,
     timeout_seconds: int,
 ) -> bool:
     try:
@@ -152,7 +174,8 @@ def _run_via_daemon(
                 "command": command,
                 "requestedCompositionId": composition,
                 "outputLocation": str(output_path),
-                "inputProps": props,
+                "propsPath": str(props_path) if props_path else None,
+                "inputProps": props if props_path is None else None,
             }
         ).encode("utf-8")
         req = urllib.request.Request(
@@ -182,15 +205,21 @@ def _run_command(
     runner = _runner()
     render_mode = os.getenv("AIOX_REMOTION_RENDER_MODE", "auto").strip().lower()
     effective_timeout = max(cli_timeout_seconds, direct_timeout_seconds)
+    props_path = _write_props_file(props)
 
     if os.getenv("AIOX_SKIP_REMOTION") == "1":
         raise RuntimeError("Remotion skipped by user")
 
     if render_mode in ("auto", "daemon"):
-        if _run_via_daemon(command, composition, output_path, props, effective_timeout):
+        if _run_via_daemon(command, composition, output_path, props, props_path, effective_timeout):
             return
 
-    env = _build_env(props, timeout_seconds=effective_timeout, concurrency=concurrency)
+    env = _build_env(
+        props_path=props_path,
+        props_json=props if props_path is None else None,
+        timeout_seconds=effective_timeout,
+        concurrency=concurrency,
+    )
     cli_cmd = [
         "/bin/zsh",
         "-lc",
