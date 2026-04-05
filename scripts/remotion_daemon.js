@@ -1,11 +1,9 @@
 #!/usr/bin/env node
 
 const fs = require("node:fs");
+const http = require("node:http");
 const os = require("node:os");
 const path = require("node:path");
-const express = require("express");
-const cors = require("cors");
-const bodyParser = require("body-parser");
 
 const ROOT = path.resolve(__dirname, "..");
 const REMOTION_ROOT = path.join(ROOT, "engines", "remotion");
@@ -13,7 +11,7 @@ const ENTRY_POINT = path.join(REMOTION_ROOT, "src", "index.tsx");
 const PUBLIC_DIR = path.join(REMOTION_ROOT, "public");
 const BUNDLE_CACHE_DIR = path.join(REMOTION_ROOT, ".bundle-cache");
 const BUNDLE_CACHE_MANIFEST = path.join(BUNDLE_CACHE_DIR, "bundle-manifest.json");
-const DEFAULT_COMPOSITION = "short-cinematic-vertical";
+const DEFAULT_COMPOSITION = "CinematicNarrative-v4";
 const DEFAULT_TIMEOUT_MS = Number(process.env.REMOTION_RENDER_TIMEOUT_MS || "60000");
 const USE_RSPACK = process.env.AIOX_REMOTION_USE_RSPACK === "1";
 const SYSTEM_CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
@@ -23,38 +21,38 @@ const BUNDLER_DIST = path.join(REMOTION_ROOT, "node_modules", "@remotion", "bund
 const RENDERER_DIST = path.join(REMOTION_ROOT, "node_modules", "@remotion", "renderer", "dist");
 
 const TARGET_ALIASES = {
-  cinematicnarrative: "short-cinematic-vertical",
-  cinematic_narrative: "short-cinematic-vertical",
-  cinematicnarrative_v4: "short-cinematic-vertical",
-  cinematic_narrative_v4: "short-cinematic-vertical",
-  shortcinematic: "short-cinematic-vertical",
-  short_cinematic: "short-cinematic-vertical",
-  short_cinematic_vertical: "short-cinematic-vertical",
-  "short-cinematic": "short-cinematic-vertical",
-  "short-cinematic-vertical": "short-cinematic-vertical",
-  linkedinstill: "linkedin-feed-4-5",
-  linkedin_still: "linkedin-feed-4-5",
-  linkedinstill_v4: "linkedin-feed-4-5",
-  linkedin_feed_4_5: "linkedin-feed-4-5",
-  "linkedin-still": "linkedin-feed-4-5",
-  "linkedin-feed-4-5": "linkedin-feed-4-5",
-  carouselslide: "linkedin-carousel-square",
-  carousel_slide: "linkedin-carousel-square",
-  carouselslide_v4: "linkedin-carousel-square",
-  linkedin_carousel_square: "linkedin-carousel-square",
-  "carousel-slide": "linkedin-carousel-square",
-  "linkedin-carousel-square": "linkedin-carousel-square",
-  youtubessay: "youtube-essay-16-9",
-  youtube_essay: "youtube-essay-16-9",
-  youtubessay_v4: "youtube-essay-16-9",
-  youtube_essay_16_9: "youtube-essay-16-9",
-  "youtube-essay": "youtube-essay-16-9",
-  "youtube-essay-16-9": "youtube-essay-16-9",
-  thumbnail: "youtube-thumbnail-16-9",
-  youtube_thumbnail: "youtube-thumbnail-16-9",
-  thumbnail_v4: "youtube-thumbnail-16-9",
-  youtube_thumbnail_16_9: "youtube-thumbnail-16-9",
-  "youtube-thumbnail-16-9": "youtube-thumbnail-16-9",
+  cinematicnarrative: DEFAULT_COMPOSITION,
+  cinematic_narrative: DEFAULT_COMPOSITION,
+  cinematicnarrative_v4: DEFAULT_COMPOSITION,
+  cinematic_narrative_v4: DEFAULT_COMPOSITION,
+  shortcinematic: DEFAULT_COMPOSITION,
+  short_cinematic: DEFAULT_COMPOSITION,
+  short_cinematic_vertical: DEFAULT_COMPOSITION,
+  "short-cinematic": DEFAULT_COMPOSITION,
+  "short-cinematic-vertical": DEFAULT_COMPOSITION,
+  linkedinstill: DEFAULT_COMPOSITION,
+  linkedin_still: DEFAULT_COMPOSITION,
+  linkedinstill_v4: DEFAULT_COMPOSITION,
+  linkedin_feed_4_5: DEFAULT_COMPOSITION,
+  "linkedin-still": DEFAULT_COMPOSITION,
+  "linkedin-feed-4-5": DEFAULT_COMPOSITION,
+  carouselslide: DEFAULT_COMPOSITION,
+  carousel_slide: DEFAULT_COMPOSITION,
+  carouselslide_v4: DEFAULT_COMPOSITION,
+  linkedin_carousel_square: DEFAULT_COMPOSITION,
+  "carousel-slide": DEFAULT_COMPOSITION,
+  "linkedin-carousel-square": DEFAULT_COMPOSITION,
+  youtubessay: DEFAULT_COMPOSITION,
+  youtube_essay: DEFAULT_COMPOSITION,
+  youtubessay_v4: DEFAULT_COMPOSITION,
+  youtube_essay_16_9: DEFAULT_COMPOSITION,
+  "youtube-essay": DEFAULT_COMPOSITION,
+  "youtube-essay-16-9": DEFAULT_COMPOSITION,
+  thumbnail: DEFAULT_COMPOSITION,
+  youtube_thumbnail: DEFAULT_COMPOSITION,
+  thumbnail_v4: DEFAULT_COMPOSITION,
+  youtube_thumbnail_16_9: DEFAULT_COMPOSITION,
+  "youtube-thumbnail-16-9": DEFAULT_COMPOSITION,
 };
 
 const normalizeCompositionId = (value) => {
@@ -63,7 +61,7 @@ const normalizeCompositionId = (value) => {
     .toLowerCase()
     .replace(/[\s-]+/g, "_")
     .replace(/[^a-z0-9_]/g, "");
-  return TARGET_ALIASES[normalized] || normalized || DEFAULT_COMPOSITION;
+  return TARGET_ALIASES[normalized] || value || DEFAULT_COMPOSITION;
 };
 
 const resolveBrowserExecutable = () => {
@@ -283,26 +281,47 @@ const loadCompositions = async (serveUrl, inputProps) => {
   return await getCompositions(serveUrl, { ...makeRendererOptions(), inputProps });
 };
 
-// EXPRESS SERVER
-const app = express();
-app.use(cors());
-app.use(bodyParser.json({ limit: "50mb" }));
-
-app.get("/health", async (_req, res) => {
-  res.json({
-    ok: true,
-    browserExecutable,
-    bundleReady: Boolean(_cachedBundleUrl),
-    bundleWarming: Boolean(_bundlePromise),
-    serveUrl: _cachedBundleUrl,
+const sendJson = (res, statusCode, payload) => {
+  res.writeHead(statusCode, {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
   });
-});
+  res.end(JSON.stringify(payload));
+};
 
-app.post("/render", async (req, res) => {
+const readJsonBody = (req) =>
+  new Promise((resolve, reject) => {
+    let body = "";
+    req.setEncoding("utf8");
+    req.on("data", (chunk) => {
+      body += chunk;
+      if (body.length > 50 * 1024 * 1024) {
+        reject(new Error("Request body too large"));
+        req.destroy();
+      }
+    });
+    req.on("end", () => {
+      if (!body) {
+        resolve({});
+        return;
+      }
+      try {
+        resolve(JSON.parse(body));
+      } catch (error) {
+        reject(error);
+      }
+    });
+    req.on("error", reject);
+  });
+
+const handleRender = async (body, res) => {
   try {
-    const { command, requestedCompositionId, outputLocation, inputProps } = req.body;
+    const { command, requestedCompositionId, outputLocation, inputProps } = body;
     if (!["render", "still"].includes(command)) {
-      return res.status(400).json({ ok: false, error: "Invalid command" });
+      sendJson(res, 400, { ok: false, error: "Invalid command" });
+      return;
     }
     
     const compositionId = normalizeCompositionId(requestedCompositionId);
@@ -319,7 +338,8 @@ app.post("/render", async (req, res) => {
     const compositions = await loadCompositions(serveUrl, inputProps || {});
     const composition = compositions.find((c) => c.id === compositionId);
     if (!composition) {
-      return res.status(404).json({ ok: false, error: `Composition not found: ${compositionId}` });
+      sendJson(res, 404, { ok: false, error: `Composition not found: ${compositionId}` });
+      return;
     }
 
     fs.mkdirSync(path.dirname(finalOutputLocation), { recursive: true });
@@ -353,25 +373,70 @@ app.post("/render", async (req, res) => {
     }
 
     if (!fs.existsSync(finalOutputLocation) || fs.statSync(finalOutputLocation).size === 0) {
-      return res.status(500).json({ ok: false, error: "Render resulted in missing or empty file" });
+      sendJson(res, 500, { ok: false, error: "Render resulted in missing or empty file" });
+      return;
     }
 
-    res.json({ ok: true, outputLocation: finalOutputLocation });
-
+    sendJson(res, 200, { ok: true, outputLocation: finalOutputLocation });
   } catch (error) {
     console.error("[Daemon] Error:", error);
-    res.status(500).json({ ok: false, error: error.message || String(error) });
+    sendJson(res, 500, { ok: false, error: error.message || String(error) });
   }
+};
+
+const PORT = Number(process.env.REMOTION_DAEMON_PORT || "3333");
+const server = http.createServer(async (req, res) => {
+  if (!req.url) {
+    sendJson(res, 400, { ok: false, error: "Missing URL" });
+    return;
+  }
+
+  if (req.method === "OPTIONS") {
+    sendJson(res, 204, {});
+    return;
+  }
+
+  if (req.method === "GET" && req.url === "/health") {
+    sendJson(res, 200, {
+      ok: true,
+      browserExecutable,
+      bundleReady: Boolean(_cachedBundleUrl),
+      bundleWarming: Boolean(_bundlePromise),
+      serveUrl: _cachedBundleUrl,
+    });
+    return;
+  }
+
+  if (req.method === "POST" && req.url === "/warm") {
+    const wasReady = Boolean(_cachedBundleUrl);
+    const wasWarming = Boolean(_bundlePromise);
+    sendJson(res, wasReady ? 200 : 202, {
+      ok: true,
+      bundleReady: wasReady,
+      bundleWarming: wasWarming || !wasReady,
+    });
+    setTimeout(() => {
+      ensureBundle().catch((error) => {
+        console.error("[Daemon] Warmup failed:", error);
+      });
+    }, 0);
+    return;
+  }
+
+  if (req.method === "POST" && req.url === "/render") {
+    try {
+      const body = await readJsonBody(req);
+      await handleRender(body, res);
+    } catch (error) {
+      sendJson(res, 400, { ok: false, error: error.message || String(error) });
+    }
+    return;
+  }
+
+  sendJson(res, 404, { ok: false, error: "Not found" });
 });
 
-const PORT = 3333;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 AIOX Remotion Daemon v5.0 started on port ${PORT}`);
-  ensureBundle()
-    .then(() => {
-      console.log(`✅ Daemon is hot and ready for 500ms zero-bundle renders!`);
-    })
-    .catch((error) => {
-      console.error("[Daemon] Startup warmup failed:", error);
-    });
+  console.log("[Daemon] Health endpoint ready; warmup is now explicit via POST /warm or first /render.");
 });
