@@ -1401,6 +1401,8 @@ def _build_act_windows(duration: float, plan: dict, narrative_contract: dict) ->
                 "id": act_id,
                 "start_sec": start,
                 "end_sec": end,
+                "overlap_buffer_ms": 300 if index > 0 else 0,
+                "transition_pattern": "fade_through" if index > 0 else "entrance",
                 "emotion": act_contract.get("emotion", DEFAULT_EMOTION_BY_ACT[act_id]),
                 "behavior": behavior,
                 "tension": tension or DEFAULT_TENSION_BY_ACT[act_id],

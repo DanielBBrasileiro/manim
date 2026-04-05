@@ -63,21 +63,30 @@ const interpolate = (from: number, to: number, amount: number): number => from +
 
 const computeTracking = (
 	role: ScaleRole,
+	fontSizePx: number,
 	system: TypographySystemContract,
 ): string => {
-	const display = parseEm(system.tracking_at_display);
-	const body = parseEm(system.tracking_at_body);
-
-	switch (role) {
-		case 'display':
-			return toEm(display);
-		case 'title':
-			return toEm(interpolate(display, body, 0.55));
-		case 'caption':
-			return toEm(body + Math.abs(display - body) * 0.3);
-		case 'body':
-		default:
-			return toEm(body);
+	// Fallback to system contracts if explicitly defined and not generic
+	if (system.tracking_at_display && system.tracking_at_display !== '0em' && role === 'display') {
+		return toEm(parseEm(system.tracking_at_display));
+	}
+	
+	// MD3 Optical Sizing Dynamic Calculation
+	// Display large (> 40px) gets tightened.
+	if (fontSizePx >= 40) {
+		return '-1.5px';
+	} 
+	// Headline/Title gets mild tightening
+	else if (fontSizePx >= 24) {
+		return '-0.5px';
+	}
+	// Body remains neutral or very slightly wide
+	else if (fontSizePx >= 16) {
+		return '0.15px';
+	}
+	// Labels and captions (< 14px) need wide tracking for legibility
+	else {
+		return '0.5px';
 	}
 };
 
@@ -166,7 +175,7 @@ export const resolveNarrativeTypography = ({
 			maxWordsPerBlock: system.max_words_per_block,
 		}),
 		fontSizePx,
-		letterSpacing: computeTracking(roleScale, system),
+		letterSpacing: computeTracking(roleScale, fontSizePx, system),
 		lineHeight,
 		maxWidth: `${measureChars}ch`,
 		textAlign: resolvedAlign,

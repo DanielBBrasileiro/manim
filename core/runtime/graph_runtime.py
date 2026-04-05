@@ -87,6 +87,7 @@ class GraphRuntime:
             asset_registry=asset_registry,
             task_type=route.task_type,
         )
+        self.state["compilation_result"] = self.compilation_result
         self.state["intent"] = str(self.compilation_result["intent"])
         self._record_step(
             "interpret",

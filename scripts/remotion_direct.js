@@ -455,31 +455,27 @@ const makeBundle = async () => {
   const serveUrl = await bundle({
     askAIEnabled: false,
     entryPoint: ENTRY_POINT,
-    enableCaching: true,
-    experimentalClientSideRenderingEnabled: false,
-    experimentalVisualModeEnabled: false,
-    ignoreRegisterRootWarning: true,
-    keyboardShortcutsEnabled: false,
     publicDir: PUBLIC_DIR,
-    rootDir: REMOTION_ROOT,
-    cache: false,
-    rspack: USE_RSPACK,
-    webpackOverride: (config) => {
-      config.resolve = config.resolve || {};
-      config.resolve.fallback = {
-        ...(config.resolve.fallback || {}),
-        fs: false,
-        path: false,
-      };
+    browserExecutable: resolveBrowserExecutable(),
+    webpackConfig: (config) => {
+      if (USE_RSPACK) {
+        config.resolve = config.resolve || {};
+        config.resolve.alias = {
+          ...config.resolve.alias,
+          ...makeEngineAliases(),
+        };
+      } else {
+        config.resolve.alias = {
+          ...config.resolve.alias,
+          ...makeEngineAliases(),
+        };
+      }
       return config;
     },
-    onProgress: (progress) => {
-      const pct = Math.round(progress * 100);
-      if (pct >= lastLoggedProgress + 10 || pct === 100) {
-        console.log(`Bundle ${pct}%`);
-        lastLoggedProgress = pct;
-      }
-    },
+    // Desativar cache para evitar hangs por corrupção em ambientes travados
+    cache: false,
+    rspack: USE_RSPACK,
+    outDir: BUNDLE_OUT_DIR,
   });
 
   console.log(`Bundle pronto em ${Date.now() - startedAt}ms`);

@@ -76,7 +76,12 @@ def bridge_engines(scene_name: str, script_path: str) -> None:
     if manim_output.exists():
         print(f"🌉 [Bridge Tool] Injetando {scene_name}.mp4 no React...")
         os.makedirs(remotion_public.parent, exist_ok=True)
-        shutil.copy(manim_output, remotion_public)
+        try:
+            if os.path.exists(remotion_public):
+                os.remove(remotion_public)
+            os.link(manim_output, remotion_public)
+        except Exception:
+            shutil.copy2(manim_output, remotion_public)
 
 def bridge_manim_hero_still(scene_name: str = "HeroStillGeometry", script_path: str = "scenes/hero_still.py") -> bool:
     script_name = Path(script_path).stem
@@ -93,7 +98,12 @@ def bridge_manim_hero_still(scene_name: str = "HeroStillGeometry", script_path: 
     if manim_output.exists():
         print(f"🌉 [Bridge Tool] Transportando {scene_name}.png para {remotion_public.name}...")
         os.makedirs(remotion_public.parent, exist_ok=True)
-        shutil.copy(manim_output, remotion_public)
+        try:
+            if os.path.exists(remotion_public):
+                os.remove(remotion_public)
+            os.link(manim_output, remotion_public)
+        except Exception:
+            shutil.copy2(manim_output, remotion_public)
         return True
     return False
 
@@ -111,6 +121,14 @@ def _load_remotion_env(
     env.setdefault("AIOX_REMOTION_REUSE_BUNDLE", "1")
     if remotion_props is not None:
         env["REMOTION_INPUT_PROPS_JSON"] = json.dumps(remotion_props)
+        # Persistence for Motion Audit
+        try:
+            audit_path = ROOT / "output" / "video" / "audit_manifest.json"
+            os.makedirs(audit_path.parent, exist_ok=True)
+            with open(audit_path, "w") as f:
+                json.dump(remotion_props, f, indent=2)
+        except Exception:
+            pass
     if timeout_seconds is not None:
         env["REMOTION_RENDER_TIMEOUT_MS"] = str(max(timeout_seconds, 1) * 1000)
     if concurrency is not None:

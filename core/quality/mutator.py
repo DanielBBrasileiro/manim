@@ -1,114 +1,292 @@
 """
-mutator.py — Parameter mutation logic for self-correcting quality loops.
+mutator.py — Deterministic live-loop parameter mutation.
 
-This module provides deterministic "nudges" to manifest parameters based on
-judge findings (weak dimensions or objective signals).
+This module only mutates fields that are consumed by the rerender path:
+- negative_space_target
+- accent_intensity
+- grain
+
+Discrete structural changes such as typography_system, still_family, and
+motion_grammar remain in fix_plan.py.
 """
 
-from typing import Any, Dict, List, Optional
+from __future__ import annotations
 
-# Bounding constants to preserve "Premium Architecture"
+import copy
+from typing import Any
+
 LIMITS = {
-    "negative_space_target": (0.2, 0.75),
-    "accent_intensity": (0.0, 0.8),
-    "grain": (0.02, 0.2),
-    "max_words_per_screen": (1, 8),
-    "minimum_hold_ms": (150, 1500),
+    "negative_space_target": (0.20, 0.75),
+    "accent_intensity": (0.00, 0.80),
+    "grain": (0.02, 0.20),
 }
 
 
-def mutate_render_manifest(
-    manifest: Dict[str, Any],
-    findings: List[Dict[str, Any]],
-    objective_signals: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
-    """
-    Applies small, bounded mutations to manifest parameters based on judge results.
+def _clamp_numeric(key: str, value: float) -> float:
+    low, high = LIMITS[key]
+    return round(max(low, min(high, value)), 3)
 
-    Args:
-        manifest: The current render manifest (mutated in-place or copied).
-        findings: List of issue dictionaries (from PreviewIssue or DimensionScore).
-        objective_signals: Optional raw objective metrics from the judge.
 
-    Returns:
-        The mutated manifest with recorded changes.
-    """
-    mutated = manifest  # We modify the dict reference directly as per user request scope
-    mutations = []
+def _target_lookup(artifact_plan: dict[str, Any], target_id: str) -> dict[str, Any] | None:
+    for target in artifact_plan.get("targets", []):
+        if isinstance(target, dict) and str(target.get("id", "")).strip() == target_id:
+            return target
+    return None
 
-    # Helper to apply bounded shift
-    def _shift(key: str, delta: float, path: Optional[List[str]] = None):
-        targets_to_patch = [mutated]
-        
-        # If this is an artifact_plan, also patch all individual targets
-        if "targets" in mutated and isinstance(mutated["targets"], list):
-            targets_to_patch.extend([t for t in mutated["targets"] if isinstance(t, dict)])
-            
-        for target in targets_to_patch:
-            curr = target
-            if path:
-                for segment in path:
-                    if segment not in curr:
-                        curr[segment] = {}
-                    curr = curr[segment]
-            
-            old_val = curr.get(key)
-            if old_val is None:
-                # Try to find a sensible starting point if missing
-                old_val = LIMITS.get(key, (0, 1))[0]
 
-            try:
-                new_val = float(old_val) + delta
-                # Apply clamping
-                low, high = LIMITS.get(key, (-1000, 1000))
-                new_val = max(low, min(high, new_val))
-                
-                if abs(new_val - float(old_val)) > 0.001:
-                    curr[key] = int(new_val) if isinstance(old_val, int) else round(new_val, 3)
-                    # Only record main mutation
-                    if target is mutated:
-                        mutations.append({
-                            "parameter": key,
-                            "old": old_val,
-                            "new": curr[key],
-                            "reason": f"Signal-driven nudge ({delta:+.2f})"
-                        })
-            except (ValueError, TypeError):
-                pass
+def _artifact_scalar(artifact_plan: dict[str, Any], target_id: str, key: str, fallback: float) -> float:
+    target = _target_lookup(artifact_plan, target_id)
+    raw = None
+    if isinstance(target, dict) and target.get(key) is not None:
+        raw = target.get(key)
+    elif artifact_plan.get(key) is not None:
+        raw = artifact_plan.get(key)
+    else:
+        raw = fallback
+    return float(raw or fallback)
 
-    # Extract finding codes/names
-    codes = {f.get("code", f.get("name", "")).lower() for f in findings}
-    
-    # 1. Spatial Intelligence / Negative Space
-    if "poor_negative_space" in codes or "spatial_intelligence" in codes:
-        _shift("negative_space_target", 0.1)
 
-    # 2. Overcrowding / Hierarchy
-    if "overcrowding" in codes or "hierarchy_strength" in codes:
-        _shift("max_words_per_screen", -1, ["quality_constraints"])
-        _shift("max_words_per_frame", -1, ["copy_budget"])
+def build_mutation_plan(
+    artifact_plan: dict[str, Any],
+    findings: list[dict[str, Any]],
+    objective_signals: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    objective_signals = objective_signals or {}
+    directives: list[dict[str, Any]] = []
+    skipped: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    primary_target_id = str(artifact_plan.get("primary_target_id", "")).strip()
 
-    # 3. Brand Discipline / Accents
-    if "brand_discipline" in codes or "weak_focal_point" in codes:
-        _shift("accent_intensity", -0.1)
+    for finding in findings:
+        if not isinstance(finding, dict):
+            continue
+        code = str(finding.get("code") or finding.get("name") or "").strip().lower()
+        target_id = str(finding.get("target_id", "")).strip() or primary_target_id
+        if not code or not target_id:
+            continue
 
-    # 4. Material Finish / Grain
-    if "material_finish" in codes:
-        # Check objective signals if grain variance is high
-        if objective_signals and objective_signals.get("grain_variance", 0) > 0.1:
-            _shift("grain", -0.05)
+        if code in {"poor_negative_space", "spatial_intelligence"}:
+            current = _artifact_scalar(artifact_plan, target_id, "negative_space_target", 0.40)
+            value = _clamp_numeric("negative_space_target", current + 0.08)
+            action = "set_negative_space_target"
+        elif code in {"weak_focal_point", "brand_discipline"}:
+            current = _artifact_scalar(artifact_plan, target_id, "accent_intensity", 0.12)
+            value = _clamp_numeric("accent_intensity", current - 0.08)
+            action = "set_accent_intensity"
+        elif code == "material_finish":
+            current = _artifact_scalar(artifact_plan, target_id, "grain", 0.04)
+            grain_variance = float(objective_signals.get("grain_variance", 0.0) or 0.0)
+            delta = -0.03 if grain_variance > 0.10 else 0.02
+            value = _clamp_numeric("grain", current + delta)
+            action = "set_grain"
+        elif code in {
+            "overcrowding",
+            "hierarchy_strength",
+            "layout_overload",
+            "flat_hierarchy",
+            "motion_pacing",
+            "temporal_rhythm",
+            "silence_quality",
+        }:
+            skipped.append(
+                {
+                    "code": code,
+                    "target_id": target_id,
+                    "reason": "delegated_to_fix_plan_or_non_renderer_scalar",
+                }
+            )
+            continue
         else:
-            _shift("grain", 0.02) # Subtly increase if it felt "dirty" (low quality)
+            continue
 
-    # 5. Motion Pacing / Temporal Rhythm
-    if "motion_pacing" in codes or "temporal_rhythm" in codes or "silence_quality" in codes:
-        _shift("minimum_hold_ms", 50, ["quality_constraints"])
-        _shift("target_silence_ratio", 0.05, ["copy_budget"])
+        dedupe_key = (action, target_id)
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+        directives.append(
+            {
+                "action": action,
+                "target_id": target_id,
+                "value": value,
+                "reason": str(finding.get("message") or finding.get("directive") or code).strip(),
+                "source_code": code,
+            }
+        )
 
-    # Log mutations to the manifest for transparency
-    if mutations:
-        if "_mutation_audit" not in mutated:
-            mutated["_mutation_audit"] = []
-        mutated["_mutation_audit"].append(mutations)
+    return {
+        "ok": bool(directives),
+        "directives": directives,
+        "skipped": skipped,
+        "summary": [directive["action"] for directive in directives],
+    }
 
-    return mutated
+
+def _record_mutation_audit(
+    artifact_plan: dict[str, Any],
+    render_manifest: dict[str, Any],
+    plan: dict[str, Any],
+    entries: list[dict[str, Any]],
+) -> None:
+    if not entries:
+        return
+    artifact_plan.setdefault("_mutation_audit", []).append(copy.deepcopy(entries))
+    render_manifest.setdefault("_mutation_audit", []).append(copy.deepcopy(entries))
+    plan.setdefault("_mutation_audit", []).append(copy.deepcopy(entries))
+
+
+def apply_mutation_plan(
+    artifact_plan: dict[str, Any],
+    render_manifest: dict[str, Any],
+    plan: dict[str, Any],
+    mutation_plan: dict[str, Any],
+) -> dict[str, Any]:
+    updated_artifact_plan = copy.deepcopy(artifact_plan)
+    updated_render_manifest = copy.deepcopy(render_manifest)
+    updated_plan = copy.deepcopy(plan)
+    directives = mutation_plan.get("directives", []) if isinstance(mutation_plan.get("directives", []), list) else []
+    audit_entries: list[dict[str, Any]] = []
+
+    for directive in directives:
+        if not isinstance(directive, dict):
+            continue
+        action = str(directive.get("action", "")).strip()
+        target_id = str(directive.get("target_id", "")).strip()
+        value = directive.get("value")
+
+        if action == "set_negative_space_target":
+            audit_entries.extend(
+                _apply_target_numeric(
+                    updated_artifact_plan,
+                    updated_render_manifest,
+                    target_id,
+                    "negative_space_target",
+                    float(value),
+                    reason=str(directive.get("reason", "")).strip(),
+                    source_code=str(directive.get("source_code", "")).strip(),
+                )
+            )
+        elif action == "set_accent_intensity":
+            audit_entries.extend(
+                _apply_target_numeric(
+                    updated_artifact_plan,
+                    updated_render_manifest,
+                    target_id,
+                    "accent_intensity",
+                    float(value),
+                    reason=str(directive.get("reason", "")).strip(),
+                    source_code=str(directive.get("source_code", "")).strip(),
+                )
+            )
+        elif action == "set_grain":
+            audit_entries.extend(
+                _apply_target_numeric(
+                    updated_artifact_plan,
+                    updated_render_manifest,
+                    target_id,
+                    "grain",
+                    float(value),
+                    reason=str(directive.get("reason", "")).strip(),
+                    source_code=str(directive.get("source_code", "")).strip(),
+                )
+            )
+
+    updated_plan["artifact_plan"] = updated_artifact_plan
+    updated_plan["render_manifest"] = updated_render_manifest
+    _record_mutation_audit(updated_artifact_plan, updated_render_manifest, updated_plan, audit_entries)
+    return {
+        "artifact_plan": updated_artifact_plan,
+        "render_manifest": updated_render_manifest,
+        "plan": updated_plan,
+        "audit_entries": audit_entries,
+    }
+
+
+def _apply_target_numeric(
+    artifact_plan: dict[str, Any],
+    render_manifest: dict[str, Any],
+    target_id: str,
+    key: str,
+    value: float,
+    *,
+    reason: str,
+    source_code: str,
+) -> list[dict[str, Any]]:
+    audit_entries: list[dict[str, Any]] = []
+    current_global = artifact_plan.get(key)
+    if current_global is None or str(artifact_plan.get("primary_target_id", "")).strip() == target_id:
+        if current_global is None or float(current_global) != value:
+            audit_entries.append(
+                {
+                    "scope": "artifact_plan",
+                    "target_id": target_id,
+                    "parameter": key,
+                    "old": current_global,
+                    "new": value,
+                    "reason": reason,
+                    "source_code": source_code,
+                }
+            )
+        artifact_plan[key] = value
+        render_manifest[key] = value
+
+    quality_constraints = artifact_plan.setdefault("quality_constraints", {})
+    if key == "negative_space_target":
+        quality_constraints[key] = value
+
+    for target in artifact_plan.get("targets", []):
+        if not isinstance(target, dict):
+            continue
+        if target_id and str(target.get("id", "")).strip() != target_id:
+            continue
+        old_value = target.get(key)
+        if old_value is None or float(old_value) != value:
+            audit_entries.append(
+                {
+                    "scope": "target",
+                    "target_id": target_id,
+                    "parameter": key,
+                    "old": old_value,
+                    "new": value,
+                    "reason": reason,
+                    "source_code": source_code,
+                }
+            )
+        target[key] = value
+
+    render_inputs = render_manifest.setdefault("render_inputs", {})
+    target_inputs = render_inputs.get(target_id)
+    if isinstance(target_inputs, dict):
+        old_value = target_inputs.get(key)
+        if old_value is None or float(old_value) != value:
+            audit_entries.append(
+                {
+                    "scope": "render_input",
+                    "target_id": target_id,
+                    "parameter": key,
+                    "old": old_value,
+                    "new": value,
+                    "reason": reason,
+                    "source_code": source_code,
+                }
+            )
+        target_inputs[key] = value
+
+    return audit_entries
+
+
+def mutate_render_manifest(
+    manifest: dict[str, Any],
+    findings: list[dict[str, Any]],
+    objective_signals: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """
+    Backwards-compatible in-place mutation entrypoint.
+
+    This is kept for side paths. The live preview loop now uses
+    build_mutation_plan() + apply_mutation_plan().
+    """
+    mutation_plan = build_mutation_plan(manifest, findings, objective_signals)
+    applied = apply_mutation_plan(manifest, manifest, {"artifact_plan": manifest, "render_manifest": manifest}, mutation_plan)
+    manifest.clear()
+    manifest.update(applied["artifact_plan"])
+    return manifest
