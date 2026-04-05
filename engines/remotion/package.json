@@ -9,15 +9,23 @@
     "@remotion/noise": "^4.0.441",
     "@remotion/shapes": "^4.0.441",
     "@remotion/transitions": "^4.0.441",
+    "body-parser": "^2.2.2",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "motion": "^12.38.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
-    "remotion": "^4.0.0"
+    "remotion": "^4.0.0",
+    "tapable": "2.3.0"
   },
   "scripts": {
+    "start": "remotion studio",
+    "postinstall": "python3 ../../scripts/patch_remotion_runtime.py",
     "render": "remotion render"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3"
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5.4.0"
   }
 }

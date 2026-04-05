@@ -1,0 +1,129 @@
+# contracts/design_canon.yaml
+# AIOX Design Canon — Compiled principles from all references.
+# This is the single source of truth for design decisions across all agents.
+
+version: "1.0"
+philosophy: "The Invisible Architecture — elegance through restraint"
+
+# ── Mathematical Foundations ───────────────────────────────────────────────
+mathematical_precision:
+  golden_ratio: 1.618
+  fibonacci_spacing: [8, 13, 21, 34, 55, 89]  # px grid units
+  rule_of_thirds: true
+  safe_zone_margin_px: 64
+  min_negative_space: 0.40
+
+# ── Typography Hierarchy ───────────────────────────────────────────────────
+typography:
+  families:
+    primary: "PP Neue Montreal"
+    fallbacks: ["Inter", "Helvetica Neue", "system-ui"]
+    forbidden: ["serif", "monospace for prose", "decorative"]
+  weights:
+    whisper: 300    # Subtle presence, secondary emphasis
+    statement: 500  # Primary message carrier
+    forbidden: [100, 200, 400, 600, 700, 800, 900]
+  sizing:
+    max_words_per_screen: 5
+    min_line_height: 1.2
+    min_size_px: 32
+  rules:
+    - "Never uppercase prose — only brand name AIOX"
+    - "One typographic voice per act"
+    - "Text enters staggered — never simultaneous"
+    - "Minimum 1.5s between text element entries"
+
+# ── Color Doctrine ─────────────────────────────────────────────────────────
+color:
+  primary_palette:
+    background: "#000000"
+    foreground: "#FFFFFF"
+    stroke: "rgba(255, 255, 255, 0.85)"
+    secondary_text: "rgba(255, 255, 255, 0.55)"
+  accent:
+    value: "#FF3366"
+    max_coverage_pct: 2
+    use: "pulsing dot, momentary highlight, data point peak"
+  dark_mode_ratio: 0.90  # 90% dark frames, 10% inverted for climax
+  forbidden:
+    - "gradients of any kind"
+    - "semi-transparent overlays (glassmorphism)"
+    - "warm off-whites or warm blacks"
+    - "more than 2 colors simultaneously (excluding grain)"
+
+# ── Motion & Physics ───────────────────────────────────────────────────────
+motion:
+  default_engine: "spring"
+  spring_presets:
+    gentle_birth:
+      stiffness: 40
+      damping: 26
+      mass: 1.2
+      use: "genesis act, element entry"
+    tension_build:
+      stiffness: 160
+      damping: 14
+      mass: 0.8
+      use: "turbulence act, emphasis"
+    elegant_settle:
+      stiffness: 80
+      damping: 40
+      mass: 1.0
+      use: "resolution act, final state"
+  easing_canon:
+    spring:    "cubic-bezier(0.16, 1, 0.3, 1)"
+    smooth:    "cubic-bezier(0.4, 0, 0.2, 1)"
+    snap:      "cubic-bezier(0.87, 0, 0.13, 1)"
+    breathe:   "cubic-bezier(0.45, 0.05, 0.55, 0.95)"
+  rules:
+    - "stagger_rule: no two elements enter simultaneously"
+    - "breath_points: 0.3-0.8s pause before act climax"
+    - "silence_ratio >= 0.30 globally across full duration"
+    - "cinematic_breathe: ±2% scale over 4s for living feel"
+
+# ── Composition Laws ───────────────────────────────────────────────────────
+composition:
+  hierarchy_levels: 1  # Single focal point per frame
+  layout_anchors:
+    - "hero_central: single node, 60% negative space"
+    - "swiss_grid: mathematical division, invisible grid"
+    - "split_screen: binary contrast, equal halves"
+  poster_test: "Every act must read as a standalone still frame"
+  edge_breathing: "64px minimum margin from all edges"
+  grain_texture:
+    intensity: 0.06
+    purpose: "humanizes digital geometry, adds tactile depth"
+    range: [0.03, 0.10]
+
+# ── Dieter Rams Principles Applied ─────────────────────────────────────────
+rams_principles:
+  - "Good design is as little design as possible"
+  - "Good design is honest — no decorative elements"
+  - "Good design is unobtrusive — serves, never dominates"
+  - "Good design makes a product understandable instantly"
+
+# ── Tufte Data-Ink Ratio ───────────────────────────────────────────────────
+tufte:
+  data_ink_ratio: "maximize — every pixel must earn its place"
+  chartjunk_forbidden: true
+  small_multiples_preferred: true
+
+# ── Gestalt Principles (from perception-engineer) ─────────────────────────
+gestalt:
+  proximity: "group related elements with consistent spacing"
+  similarity: "elements with same weight/color imply same meaning"
+  continuity: "eye should flow naturally through the composition"
+  figure_ground: "clear subject vs background separation always"
+  closure: "incomplete shapes are more compelling than complete ones"
+
+# ── Reference Benchmarks ──────────────────────────────────────────────────
+references:
+  - id: "linear_app"
+    file: "contracts/references/linear_app.yaml"
+    strength: "spring animations, mathematical spacing, dark premium"
+  - id: "apple_keynote"
+    file: "contracts/references/apple_keynote.yaml"
+    strength: "negative space, typographic reveal, dramatic timing"
+  - id: "stripe_sessions"
+    file: "contracts/references/stripe_sessions.yaml"
+    strength: "3D transitions, typographic choreography, data visualization"

@@ -1,2 +1,32 @@
-pattern: multi_to_center
-rhythm: accelerating
+# contracts/motion/signatures/convergence_field.yaml
+pattern: attractor_pull
+rhythm: medium
+stability: high
+
+spring:
+  stiffness: 100
+  damping: 32
+  mass: 1.3
+
+easing:
+  name: "smooth"
+  curve: "cubic-bezier(0.4, 0, 0.2, 1)"
+  description: "Purposeful approach — inevitable, not rushed"
+
+temporal_signature:
+  acceleration_profile: "exponential_approach"
+  attractor_position: "center_cardinal"
+  field_radius_pct: 0.8   # field affects elements within 80% of frame
+  convergence_duration_sec: 2.5
+
+narrative_acts:
+  primary: "resolution"
+  secondary: "turbulence"
+  avoid: "genesis"
+  reason: "Convergence implies conclusion — wrong energy for openings"
+
+use_cases:
+  - "chaos_to_order archetype final section"
+  - "resolution archetype mastery phase"
+  - "synchronization archetype"
+  - "Data clustering visualization"

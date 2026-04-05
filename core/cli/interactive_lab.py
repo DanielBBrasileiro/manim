@@ -1,31 +1,48 @@
 import os
 import json
-import time
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt, Confirm
 from core.compiler.creative_compiler import compile_seed
+from core.intelligence.model_router import TASK_FAST_PLAN, confidence_threshold
 from core.runtime.graph_runtime import GraphRuntime
+from core.tools.preview_tool import generate_ascii_preview
+from core.memory.session_store import load_session as load_saved_session
+from core.memory.session_store import save_session as persist_session
+from core.runtime.execution_graph import build_execution_graph
 
 console = Console()
 SESSIONS_DIR = ".sessions"
+ASSET_REGISTRY_PATH = "assets/registry.json"
 
 def setup_sessions_dir():
     if not os.path.exists(SESSIONS_DIR):
         os.makedirs(SESSIONS_DIR)
 
+
+def load_asset_registry():
+    try:
+        with open(ASSET_REGISTRY_PATH, "r") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
 def save_session(intent_text, plan):
     setup_sessions_dir()
-    session_id = f"sess_{int(time.time())}"
-    filepath = os.path.join(SESSIONS_DIR, f"{session_id}.json")
-    
-    with open(filepath, 'w') as f:
-        json.dump({
-            "input": intent_text,
-            "creative_plan": plan
-        }, f, indent=2)
-        
-    return session_id
+    graph = build_execution_graph(plan, artifact_plan=plan.get("artifact_plan") if isinstance(plan, dict) else None)
+    record = persist_session(
+        intent_text,
+        plan,
+        execution_graph=graph,
+        metadata={
+            "source": "interactive_lab",
+            "archetype": plan.get("archetype") if isinstance(plan, dict) else None,
+        },
+        status="saved",
+        source="interactive_lab",
+    )
+    return record["session_id"]
 
 def render_human_logs(intent_text, result):
     """Fase 1: Feedback Humano das decisões de Inteligência."""
@@ -81,25 +98,34 @@ def render_ascii_timeline(plan):
         console.print(f"         [dim]↳ Tensão {tension.upper()} (Fase {idx+1})[/dim]")
     print() # linha vazia para separar
 
-def render_video(plan):
+def render_video(plan, prompt_text=""):
     """Inicia a engrenagem de render final empacotando o GraphRuntime"""
     console.print("\n[bold green]⚙️ Iniciando Renderização de Alta Fidelidade...[/bold green]")
     # Simulando o brief original com o plan fechado
     fake_brief = {
-        "creative_seed": "AIOX_LAB_BYPASS",
+        "creative_seed": prompt_text or "AIOX_LAB_BYPASS",
         "director_mode": "auto"
     }
     
-    runtime = GraphRuntime(mode="auto")
+    threshold = confidence_threshold()
+    confidence = float(plan.get("llm_confidence", 1.0 if plan.get("llm_scene_plan") else 0.0))
+    runtime = GraphRuntime(mode="auto" if confidence >= threshold else "assisted")
     runtime.load_seed(fake_brief)
     runtime.state["plan"] = plan
     runtime.state["status"] = "compiling"
     runtime.compilation_result = {
         "creative_plan": plan,
-        "output_signature": plan.get("interpretation", {}).get("motion_signature", "unknown")
+        "output_signature": {
+            "structure": plan.get("archetype"),
+            "motion": plan.get("interpretation", {}).get("motion_signature", "unknown"),
+            "density": "high" if plan.get("entropy", {}).get("physical", 0) > 0.6 else "low",
+            "rhythm": plan.get("interpretation", {}).get("rhythm", "regular"),
+        }
     }
-    runtime.step_simulate()
-    runtime.step_pause_or_render()
+    if confidence >= threshold:
+        runtime.continue_execution()
+    else:
+        runtime.pause_for_approval()
 
 def lab_mode():
     """Fase 1: CLI Interativa Instantânea"""
@@ -112,12 +138,14 @@ def lab_mode():
             break
             
         with console.status("[bold green]Pensando no Latent Space...[/bold green]"):
-            result = compile_seed(idea)
+            result = compile_seed(idea, asset_registry=load_asset_registry(), task_type=TASK_FAST_PLAN)
             
         plan = result["creative_plan"]
         
         render_human_logs(idea, result)
         render_ascii_timeline(plan)
+        if plan.get("llm_scene_plan"):
+            console.print("[dim]" + generate_ascii_preview(plan) + "[/dim]")
         
         action = Prompt.ask(
             "[bold white]O que deseja fazer?[/bold white]\n"
@@ -130,7 +158,7 @@ def lab_mode():
         )
         
         if action == "A":
-            render_video(plan)
+            render_video(plan, prompt_text=idea)
             # Salva pra caso queira repetir depois
             sid = save_session(idea, plan)
             console.print(f"[dim]Sessão gravada em {sid}[/dim]")
@@ -146,9 +174,10 @@ def explore_mode(idea_seed):
     
     options = []
     with console.status("[bold magenta]Mapeando quadrantes do espaço latente...[/bold magenta]"):
+        asset_registry = load_asset_registry()
         for i in range(4):
             # No explore forçamos a mutação desobedecer um pouco
-            res = compile_seed(idea_seed + f" VARIATION_{i}")
+            res = compile_seed(idea_seed + f" VARIATION_{i}", asset_registry=asset_registry, task_type=TASK_FAST_PLAN)
             options.append(res["creative_plan"])
             
     for idx, plan in enumerate(options):
@@ -165,20 +194,17 @@ def explore_mode(idea_seed):
     if escolha != "0":
         plan_escolhido = options[int(escolha) - 1]
         save_session(idea_seed, plan_escolhido)
-        render_video(plan_escolhido)
+        render_video(plan_escolhido, prompt_text=idea_seed)
 
 def run_session(session_id):
     """Fase 4: Reprodução instantânea de DNA passado"""
-    filepath = os.path.join(SESSIONS_DIR, session_id if session_id.endswith('.json') else f"{session_id}.json")
-    if not os.path.exists(filepath):
+    session = load_saved_session(session_id)
+    if not session:
         console.print(f"[bold red]❌ Sessão {session_id} não encontrada em {SESSIONS_DIR}.[/bold red]")
         return
-        
-    with open(filepath, 'r') as f:
-        data = json.load(f)
-        
-    plan = data.get("creative_plan")
+
+    plan = session.get("creative_plan")
     if plan:
-        console.print(f"[bold green]✔ Sessão recuperada: {data.get('input')}[/bold green]")
+        console.print(f"[bold green]✔ Sessão recuperada: {session.get('input')}[/bold green]")
         render_ascii_timeline(plan)
-        render_video(plan)
+        render_video(plan, prompt_text=session.get("input", ""))
