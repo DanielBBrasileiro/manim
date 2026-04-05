@@ -1,0 +1,75 @@
+# Codex project configuration for AIOX Studio / branding
+# Repo-local, conservative defaults. Keep personal credentials and global
+# preferences outside this repository.
+
+[core]
+# Intentionally unset: inherit the user's global/default model selection.
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+network_access = "restricted"
+
+[project]
+root = "."
+primary_languages = ["python", "typescript"]
+package_managers = ["pip", "npm"]
+read_before_edit = [
+  "README.md",
+  "docs/system_handoff_v4.5.md",
+  "docs/v4_industrialization_plan.md",
+  "docs/superpowers/specs/2026-03-30-creative-ai-upgrade-design.md",
+  "AGENTS.md",
+]
+
+[behavior]
+prefer_small_changes = true
+prefer_existing_scripts = true
+update_docs_when_workflow_changes = true
+validate_targeted_paths_only = true
+avoid_generated_paths_by_default = [
+  "assets/brand/dynamic_data.json",
+  "core/memory/creative_memory.json",
+  "engines/remotion/public/manim_base.mp4",
+  "output/",
+]
+
+[validation]
+python_smoke = "python3 -m py_compile aiox.py"
+remotion_smoke = "cd engines/remotion && npm run render -- --help"
+
+[mcp]
+# This repository ships `.mcp.json` with repo-level MCP presets.
+# The blocks below mirror the MCPs that make sense for this stack.
+
+[mcp.openai_docs]
+enabled = true
+transport = "http"
+url = "https://developers.openai.com/mcp"
+use_when = "Touching OpenAI SDK, API, model selection, or migration work."
+reason = "Public, read-only docs MCP hosted by OpenAI."
+
+[mcp.context7]
+enabled = true
+transport = "http"
+url = "https://mcp.context7.com/mcp"
+use_when = "Looking up current docs for React, Remotion, Playwright, or other fast-moving libraries."
+note = "Works best with a Context7 API key for higher limits; repo config does not store credentials."
+
+[mcp.github]
+enabled = true
+transport = "http"
+url = "https://api.githubcopilot.com/mcp/"
+use_when = "Reviewing PRs/issues or syncing implementation work with GitHub."
+note = "Requires GitHub authentication/OAuth in a compatible MCP client."
+
+[mcp.playwright]
+enabled = true
+command = "npx"
+args = ["-y", "@playwright/mcp@latest"]
+use_when = "Browser-based validation for Remotion, screenshot tooling, or future UI/E2E checks."
+note = "Local stdio server; requires Node.js and Playwright MCP package availability via npx."
+
+[notes]
+repo_has_agents_md = true
+repo_has_codex_setup_doc = "docs/codex-setup.md"
+repo_has_existing_mcp_file = ".mcp.json"
+manual_setup_script = "scripts/setup-codex.sh"

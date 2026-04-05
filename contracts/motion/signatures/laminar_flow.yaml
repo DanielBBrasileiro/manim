@@ -1,3 +1,32 @@
-pattern: linear_flow
-rhythm: constant
+# contracts/motion/signatures/laminar_flow.yaml
+pattern: directional_stream
+rhythm: slow
 stability: high
+
+spring:
+  stiffness: 60
+  damping: 35
+  mass: 1.2
+
+easing:
+  name: "smooth"
+  curve: "cubic-bezier(0.4, 0, 0.2, 1)"
+  description: "Continuous acceleration, deceleration into position"
+
+temporal_signature:
+  acceleration_profile: "sigmoid_growth"
+  flow_direction: "left_to_right"  # default, overridable
+  particle_count_range: [20, 80]
+  coherence: 0.95  # how aligned particles are to main direction
+
+narrative_acts:
+  primary: "genesis"
+  secondary: "resolution"
+  avoid: "none"
+  reason: "Calm orderly flow works across acts"
+
+use_cases:
+  - "Background particle field"
+  - "Data stream visualization"
+  - "Transition between stable states"
+  - "synchronization archetype"

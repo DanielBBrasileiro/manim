@@ -6,8 +6,9 @@ from .physics_field import (
     GravityField, SpringForce, VortexField,
     DampingForce, NoiseForce, PhysicsBody, narrative_body,
 )
-from .particle_system import ParticlePool, TrailPool
+from .particle_system import ParticlePool
 from .shader_layer import ShaderLayer
+from .trail_pool import TrailPool
 
 __all__ = [
     "LivingCurve",

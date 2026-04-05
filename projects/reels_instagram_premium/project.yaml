@@ -1,0 +1,12 @@
+id: reels_instagram_premium
+description: "Produção vertical de alto impacto e luxo estético para Instagram Reels."
+default_targets:
+  - short_cinematic_vertical
+default_style_pack: silent_luxury
+default_typography_system: editorial_minimal
+default_still_family: poster_minimal
+default_motion_grammar: cinematic_restrained
+default_negative_space_target: 0.65
+default_accent_intensity: 0.15
+default_grain: 0.04
+default_reference_ids: []

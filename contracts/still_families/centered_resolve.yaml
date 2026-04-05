@@ -1,0 +1,12 @@
+id: centered_resolve
+description: "Symmetrical monument. Absolute focus."
+base: null
+background: solid_dark
+typography_system: editorial_minimal
+composition_grid: center_axis
+grammar: centered
+accent: dot_anchor
+negative_space_min: 0.5
+max_text_elements: 2
+max_visual_elements: 1
+grain: 0.05

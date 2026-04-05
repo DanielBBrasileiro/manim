@@ -2,25 +2,27 @@
 # Install: pip install -r requirements.txt
 
 # ── Core ──────────────────────────────────────
-manim>=0.18.0
-pyyaml>=6.0
+manim==0.18.1
+pyyaml==6.0.2
+numpy>=1.24.0,<2.0             # Array math (Manim, physics, particles)
 
 # ── Phase 1: Static Generator ─────────────────
-playwright>=1.44.0             # Screenshot pipeline (após instalar: playwright install chromium)
+playwright==1.49.1             # Screenshot pipeline (após instalar: playwright install chromium)
 
 # ── Phase 2: Multi-Format Output ──────────────
-Pillow>=10.3.0                 # Carousel, image composition
-imageio>=2.34.0                # Multi-format animation support
-opencv-python>=4.9.0           # Video frame processing
-ffmpeg-python>=0.2.0           # FFmpeg Python wrapper
-drawsvg>=2.3.0                 # SVG vector export
+Pillow>=10.3.0,<11.0           # Carousel, image composition
+imageio>=2.34.0,<3.0           # Multi-format animation support
+opencv-python>=4.9.0,<5.0      # Video frame processing
+ffmpeg-python>=0.2.0,<1.0      # FFmpeg Python wrapper
+drawsvg>=2.3.0,<3.0            # SVG vector export
 
 # ── Phase 3: Physics & Math ───────────────────
-opensimplex>=0.4.5             # FBM noise — substitui harmônico em fields.py
-numba>=0.59.0                  # JIT acceleration para ParticlePool (10k+ partículas)
+opensimplex>=0.4.5,<1.0        # FBM noise — substitui harmônico em fields.py
+numba>=0.59.0,<1.0             # JIT acceleration para ParticlePool (10k+ partículas)
 
 # ── Phase 4: Shaders/GPU ──────────────────────
-moderngl>=5.10.0               # GLSL shaders headless (ShaderLayer — fallback numpy se ausente)
+moderngl>=5.10.0,<6.0          # GLSL shaders headless (ShaderLayer — fallback numpy se ausente)
 
 # ── Phase 5: Skills & Extended Output ─────────
-reportlab>=4.1.0               # PDF multi-página (pdf_generator.py)
+reportlab>=4.1.0,<5.0          # PDF multi-página (pdf_generator.py)
+matplotlib>=3.8.0,<4.0         # Preview wireframe generator (preview_tool.py)

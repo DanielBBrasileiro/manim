@@ -1,0 +1,18 @@
+id: editorial_dense
+description: "Stripe Sessions inspired. Information-rich but ordered."
+scale:
+  base_px: 16
+  ratio: 1.25
+  display_step: 4
+  title_step: 3
+  body_step: 1
+  caption_step: 0
+density: medium
+max_words_per_block: 8
+measure_chars: 45
+tracking_at_display: -0.04em
+tracking_at_body: -0.01em
+leading_display: 1.05
+leading_body: 1.5
+break_strategy: balanced
+alignment_default: mathematical_center

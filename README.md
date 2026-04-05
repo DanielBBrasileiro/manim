@@ -90,16 +90,74 @@ Para gerar um vídeo completo a partir de um briefing:
 ```bash
 python3 aiox.py create briefings/seu_projeto.yaml
 ```
-Este comando executa: **Sync** de tokens → **Render** Manim → **Sync** para Remotion → **Render** Remotion → **FFmpeg** Transcode.
+Este comando executa um fluxo unificado: **creative_plan** → **artifact_plan** → **previs/quality gate** → **render por target**.
+Um briefing forte agora pode gerar, no mesmo pacote, short vertical, still para LinkedIn, carousel quadrado, essay 16:9 e thumbnail.
+
+Se o Remotion local estiver indisponivel ou lento demais para responder dentro do timeout configurado, o pipeline abre um fallback automatico por target sem abortar o run inteiro. Os outputs canônicos ficam em:
+- `output/renders/short_cinematic_vertical.mp4`
+- `output/stills/linkedin_feed_4_5.png`
+- `output/carousel/linkedin_carousel_square/`
+- `output/renders/youtube_essay_16_9.mp4`
+- `output/stills/youtube_thumbnail_16_9.png`
+Para priorizar o still hero em Remotion nativo, voce pode ajustar timeouts separados:
+- `AIOX_REMOTION_STILL_TIMEOUT_SECONDS`
+- `AIOX_REMOTION_VIDEO_TIMEOUT_SECONDS`
+- `AIOX_REMOTION_BUNDLE_TIMEOUT_SECONDS`
+
+O renderer direto agora tenta reaproveitar bundles por padrao (`AIOX_REMOTION_REUSE_BUNDLE=1`) e faz um prewarm antes do primeiro target nativo. Isso evita que cada artefato pague novamente o cold start pesado do Remotion local.
+
+No ambiente local deste repo, o caminho estavel do Remotion usa webpack classico por padrao. O modo `rspack` fica desativado, e os patches de runtime sao reaplicados automaticamente no `npm install` de `engines/remotion` via `scripts/patch_remotion_runtime.py`. Para experimentar `rspack` manualmente, use `AIOX_REMOTION_USE_RSPACK=1`.
+
+### Runtime Node do Remotion
+O runtime suportado para o Remotion neste repo e `Node 20.19.5`.
+
+Esse requisito agora aparece tanto no root do repo quanto em `engines/remotion/`:
+- `.node-version`
+- `.nvmrc`
+
+Para execucao manual, prefira:
+```bash
+bash scripts/run_remotion_node.sh scripts/remotion_direct.js [args...]
+```
+
+O wrapper tenta, nesta ordem:
+- `REMOTION_NODE_BIN`, se voce quiser apontar um binario explicitamente
+- o `node` atual no `PATH`, se ele ja for o runtime esperado
+- a instalacao local correspondente ao version marker
+- `nvm use`, se `nvm` estiver disponivel
+
+Se `scripts/remotion_direct.js` for chamado diretamente sob um Node incompativel, ele delega para `scripts/run_remotion_node.sh` em vez de depender de um caminho fixo de `nvm`.
 
 ### 6.2 Extrair DNA de Design
 Para capturar as cores, fontes e espaçamento de qualquer site:
 ```bash
 python3 aiox.py reference https://stripe.com
 ```
-Isso gera um arquivo em `contracts/references/stripe_com.yaml` que pode ser usado em qualquer briefing futuro.
+Isso gera um style pack reutilizavel em `contracts/references/stripe_com.yaml` e `contracts/references/stripe_com.json`, que pode ser usado em qualquer briefing futuro.
 
-### 6.3 Sincronizar Marca
+Para a trilha lab de referencias e busca de linguagem visual:
+```bash
+python3 aiox.py references ingest https://stripe.com
+python3 aiox.py style search "poster curve minimal"
+```
+
+### 6.3 Julgar qualidade e ranquear variantes
+Para rodar o juiz visual/brand sobre um artefato especifico:
+```bash
+python3 aiox.py judge output/stills/linkedin_feed_4_5.png --target linkedin_feed_4_5 --json
+```
+
+Para ranquear variantes do artifact plan:
+```bash
+python3 aiox.py variants rank briefings/seu_projeto.yaml --json
+```
+
+Se quiser uma execucao local mais previsivel, sem esperar pelo rankeamento via LLM:
+```bash
+python3 aiox.py variants rank briefings/seu_projeto.yaml --heuristic --json
+```
+
+### 6.4 Sincronizar Marca
 Para atualizar os tokens de design sem renderizar:
 ```bash
 python3 aiox.py sync briefings/projeto.yaml
