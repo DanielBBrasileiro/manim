@@ -139,6 +139,7 @@ class ParticlePool(VGroup):
         bounds=(-7, 7, -4, 4),
         gravity=None,
         damping: float = 0.15,
+        seed: Optional[int] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -293,28 +294,26 @@ class ParticlePool(VGroup):
 
     def _emit_particle(self, index: int):
         spread = self.emitter_spread
-        rng = np.random
-        self._positions[index] = self.emitter_pos + rng.uniform(-spread, spread, 3) * [1, 1, 0]
-        
+        self._positions[index] = self.emitter_pos + self._rng.uniform(-spread, spread, 3) * [1, 1, 0]
+
         # Velocidade atrelada à entropia física bruta (a intensidade verdadeira)
         phys = self._intelligence.get("entropy", {}).get("physical", 0.5)
         speed = np.interp(phys, [0, 1], [0.3, 2.5])
-        
+
         # O Regime Comportamental e flow direcionam a dispersão
         flow = self._intelligence.get("interpretation", {}).get("flow", "nonlinear")
         if flow == "linear":
-            # Emissão direcional
-            angle = rng.uniform(-np.pi/16, np.pi/16)
+            angle = self._rng.uniform(-np.pi / 16, np.pi / 16)
         else:
-            angle = rng.uniform(0, 2 * np.pi)
-            
+            angle = self._rng.uniform(0, 2 * np.pi)
+
         self._velocities[index] = np.array([
-            np.cos(angle) * speed * rng.uniform(0.5, 1.5),
-            np.sin(angle) * speed * rng.uniform(0.5, 1.5),
-            0
+            np.cos(angle) * speed * self._rng.uniform(0.5, 1.5),
+            np.sin(angle) * speed * self._rng.uniform(0.5, 1.5),
+            0,
         ])
         lmin, lmax = self.lifetime_range
-        self._lifetimes[index] = rng.uniform(lmin, lmax)
+        self._lifetimes[index] = self._rng.uniform(lmin, lmax)
         self._alive[index] = True
 
     def _find_dead(self) -> Optional[int]:

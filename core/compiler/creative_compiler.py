@@ -1,3 +1,10 @@
+from __future__ import annotations
+
+import copy
+import hashlib
+import json
+import random as _random_module
+
 from .intent_parser import parse_intent
 from .reference_direction import apply_reference_direction_to_plan, resolve_reference_native_direction
 from .project_profile import apply_project_profile_to_plan
@@ -10,7 +17,16 @@ from .archetype_loader import get_archetype_timeline
 from core.agents import aria, kael, zara
 from core.intelligence.model_router import TASK_PLAN
 
-import copy
+
+def _rng_from_seed(seed: dict) -> _random_module.Random:
+    """Derive a deterministic :class:`random.Random` instance from *seed*.
+
+    Serialises the seed dict to canonical JSON (sorted keys) and hashes it
+    with SHA-256 so the same briefing always produces the same RNG state.
+    """
+    key = json.dumps(seed, sort_keys=True, default=str)
+    seed_int = int(hashlib.sha256(key.encode()).hexdigest()[:16], 16) & 0x7FFFFFFFFFFFFFFF
+    return _random_module.Random(seed_int)
 
 BEHAVIOR_BY_PRIMITIVE = {
     "living_curve": "coherent_flow",
@@ -137,37 +153,32 @@ def negotiate(plan: dict) -> dict:
 
     best_plan = copy.deepcopy(plan)
     max_score = 0.0
-    
+
     for _ in range(5):
         # 1. Uma: A fiscal do Histórico Repetitivo
         uma_score = novelty_score(best_plan)
-        
+
         # 2. Aria: A diretora de coerência semântica e estética
         aria_score = coherence_score(best_plan)
-        
+
         # 3. Zara: A diretora de comportamento e caos
-        # Zara recompensa planos que ousam na escala física (Entropia alta e Rhythm alto)
         fiz = best_plan.get("entropy", {}).get("physical", 0.0)
         stru = best_plan.get("entropy", {}).get("structural", 0.0)
         zara_score = (fiz + (1.0 - stru)) / 2.0
-        
-        # Somatório ponderado do conflito
-        # A coerência (Aria) é o peso principal, mas a Novidade (Uma) é o veto final.
+
         total = (uma_score * 0.4) + (aria_score * 0.4) + (zara_score * 0.2)
-        
-        # Consenso Absoluto Encontrado
+
         if uma_score > 0.6 and aria_score > 0.8:
             return best_plan
-            
+
         if total > max_score:
             max_score = total
-            
-        # Negação/Conflito: Votação para Mutação via Espaço Latente (Vetores)
-        best_plan = mutate_entropy(best_plan)
+
+        # Negação/Conflito: Mutação via Espaço Latente com RNG determinístico
+        best_plan = mutate_entropy(best_plan, rng)
         if uma_score < 0.4:
-            # Uma exige mudança drástica no DNA vetorial
-            best_plan = mutate_motion(best_plan)
-            
+            best_plan = mutate_motion(best_plan, rng)
+
     return best_plan
 
 def compile_seed(
@@ -205,7 +216,7 @@ def compile_seed(
     
     # 5. Simulador Final
     signature = simulate_signature(plan)
-    
+
     return {
         "intent": str(intent),
         "creative_plan": plan,
